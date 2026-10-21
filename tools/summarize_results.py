@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-"""Print every number quoted in docs/论文主要思路.md from matlab/results/*.csv."""
+"""Print every number quoted in docs/论文主要思路.md from matlab/results/*.csv (revised version).
+
+Usage: python3 tools/summarize_results.py [results_dir]
+Monte-Carlo statistics: mean with 95 % t-confidence interval; paired comparisons use the
+per-realisation differences (mean, 95 % CI) and the Wilcoxon signed-rank test.
+"""
 import os, sys
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RES = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "matlab", "results")
-pd.set_option("display.width", 200)
+pd.set_option("display.width", 220); pd.set_option("display.max_columns", 40)
+
+KEY = ["fulfil_rate_pct", "n_valid", "max_rebound_MW", "max_rebound6_MW", "payback_gap_MWh", "preload_vs_nodr_MW",
+       "true_red_mean", "term_backlog_GPUh", "dr_pay", "pen_dev", "pen_rb", "net_cost_adj", "net_cost_excl_rb", "co2_t", "gas_MWh"]
 
 
 def rd(n):
@@ -14,73 +23,175 @@ def rd(n):
     return pd.read_csv(p) if os.path.exists(p) else None
 
 
-def improve(a, b, name):
-    """a = proposed row, b = benchmark row (pandas Series)."""
-    return {"vs": name,
-            "fulfil_pp": a.fulfil_rate_pct - b.fulfil_rate_pct,
-            "rebound_pct": 100 * (a.max_rebound_MW - b.max_rebound_MW) / b.max_rebound_MW,
-            "net_cost_pct": 100 * (a.net_cost - b.net_cost) / b.net_cost,
-            "op_cost_pct": 100 * (a.cost_op - b.cost_op) / b.cost_op}
+def ci(x):
+    x = np.asarray(x, float); x = x[~np.isnan(x)]
+    if len(x) < 2: return (np.nan, np.nan)
+    h = stats.t.ppf(0.975, len(x) - 1) * x.std(ddof=1) / np.sqrt(len(x))
+    return (x.mean() - h, x.mean() + h)
 
 
-print("=== Exp2 main comparison ===")
-for case in ["DAcommit", "uniform6"]:
-    d = rd(f"exp2_{case}.csv")
+def pct(a, b):
+    return 100.0 * (a - b) / abs(b) if b not in (0, np.nan) else np.nan
+
+
+def header(t):
+    print("\n" + "=" * 100 + f"\n{t}\n" + "=" * 100)
+
+
+# ------------------------------------------------------------------ Exp2
+header("Exp2  main comparison on the case day")
+for tag, lab in [("", "c_rb = 3 CNY/kW"), ("_crb0", "c_rb = 0 (Jiangsu rules only)")]:
+    for case in ["DAcommit", "uniform6"]:
+        d = rd(f"exp2_{case}{tag}.csv")
+        if d is None: continue
+        d = d.set_index("label")
+        print(f"\n--- {case}, {lab}")
+        print(d[[k for k in KEY if k in d.columns]].round(2).to_string())
+        for p in ["JR-D", "JR-S"]:
+            for b in ["IR-O*", "IR-P", "JR-M", "IR-O", "IR-R"]:
+                if p in d.index and b in d.index:
+                    a, r = d.loc[p], d.loc[b]
+                    print(f"  {p} vs {b:5s}: fulfil {a.fulfil_rate_pct - r.fulfil_rate_pct:+6.2f} pp | max rebound "
+                          f"{pct(a.max_rebound_MW, r.max_rebound_MW):+6.1f}% | net cost (adj) {pct(a.net_cost_adj, r.net_cost_adj):+6.1f}% | "
+                          f"cost excl. rebound charge {pct(a.net_cost_excl_rb, r.net_cost_excl_rb):+6.1f}%")
+        a = rd(f"exp2_alpha_{case}{tag}.csv")
+        if a is not None:
+            j = a.mean_net_cost_adj.idxmin(); print(f"  alpha* = {a.alpha[j]:.1f} (day-ahead back-test, mean fulfil {a.mean_fulfil_pct[j]:.1f}%)")
+
+# ------------------------------------------------------------------ Exp4 / MC
+def mc_report(tag, title):
+    d = rd(f"exp4{tag}.csv"); s = rd(f"exp4{tag}_strategies.csv")
+    if d is None or s is None: return
+    names = dict(zip(s["index"], s["label"]))
+    d["name"] = d.strategy.map(names)
+    N = d.realisation.nunique()
+    header(f"Exp4{tag}  {title}  (N = {N} realisations)")
+    rows = []
+    for nm in s["label"]:
+        q = d[d.name == nm]
+        r = {"strategy": nm}
+        for col, lab in [("fulfil_rate_pct", "fulfil%"), ("all_valid", "all_valid"), ("max_rebound_MW", "maxRb"),
+                         ("max_rebound6_MW", "maxRb6h"), ("payback_gap_MWh", "payGap"), ("net_cost_adj", "net_adj"),
+                         ("net_cost_excl_rb", "net_exrb"), ("co2_t", "co2")]:
+            lo, hi = ci(q[col]); r[lab] = q[col].mean(); r[lab + "_ci"] = f"[{lo:.4g}, {hi:.4g}]"
+        r["fulfil_std"] = q.fulfil_rate_pct.std(ddof=1)
+        rows.append(r)
+    t = pd.DataFrame(rows).set_index("strategy")
+    print(t[["fulfil%", "fulfil%_ci", "fulfil_std", "all_valid", "maxRb", "maxRb6h", "payGap", "net_adj", "net_adj_ci", "net_exrb", "co2"]].round(3).to_string())
+    prop = [p for p in ["JR-S", "JR-D"] if p in names.values()]
+    for p in prop:
+        for b in [x for x in s["label"] if x not in ("JR-D", "JR-S")] + (["JR-D"] if p == "JR-S" else []):
+            P = d[d.name == p].set_index("realisation"); B = d[d.name == b].set_index("realisation")
+            out = []
+            for col in ["fulfil_rate_pct", "max_rebound_MW", "net_cost_adj", "net_cost_excl_rb"]:
+                diff = (P[col] - B[col]).dropna()
+                lo, hi = ci(diff)
+                try:
+                    pv = stats.wilcoxon(diff, zero_method="zsplit").pvalue if np.any(np.abs(diff) > 1e-9) else 1.0
+                except ValueError:
+                    pv = np.nan
+                rel = 100 * diff.mean() / abs(B[col].mean()) if col != "fulfil_rate_pct" else diff.mean()
+                out.append(f"{col}: {diff.mean():+.4g} [{lo:+.4g},{hi:+.4g}] ({rel:+.1f}{' pp' if col == 'fulfil_rate_pct' else '%'}, p={pv:.2g})")
+            better = int((P.net_cost_adj < B.net_cost_adj - 1e-6).sum())
+            print(f"  {p} - {b:5s}: " + " | ".join(out) + f" | days {p} cheaper: {better}/{N}")
+    if "called_E3" in d.columns and d.called_E3.nunique() > 1:
+        print("  by E3 call status (mean fulfil % / net_adj):")
+        print(d.groupby(["called_E3", "name"])[["fulfil_rate_pct", "net_cost_adj"]].mean().round(1).unstack(0).to_string())
+
+
+mc_report("_certain", "Monte-Carlo, all events certain, c_rb = 3 CNY/kW")
+mc_report("_certain_crb0", "Monte-Carlo, all events certain, c_rb = 0")
+mc_report("_e3uncertain", "Monte-Carlo, E3 called with p = 0.6 (1 h notice), c_rb = 3 CNY/kW")
+
+# ------------------------------------------------------------------ Exp12 capacity
+header("Exp12  reliably deliverable capacity (Monte-Carlo commitment sweep, c_rb = 0)")
+d = rd("exp12_capacity_crb0.csv"); s = rd("exp12_strategies_crb0.csv")
+if d is not None and s is not None:
+    names = dict(zip(s["index"], s["label"])); d["name"] = d.strategy.map(names)
+    g = d.groupby(["C", "name"]).agg(fulfil=("fulfil_rate_pct", "mean"), all_valid=("all_valid", "mean"),
+                                     net_adj=("net_cost_adj", "mean"), dr_pay=("dr_pay", "mean"), maxRb=("max_rebound_MW", "mean"))
+    print(g.round(3).unstack(1).to_string())
+    for nm in s["label"]:
+        q = g.xs(nm, level=1)
+        rel = q[q.all_valid >= 0.95].index.max() if (q.all_valid >= 0.95).any() else np.nan
+        cbest = q.net_adj.idxmin()
+        print(f"  {nm:6s}: largest C delivered on >=95% of days = {rel} MW per event; profit-maximising C = {cbest} MW "
+              f"(mean net cost {q.net_adj.min():.0f} CNY)")
+
+# ------------------------------------------------------------------ Exp6 pairing
+header("Exp6  commitment-operation pairing (case day and Monte-Carlo means)")
+for tag in ["", "_crb0"]:
+    d = rd(f"exp6_commitment{tag}.csv")
     if d is None: continue
-    d = d.set_index("label")
-    print(f"--- {case}")
-    print(d[["fulfil_rate_pct", "n_valid", "red_E1", "red_E2", "red_E3", "max_rebound_MW", "cost_op", "dr_pay",
-             "pen_dev", "pen_rb", "net_cost", "lateness_GPUh_h"]].round(2).to_string())
-    for b in ["IR-O", "IR-R"]:
-        print({k: (round(v, 2) if isinstance(v, float) else v) for k, v in improve(d.loc["JR-S"], d.loc[b], b).items()})
+    print(f"--- c_rb = {'0' if tag else '3 CNY/kW'}")
+    cols = ["label", "C1", "C2", "C3", "C_total", "alpha_star", "fulfil_rate_pct", "net_cost_adj", "mc_fulfil_rate_pct", "mc_share_all_valid", "mc_net_cost_adj", "mc_net_cost_excl_rb"]
+    print(d[[c for c in cols if c in d.columns]].round(2).to_string(index=False))
+    th = rd(f"exp6_theta{tag}.csv")
+    if th is not None: print("  theta back-test:", th.round(0).to_dict("list"))
 
-print("\n=== Exp4 Monte Carlo (mean / std / min) ===")
-d = rd("exp4_montecarlo.csv")
+# ------------------------------------------------------------------ Exp8 rebound policy
+header("Exp8  rebound assessment as a policy parameter (uniform 6 MW, case day)")
+d = rd("exp8_rebound.csv"); s = rd("exp8_strategies.csv")
+if d is not None and s is not None:
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    print(d.pivot(index="c_rb", columns="name", values=["fulfil_rate_pct", "max_rebound_MW", "payback_gap_MWh", "net_cost_excl_rb"]).round(1).to_string())
+
+# ------------------------------------------------------------------ Exp9 price
+header("Exp9  DR unit price x shortfall coefficient (uniform 6 MW, case day)")
+d = rd("exp9_price.csv"); s = rd("exp9_strategies.csv")
+if d is not None and s is not None:
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    print(d.pivot_table(index=["price", "kappa"], columns="name", values=["fulfil_rate_pct", "net_cost_adj"]).round(1).to_string())
+
+# ------------------------------------------------------------------ Exp10 realism
+header("Exp10  realism (liquid cooling, IT ramp limits, load-up charge)")
+d = rd("exp10_realism.csv")
 if d is not None:
-    names = {1: "IR-R", 2: "IR-O", 3: "JR-D", 4: "JR-S"}
-    g = d.groupby("strategy")
-    tab = g.agg(fulfil_mean=("fulfil_pct", "mean"), fulfil_std=("fulfil_pct", "std"), fulfil_min=("fulfil_pct", "min"),
-                valid_mean=("n_valid", "mean"), all_valid=("n_valid", lambda x: np.mean(x == 3)),
-                rb_mean=("max_rebound", "mean"), net_mean=("net_cost", "mean"), op_mean=("cost_op", "mean"),
-                late=("lateness", "max"), viol=("cap_violation", "max"))
-    tab.index = [names[i] for i in tab.index]
-    print(f"N = {d.realisation.nunique()} days"); print(tab.round(3).to_string())
-    for b in ["IR-O", "IR-R", "JR-D"]:
-        s, r = tab.loc["JR-S"], tab.loc[b]
-        print(f"JR-S vs {b}: fulfil {s.fulfil_mean - r.fulfil_mean:+.2f} pp, max rebound {100*(s.rb_mean-r.rb_mean)/r.rb_mean:+.1f}%, "
-              f"net cost {100*(s.net_mean-r.net_mean)/r.net_mean:+.1f}%, op cost {100*(s.op_mean-r.op_mean)/r.op_mean:+.2f}%")
-    p = d.pivot(index="realisation", columns="strategy", values="fulfil_pct")
-    print("days where JR-S >= IR-O:", int((p[4] >= p[2] - 1e-6).sum()), "/", len(p))
-    print("days where JR-S > JR-D :", int((p[4] > p[3] + 1e-6).sum()), " JR-S < JR-D:", int((p[4] < p[3] - 1e-6).sum()))
+    print(d[["label", "Pcap", "alpha_star"] + [k for k in KEY if k in d.columns]].round(2).to_string(index=False))
 
-print("\n=== Exp1 mechanism (ratio to single-event capability) ===")
+# ------------------------------------------------------------------ Exp3
+header("Exp3  sensitivity (perfect information; 1 IR-R, 2 IR-O, 3 IR-O*(hindsight), 4 IR-P, 5 JR)")
+for tag in ["", "_crb0"]:
+    for f in ["duration", "interval", "gamma", "commitment"]:
+        d = rd(f"exp3_{f}{tag}.csv")
+        if d is None: continue
+        print(f"--- {f}{tag}")
+        print(d.pivot(index="x", columns="strategy", values=["fulfil_rate_pct", "max_rebound_MW", "net_cost_adj"]).round(1).to_string())
+    d = rd(f"exp3_map{tag}.csv")
+    if d is not None:
+        a = d[d.strategy == 5].set_index(["gamma", "x"]).fulfil_rate_pct
+        b = d[d.strategy.isin([3, 4])].groupby(["gamma", "x"]).fulfil_rate_pct.max()
+        print(f"--- map{tag}: fulfilment gain of JR over the best of IR-O*/IR-P (pp)")
+        print((a - b).unstack(1).round(1).to_string())
+
+# ------------------------------------------------------------------ Exp5
+header("Exp5  shadow prices and Proposition 2 check (perfect information, uniform 6 MW)")
+for tag in ["", "_crb0", "_gamma100", "_gamma100_crb0"]:
+    d = rd(f"exp5_shadow{tag}.csv"); k = rd(f"exp5_kkt{tag}.csv")
+    if d is None: continue
+    print(f"--- {tag or 'base'}")
+    for a, b, lab in [(17, 18, "E1"), (18, 19, "gap1"), (19, 20, "E2"), (20, 21, "gap2"), (21, 22, "E3"), (22, 30, "after")]:
+        q = d[(d.hour >= a) & (d.hour < b)]
+        print(f"  {lab:6s} lambda_el {q.lambda_el.mean():7.0f}  lambda_cap {q.lambda_cap.mean():7.0f}  lambda_rb {q.lambda_rb.mean():7.0f}  "
+              f"value_E {q.value_E.mean():6.0f}  cost_B1/2/3 {q.cost_B1.mean():6.2f} {q.cost_B2.mean():6.2f} {q.cost_B3.mean():6.2f}")
+    if k is not None: print("  KKT residuals:", k.round(6).to_dict("records"))
+
+# ------------------------------------------------------------------ Exp1
+header("Exp1  mechanism (ratio to single-event capability)")
 for f in ["exp1_mechanism_CA6_DA2.csv", "exp1_mechanism_CA6_DA1_DB2.csv"]:
     d = rd(f)
     if d is None: continue
     for c in ["G_IR", "G_IRJ", "G_JR", "G_bound"]: d[c + "_r"] = d[c] / d.G0
-    print("---", f, " bound valid (IRJ<=bound):", bool((d.G_IRJ <= d.G_bound + 1e-3).all()))
+    ok = bool((d.G_IRJ <= d.G_bound + 1e-3).all()); tight = int((d.G_bound - d.G_IRJ < 0.05).sum())
+    print(f"--- {f}  bound valid: {ok}, tight (<0.05 MW): {tight}/{len(d)}")
     print(d[["gamma", "tau_h", "G0", "G_IR_r", "G_IRJ_r", "G_JR_r", "G_bound_r", "Rcomp_MWh", "Rstor_MWh", "Headroom_MWh"]].round(2).to_string(index=False))
 
-print("\n=== Exp3 sensitivity (strategy 1=IR-R, 2=IR-O, 3=JR) ===")
-for f in ["exp3_duration.csv", "exp3_interval.csv", "exp3_gamma.csv", "exp3_commitment.csv"]:
+# ------------------------------------------------------------------ Exp7 / Exp11
+header("Exp7  ablation  /  Exp11 stylised theorem")
+for f in ["exp7_ablation.csv", "exp7_alpha.csv"]:
     d = rd(f)
-    if d is None: continue
-    print("---", f); print(d.pivot(index="x", columns="strategy", values=["fulfil_pct", "max_rebound", "net_cost"]).round(1).to_string())
-
-print("\n=== Exp5 shadow prices ===")
-d = rd("exp5_shadow.csv")
+    if d is not None: print(d.round(2).to_string(index=False))
+d = rd("exp11_stylized.csv")
 if d is not None:
-    for a, b, lab in [(17, 18, "E1"), (18, 19, "gap1"), (19, 20, "E2"), (20, 21, "gap2"), (21, 22, "E3"), (22, 30, "after")]:
-        q = d[(d.hour >= a) & (d.hour < b)]
-        print(f"{lab:6s} lambda_cap mean {q.lambda_cap.mean():8.0f}  value_E mean {q.value_E.mean():7.0f}  "
-              f"value_S {q.value_S.mean():6.0f}  cost_B1/2/3 {q.cost_B1.mean():6.2f} {q.cost_B2.mean():6.2f} {q.cost_B3.mean():6.2f}")
-
-print("\n=== Exp6 commitment ===")
-d = rd("exp6_commitment.csv")
-if d is not None: print(d.round(2).to_string(index=False))
-
-print("\n=== Exp7 ablation ===")
-d = rd("exp7_ablation.csv")
-if d is not None: print(d.round(2).to_string(index=False))
-d = rd("exp7_alpha.csv")
-if d is not None: print(d.round(2).to_string(index=False))
+    e = max((d.G_JR_closed - d.G_JR_lp).abs().max(), (d.G_IR_closed - d.G_IR_lp).abs().max())
+    print(f"Exp11: {len(d)} cases, max |closed form - LP| = {e:.2e} MW")

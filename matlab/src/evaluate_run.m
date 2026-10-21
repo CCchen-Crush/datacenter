@@ -60,7 +60,6 @@ M.cost_op = M.cost_energy + M.cost_gas + M.cost_deg;
 M.dr_pay = sum(M.pay);
 M.pen_dev = sum(par.dr.kappa_dev * [ev(kc).price]' .* M.short(kc) .* Dk(kc));
 M.pen_rb = par.dr.c_rb * sum(M.rebound);
-M.net_cost = M.cost_op - M.dr_pay + M.pen_dev + M.pen_rb;
 %% pre-event load-up, payback, ramps, evening peak
 if isempty(kc)
     pre = []; gaps = []; after = [];
@@ -71,6 +70,8 @@ else
     for j = 1:numel(kc) - 1, gaps = [gaps, (ev(kc(j)).e + 1):(ev(kc(j+1)).s - 1)]; end %#ok<AGROW>
     after = (eK + 1):min(T, eK + round(par.dr.payback_h / dt));
 end
+M.pen_pre = par.dr.c_pre * sum(max(L.pg(pre) - base(pre), 0)) * dt;   % optional load-up assessment (0 by default)
+M.net_cost = M.cost_op - M.dr_pay + M.pen_dev + M.pen_rb + M.pen_pre;
 M.preload_mean = mean_or_nan(L.pg(pre) - base(pre));
 M.preload_max = max_or_nan(L.pg(pre) - base(pre));
 M.ramp_up_max = max([diff(L.pg); 0]);
@@ -98,7 +99,7 @@ else
 end
 M.cost_op_adj = M.cost_op + M.term_adj;
 M.net_cost_adj = M.net_cost + M.term_adj;
-M.net_cost_excl_rb = M.net_cost_adj - M.pen_rb;      % cost under the Jiangsu rules alone (no rebound charge)
+M.net_cost_excl_rb = M.net_cost_adj - M.pen_rb - M.pen_pre;   % cost under the Jiangsu rules alone (no rebound / load-up charge)
 %% carbon
 M.co2 = sum(L.pg) * dt * par.co2.ef_grid + M.gas_MWh / par.gt.eta_e * par.co2.ef_gas;
 %% service and diagnostics

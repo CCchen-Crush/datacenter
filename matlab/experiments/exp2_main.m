@@ -1,24 +1,30 @@
-function out = exp2_main(ctx, root, DA)
-%EXP2_MAIN  Main comparison under identical commitments and service requirements.
+function out = exp2_main(ctx, root, DA, tag)
+%EXP2_MAIN  Main comparison on the case day under identical commitments and service requirements.
 %   Case A: commitments from the coupled day-ahead model; Case B: uniform 6 MW per event.
-S = {'IR-R', 'rule'; 'IR-O', 'expected'; 'JR', 'expected'; 'JR', 'scenario'; 'JR', 'open'};
-lab = {'IR-R', 'IR-O', 'JR-D', 'JR-S', 'JR-oracle'};
+%   Strategies (bench_list 'main'): IR-R, IR-O (static split), IR-O* (split tuned day-ahead), IR-P
+%   (day-ahead shadow-price coordination), JR-M (joint, event by event), JR-D / JR-S (proposed,
+%   deterministic / scenario MPC), JR-oracle (perfect information) and the no-DR operation.
+%   tag: suffix of the output files (e.g. '_crb0' for the run without rebound assessment).
+if nargin < 4, tag = ''; end
+S = bench_list('main');
 cases = {'DAcommit', DA.C; 'uniform6', [6 6 6]};
 out = struct();
 for ci = 1:size(cases, 1)
-    c = apply_commit(ctx, cases{ci, 2}, DA); c.all_visible = true;
-    rows = []; 
+    c = apply_commit(ctx, cases{ci, 2}, DA);
+    c = prepare_benchmarks(c);
+    [rows, hdr, Rs] = run_list(c, S, sprintf('exp2%s %-8s ', tag, cases{ci, 1}));
     for i = 1:size(S, 1)
-        tic; R = run_strategy(c, S{i, 1}, S{i, 2}); el = toc;
-        [row, hdr] = metrics_row(R.M); rows = [rows; row]; %#ok<AGROW>
-        save_timeseries(fullfile(root, 'results', sprintf('ts_%s_%s.csv', cases{ci, 1}, strrep(lab{i}, '-', ''))), R, c);
-        fprintf('  exp2 %-9s %-10s fulfil=%6.2f%% valid=%d maxRb=%.2f net=%.0f late=%.1f (%.0fs)\n', cases{ci,1}, lab{i}, ...
-            100 * R.M.fulfil_rate, R.M.n_valid, R.M.max_rebound, R.M.net_cost, R.M.lateness, el);
-        out.(strrep(cases{ci,1}, '-', '')).(strrep(lab{i}, '-', '_')) = R.M;
+        save_timeseries(fullfile(root, 'results', sprintf('ts_%s_%s%s.csv', cases{ci, 1}, strrep(strrep(S{i, 3}, '-', ''), '*', 's'), tag)), Rs{i}, c);
+        out.(cases{ci, 1}).(strrep(strrep(S{i, 3}, '-', '_'), '*', 's')) = Rs{i}.M;
     end
-    R0 = run_strategy(c, 'NoDR'); [row0] = metrics_row(R0.M);
-    save_timeseries(fullfile(root, 'results', sprintf('ts_%s_NoDR.csv', cases{ci, 1})), R0, c);
-    write_csv(fullfile(root, 'results', sprintf('exp2_%s.csv', cases{ci, 1})), hdr, [rows; row0], [lab, {'NoDR'}]);
+    R0 = run_strategy(c, 'NoDR'); row0 = metrics_row(R0.M);
+    save_timeseries(fullfile(root, 'results', sprintf('ts_%s_NoDR%s.csv', cases{ci, 1}, tag)), R0, c);
+    write_csv(fullfile(root, 'results', sprintf('exp2_%s%s.csv', cases{ci, 1}, tag)), hdr, [rows; row0], [S(:, 3)', {'NoDR'}]);
+    write_csv(fullfile(root, 'results', sprintf('exp2_alpha_%s%s.csv', cases{ci, 1}, tag)), ...
+        {'alpha', 'mean_net_cost_adj', 'mean_fulfil_pct', 'share_all_valid'}, c.alpha_tab);
+    write_csv(fullfile(root, 'results', sprintf('exp2_lambda_%s%s.csv', cases{ci, 1}, tag)), {'hour', 'lambda_hr', 'value_el'}, ...
+        [(0:c.par.Tsim-1)' * c.par.dt, c.lambda_hr_da, c.lambda_info.value]);
+    out.(cases{ci, 1}).alpha_star = c.alpha_star;
 end
-write_csv(fullfile(root, 'results', 'exp2_commitments.csv'), {'E1', 'E2', 'E3'}, [DA.C(:)'; 6 6 6], {'DAcommit', 'uniform6'});
+write_csv(fullfile(root, 'results', sprintf('exp2_commitments%s.csv', tag)), {'E1', 'E2', 'E3'}, [DA.C(:)'; 6 6 6], {'DAcommit', 'uniform6'});
 end

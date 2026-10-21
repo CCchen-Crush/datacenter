@@ -40,6 +40,23 @@ for c = 1:3
     m = lpb_addle(m, [r; r], [B{c}; V{c}], [one; -one], Bmax);
     if t0 + H - 1 >= par.Tsim, m.f(B{c}(H)) = m.f(B{c}(H)) + d.c_B_end; end
 end
+% limit on the swing of deferrable IT power (same soft limit as in the joint model)
+if isfinite(par.it.ramp_max)
+    Rr = par.it.ramp_max / d.pdyn;
+    [m, RU] = lpb_addvar(m, H, 0, Inf, dt * par.it.c_ramp * d.pdyn);
+    [m, RD] = lpb_addvar(m, H, 0, Inf, dt * par.it.c_ramp * d.pdyn);
+    if isfield(st, 'y_prev') && ~isnan(st.y_prev)
+        m = lpb_addle(m, ones(4,1), [Y{1}(1); Y{2}(1); Y{3}(1); RU(1)], [1;1;1;-1], Rr + st.y_prev);
+        m = lpb_addle(m, ones(4,1), [Y{1}(1); Y{2}(1); Y{3}(1); RD(1)], [-1;-1;-1;-1], Rr - st.y_prev);
+    end
+    if H > 1
+        rr = (1:H-1)'; I = repmat(rr, 7, 1);
+        J = [Y{1}(2:H); Y{2}(2:H); Y{3}(2:H); Y{1}(1:H-1); Y{2}(1:H-1); Y{3}(1:H-1)];
+        vv = [ones(3*(H-1), 1); -ones(3*(H-1), 1)];
+        m = lpb_addle(m, I, [J; RU(2:H)], [vv; -ones(H-1, 1)], Rr * ones(H-1, 1));
+        m = lpb_addle(m, I, [J; RD(2:H)], [-vv; -ones(H-1, 1)], Rr * ones(H-1, 1));
+    end
+end
 % DR share of the IT side (per-step power-reduction target relative to nominal execution)
 ynom = sum(sc.flex(:, :, 1), 2); ynom(1) = opt.ynom_now;
 for k = 1:numel(ev)

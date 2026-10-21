@@ -124,18 +124,22 @@ for q = ordT(:)'
         if ~isempty(w1) && ~isempty(w2), wsel{end+1} = {w1, w2, wdays{q}}; end %#ok<AGROW>
     end
 end
-Nmc = min([numel(cand), numel(wsel), 30]);
+% crossed design: each later PAI weekday is paired with two different hot days (weather) and two
+% different Azure inference days -> up to 2 x numel(cand) distinct realisations
+nc = min(numel(cand), numel(wsel)); azall = azwk(:)'; na = numel(azall); nw = numel(wsel);
+Nmc = min(2 * nc, 60);
 inp.mc.N = Nmc; inp.mc.flex = zeros(T, 3, Nmc); inp.mc.fix = zeros(T, Nmc); inp.mc.inf = zeros(T, Nmc);
 inp.mc.pv = zeros(T, Nmc); inp.mc.cop = zeros(T, Nmc); inp.mc.label = cell(Nmc, 1);
-azall = azwk(:)';
 for r = 1:Nmc
-    o3 = [occ(:,:,cand(r)); occ(nxt,:,cand(r)+1)];
+    ip = mod(r - 1, nc) + 1; pass = floor((r - 1) / nc);
+    iw = mod(r - 1 + 11 * pass, nw) + 1; ia = mod(r - 1 + 5 * pass, na) + 1;
+    o3 = [occ(:,:,cand(ip)); occ(nxt,:,cand(ip)+1)];
     inp.mc.flex(:,:,r) = fs * o3; inp.mc.fix(:,r) = (1 - fs) * sum(o3, 2);
-    a1 = azall(mod(r-1, numel(azall)) + 1); a2 = min(a1 + 1, size(ginf, 2));
+    a1 = azall(ia); a2 = min(a1 + 1, size(ginf, 2));
     inp.mc.inf(:, r) = [ginf(:, a1); ginf(nxt, a2)];
-    [p1, c1] = pv_cop(wsel{r}{1}, par); [p2, c2] = pv_cop(wsel{r}{2}, par);
+    [p1, c1] = pv_cop(wsel{iw}{1}, par); [p2, c2] = pv_cop(wsel{iw}{2}, par);
     inp.mc.pv(:, r) = [p1; p2(nxt)]; inp.mc.cop(:, r) = [c1; c2(nxt)];
-    inp.mc.label{r} = sprintf('pai%d_%s_%s', days(cand(r)), dates{a1}, wsel{r}{3});
+    inp.mc.label{r} = sprintf('pai%d_%s_%s', days(cand(ip)), dates{a1}, wsel{iw}{3});
 end
 
 %% --- admission control: nominal demand never exceeds the schedulable capacity ---

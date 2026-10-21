@@ -22,6 +22,7 @@ par.it.phi_inf   = 0.25;         % [A] mean share of GPUs busy with online infer
 par.it.lag_h     = [0.5 1.5 3];  % [A] max lag L_c (h): Emerald AI Flex1-3 (10/25/50 % throughput loss over 6 h)
 par.it.class_name = {'C1 short batch (<=1h)', 'C2 medium (1-12h)', 'C3 long training (>12h)'};
 par.it.ramp_max  = Inf;          % [A] max change of deferrable IT power per step (MW/15 min); Inf = no limit
+par.it.c_ramp    = 5e4;          % [A] penalty on ramping beyond ramp_max (CNY per MW and step; soft so GPUs may idle)
 
 %% ---------------- facility & cooling ----------------
 par.fac.a_aux    = 0.05;         % [A] UPS / distribution losses + air handlers (fraction of IT power)
@@ -99,7 +100,7 @@ par.co2.ef_grid  = 0.5617;       % [S] tCO2/MWh, East China grid 2022 average (M
 par.co2.ef_gas   = 56.1 * 3.6 / 1000;  % [S] tCO2/MWh_fuel, IPCC 2006 default for natural gas (56.1 t/TJ)
 
 %% ---------------- benchmarks ----------------
-par.bench.alpha_grid = 0.1:0.1:0.9;   % static compute share searched day-ahead for IR-O*
+par.bench.alpha_grid = 0.2:0.1:1.0;   % static compute share searched day-ahead for IR-O* (1.0 = IT side alone)
 
 %% ---------------- case selection ----------------
 par.case.weather_date = '2024-08-05';          % hot weekday (Tmax 38.3 C, Suzhou-Wujiang)

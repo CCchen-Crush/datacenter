@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
-"""Render the paper figures from matlab/results/*.csv (alternative to matlab/src/plot_all.m).
+"""Render the paper figures from matlab/results/*.csv (revised version).
 
 Usage: python3 tools/plot_results.py [results_dir] [figure_dir]
+Colour follows the entity (fixed categorical order of the reference palette); line/scatter charts show at
+most three strategies (JR-D, IR-O*, IR-P = slots 1-3, validated all-pairs); charts with more strategies
+put the strategy names on the category axis so that identity never relies on colour alone.
 """
 import os, sys
 import numpy as np
@@ -16,23 +19,30 @@ RES = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "matlab", "
 FIG = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, "..", "matlab", "figures")
 os.makedirs(FIG, exist_ok=True)
 
-# fonts: CJK if available
 for f in ["Noto Sans CJK SC", "WenQuanYi Micro Hei", "SimHei", "Microsoft YaHei"]:
     if any(f in x.name for x in font_manager.fontManager.ttflist):
         plt.rcParams["font.sans-serif"] = [f, "DejaVu Sans"]
         break
+INK, INK2, MUTED, GRID, AXIS = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
 plt.rcParams.update({"axes.unicode_minus": False, "font.size": 9, "axes.titlesize": 10,
-                     "axes.edgecolor": "#c9c8c2", "axes.linewidth": 0.8, "axes.grid": True,
-                     "grid.color": "#e6e5e0", "grid.linewidth": 0.6, "grid.linestyle": "-",
-                     "xtick.color": "#52514e", "ytick.color": "#52514e", "axes.labelcolor": "#0b0b0b",
-                     "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight", "axes.axisbelow": True})
+                     "axes.edgecolor": AXIS, "axes.linewidth": 0.8, "axes.grid": True,
+                     "grid.color": GRID, "grid.linewidth": 0.6, "grid.linestyle": "-",
+                     "xtick.color": INK2, "ytick.color": INK2, "axes.labelcolor": INK, "text.color": INK,
+                     "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight", "axes.axisbelow": True,
+                     "figure.facecolor": "#fcfcfb", "axes.facecolor": "#fcfcfb", "savefig.facecolor": "#fcfcfb"})
 
-# fixed categorical slots (reference palette, light mode); colour follows the entity
-C = {"JR-S": "#2a78d6", "IR-O": "#eb6834", "IR-R": "#1baf7a", "JR-D": "#eda100", "JR-oracle": "#e87ba4",
-     "IRJ": "#6250d6", "bound": "#8a8984", "base": "#52514e", "cap": "#e34948", "NoDR": "#8a8984"}
-NAME = {"IR-R": "独立恢复-规则 (IR-R)", "IR-O": "独立恢复-优化 (IR-O)", "JR-D": "联合恢复-确定性MPC (JR-D)",
-        "JR-S": "联合恢复-场景MPC (JR-S, 本文)", "JR-oracle": "联合恢复-完美信息 (JR-oracle)", "NoDR": "不参与DR"}
+# entity -> fixed categorical slot (reference palette, light mode)
+C = {"JR-D": "#2a78d6", "IR-O*": "#eb6834", "IR-P": "#1baf7a", "JR-S": "#eda100", "JR-M": "#e87ba4",
+     "IR-O": "#008300", "IR-R": "#6250d6", "JR-oracle": "#e34948", "JR": "#2a78d6", "IR-O*(hindsight)": "#eb6834",
+     "IR": "#eb6834", "IRJ": "#1baf7a", "bound": MUTED, "base": INK2, "cap": "#e34948", "NoDR": MUTED}
+NAME = {"IR-R": "独立恢复-规则 IR-R", "IR-O": "独立恢复-固定分摊 IR-O", "IR-O*": "独立恢复-日前调优分摊 IR-O*",
+        "IR-P": "独立恢复-影子价格协调 IR-P", "JR-M": "联合恢复-逐事件 JR-M", "JR-D": "联合恢复-确定性MPC JR-D（本文）",
+        "JR-S": "联合恢复-场景MPC JR-S（本文）", "JR-oracle": "联合恢复-完美信息", "NoDR": "不参与DR",
+        "IR-O*(hindsight)": "独立恢复-事后最优分摊 IR-O*", "JR": "联合恢复 JR（本文）"}
+MK = {"JR-D": "o", "JR": "o", "IR-O*": "s", "IR-O*(hindsight)": "s", "IR-P": "^", "JR-S": "D", "JR-M": "v", "IR-O": "P", "IR-R": "X"}
 EV = [(17, 18), (19, 20), (21, 22)]
+FILE = {"IR-R": "IRR", "IR-O": "IRO", "IR-O*": "IROs", "IR-P": "IRP", "JR-M": "JRM", "JR-D": "JRD", "JR-S": "JRS",
+        "JR-oracle": "JRoracle", "NoDR": "NoDR"}
 
 
 def rd(name):
@@ -49,6 +59,11 @@ def save(fig, name):
     fig.savefig(os.path.join(FIG, name)); plt.close(fig); print("wrote", name)
 
 
+def end_label(ax, x, y, text, color):
+    ax.annotate(text, (x, y), xytext=(4, 0), textcoords="offset points", va="center", fontsize=7, color=INK2)
+
+
+# ---------------------------------------------------------------- fig01 case data
 def fig_case():
     d = rd("case_profiles.csv")
     if d is None: return
@@ -56,27 +71,28 @@ def fig_case():
     fig, ax = plt.subplots(2, 2, figsize=(9, 5.4), sharex=True)
     a = ax[0, 0]; shade(a)
     a.plot(h, d.baseline, color=C["base"], lw=2, label="DR基线（前5个典型工作日均值）")
-    a.plot(h, d.pg_noDR, color=C["JR-S"], lw=1.5, label="DR日不响应时的并网功率")
-    cap = pd.read_csv(os.path.join(RES, "ts_DAcommit_JRS.csv")).Pcap.iloc[0] if os.path.exists(os.path.join(RES, "ts_DAcommit_JRS.csv")) else None
-    if cap: a.axhline(cap, color=C["cap"], lw=1, label="并网容量上限")
+    a.plot(h, d.pg_noDR, color=C["JR-D"], lw=1.5, label="DR日不响应时的并网功率")
+    t = rd("ts_uniform6_JRD.csv")
+    if t is not None: a.axhline(t.Pcap.iloc[0], color=C["cap"], lw=1, label="并网容量上限")
     a.set_ylabel("并网功率 / MW"); a.set_title("(a) 并网功率基线"); a.legend(fontsize=7, loc="lower left")
     a = ax[0, 1]
     st = [d.gpu_inf, d.gpu_flex0, d.gpu_c1, d.gpu_c2, d.gpu_c3]
     lab = ["在线推理 (Flex0)", "不可延迟训练 (Flex0)", "C1 短作业 (L=0.5h)", "C2 中作业 (L=1.5h)", "C3 长训练 (L=3h)"]
-    col = ["#8a8984", "#c3c2b7", "#1baf7a", "#eb6834", "#2a78d6"]
-    a.stackplot(h, *[s / 1000 for s in st], labels=lab, colors=col, lw=0)
+    col = ["#898781", "#c3c2b7", "#1baf7a", "#eb6834", "#2a78d6"]
+    a.stackplot(h, *[s / 1000 for s in st], labels=lab, colors=col, lw=0.4, edgecolor="#fcfcfb")
     a.set_ylabel("忙碌GPU / 千卡"); a.set_title("(b) GPU负载构成（PAI/Azure 轨迹）"); a.legend(fontsize=6.5, loc="upper left", ncol=2)
     a = ax[1, 0]
     a.step(h, d.price / 1000, where="post", color=C["base"], lw=2)
     a.set_ylabel("分时电价 / (元/kWh)"); a.set_xlabel("时刻 / h"); a.set_title("(c) 江苏工商业分时电价（夏季）"); shade(a)
     a = ax[1, 1]
-    a.plot(h, d.pv, color=C["JR-D"], lw=2, label="光伏出力 / MW")
-    a.plot(h, d.cop, color=C["IR-O"], lw=2, label="冷机系统COP")
+    a.plot(h, d.pv, color=C["JR-S"], lw=2, label="光伏出力 / MW")
+    a.plot(h, d.cop, color=C["IR-O*"], lw=2, label="冷机系统COP")
     a.set_xlabel("时刻 / h"); a.set_title("(d) 光伏出力与冷机COP（苏州吴江 2024-08-05）"); a.legend(fontsize=7)
     for x in ax.flat: x.set_xlim(0, 30); x.set_xticks(range(0, 31, 3))
     save(fig, "fig01_case_profiles.png")
 
 
+# ---------------------------------------------------------------- fig02 mechanism
 def fig_mechanism():
     files = [("exp1_mechanism_CA6_DA2.csv", "前序 6 MW×2 h，后续 1 h"), ("exp1_mechanism_CA6_DA1_DB2.csv", "前序 6 MW×1 h，后续 2 h")]
     data = [(rd(f), t) for f, t in files]
@@ -84,7 +100,7 @@ def fig_mechanism():
     fig, ax = plt.subplots(2, 2, figsize=(9.5, 7.4)); fig.subplots_adjust(hspace=0.42, wspace=0.32)
     for j, (d, t) in enumerate(data):
         a = ax[0, j]; g = d[np.isclose(d.gamma, 1.10)]
-        for key, col, lab in [("G_IR", C["IR-O"], "独立恢复 IR"), ("G_IRJ", C["IRJ"], "IR后状态+联合恢复"), ("G_JR", C["JR-S"], "联合响应+联合恢复 JR")]:
+        for key, col, lab in [("G_JR", C["JR"], "联合响应+联合恢复 JR"), ("G_IR", C["IR"], "独立恢复 IR"), ("G_IRJ", C["IRJ"], "IR后状态+联合恢复")]:
             a.plot(g.tau_h, g[key] / g.G0, color=col, lw=2, marker="o", ms=4, label=lab)
         a.plot(g.tau_h, g.G_bound / g.G0, color=C["bound"], lw=1.2, ls="--", label="命题1 上界")
         a.set_ylim(0, 1.08); a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("后续事件可交付能力 Γ_B/Γ_B⁰")
@@ -97,18 +113,19 @@ def fig_mechanism():
         a.set_xticks(range(len(taus))); a.set_xticklabels([f"{t:g}" for t in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{g:.2f}" for g in gams])
         for i in range(len(gams)):
             for k in range(len(taus)):
-                a.text(k, i, f"{Z[i,k]:.2f}", ha="center", va="center", fontsize=6.5, color="white" if Z[i, k] > 0.65 else "#0b0b0b")
+                a.text(k, i, f"{Z[i,k]:.2f}", ha="center", va="center", fontsize=6.5, color="white" if Z[i, k] > 0.65 else INK)
         a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("并网容量裕度 γ"); a.set_title(f"({'cd'[j]}) {lab}：Γ_B/Γ_B⁰（前序 6 MW×2 h）"); a.grid(False)
     fig.colorbar(im, ax=ax[1, :], shrink=0.8, label="可交付能力比")
     save(fig, "fig02_mechanism.png")
 
 
-def fig_timeseries(case="DAcommit"):
-    S = ["IR-R", "IR-O", "JR-S"]
-    D = {s: rd(f"ts_{case}_{s.replace('-', '')}.csv") for s in S}
+# ---------------------------------------------------------------- fig03/04 time series
+def fig_timeseries(case="DAcommit", tag=""):
+    S = ["IR-O*", "IR-P", "JR-D"]
+    D = {s: rd(f"ts_{case}_{FILE[s]}{tag}.csv") for s in S}
     if any(v is None for v in D.values()): return
     fig, ax = plt.subplots(3, 1, figsize=(8.5, 7.2), sharex=True)
-    a = ax[0]; shade(a); b = D["JR-S"]
+    a = ax[0]; shade(a); b = D["JR-D"]
     a.plot(b.hour, b.base, color=C["base"], lw=1.5, ls="--", label="DR基线")
     a.axhline(b.Pcap.iloc[0], color=C["cap"], lw=1, label="并网容量")
     for s in S: a.plot(D[s].hour, D[s].pg, color=C[s], lw=1.8, label=NAME[s])
@@ -120,121 +137,229 @@ def fig_timeseries(case="DAcommit"):
     for s in S: a.plot(D[s].hour, (D[s].B1 + D[s].B2 + D[s].B3) / 1000, color=C[s], lw=1.8, label=NAME[s])
     a.set_ylabel("积压任务 / 千GPU·h"); a.set_xlabel("时刻 / h"); a.set_title("(c) 任务积压（算侧恢复状态）")
     for x in ax: x.set_xlim(12, 30); x.set_xticks(range(12, 31, 2))
-    save(fig, f"fig03_timeseries_{case}.png")
-    # backlog by class + IES dispatch for the proposed strategy
+    save(fig, f"fig03_timeseries_{case}{tag}.png")
     fig, ax = plt.subplots(2, 1, figsize=(8.5, 5), sharex=True)
-    j = D["JR-S"]; o = D["IR-O"]
+    j = D["JR-D"]; o = D["IR-O*"]
     a = ax[0]; shade(a)
     for k, col in zip([1, 2, 3], ["#1baf7a", "#eb6834", "#2a78d6"]):
-        a.plot(j.hour, j[f"B{k}"] / 1000, color=col, lw=2, label=f"JR-S C{k}")
-        a.plot(o.hour, o[f"B{k}"] / 1000, color=col, lw=1, alpha=0.6, ls=":", label=f"IR-O C{k}")
-    a.set_ylabel("积压 / 千GPU·h"); a.legend(fontsize=7, ncol=3); a.set_title("(a) 分类别积压：联合恢复跨事件“携带”长时限任务")
+        a.plot(j.hour, j[f"B{k}"] / 1000, color=col, lw=2, label=f"JR-D C{k}")
+        a.plot(o.hour, o[f"B{k}"] / 1000, color=col, lw=1, alpha=0.7, ls=":", label=f"IR-O* C{k}")
+    a.set_ylabel("积压 / 千GPU·h"); a.legend(fontsize=7, ncol=3); a.set_title("(a) 分类别积压：联合恢复跨事件“携带”长时限任务（实线 JR-D，点线 IR-O*）")
     a = ax[1]; shade(a)
-    a.plot(j.hour, j.pdis - j.pch, color=C["JR-S"], lw=2, label="BESS 放电(+)/充电(-)")
-    a.plot(j.hour, (j.qtd - j.qtc) / 4.5, color=C["IR-R"], lw=2, label="蓄冷 放冷(+)/蓄冷(-)（电当量）")
-    a.plot(j.hour, j.pgt, color=C["JR-D"], lw=2, label="燃气内燃机出力")
-    a.plot(j.hour, j.ppv, color=C["JR-oracle"], lw=2, label="光伏")
-    a.set_ylabel("功率 / MW"); a.set_xlabel("时刻 / h"); a.legend(fontsize=7, ncol=2); a.set_title("(b) JR-S 综合能源设备出力")
+    a.plot(j.hour, j.pdis - j.pch, color=C["JR-D"], lw=2, label="BESS 放电(+)/充电(-)")
+    a.plot(j.hour, (j.qtd - j.qtc) / 4.5, color=C["IR-P"], lw=2, label="蓄冷 放冷(+)/蓄冷(-)（电当量）")
+    a.plot(j.hour, j.pgt, color=C["JR-S"], lw=2, label="燃气内燃机出力")
+    a.set_ylabel("功率 / MW"); a.set_xlabel("时刻 / h"); a.legend(fontsize=7, ncol=3); a.set_title("(b) JR-D 综合能源设备出力")
     for x in ax: x.set_xlim(12, 30); x.set_xticks(range(12, 31, 2))
-    save(fig, f"fig04_backlog_ies_{case}.png")
+    save(fig, f"fig04_backlog_ies_{case}{tag}.png")
 
 
-def fig_sensitivity():
-    files = [("exp3_duration.csv", "事件持续时间 / h"), ("exp3_interval.csv", "事件间隔 / h"),
-             ("exp3_gamma.csv", "并网容量裕度 γ"), ("exp3_commitment.csv", "响应承诺 / MW")]
+# ---------------------------------------------------------------- fig05/06 sensitivity
+SENS = {3: "IR-O*(hindsight)", 4: "IR-P", 5: "JR"}
+
+
+def fig_sensitivity(tag=""):
+    files = [(f"exp3_duration{tag}.csv", "事件持续时间 / h"), (f"exp3_interval{tag}.csv", "事件间隔 / h"),
+             (f"exp3_gamma{tag}.csv", "并网容量裕度 γ"), (f"exp3_commitment{tag}.csv", "响应承诺 / MW")]
     data = [(rd(f), l) for f, l in files]
     if any(d is None for d, _ in data): return
-    fig, ax = plt.subplots(2, 4, figsize=(12, 5.2))
+    fig, ax = plt.subplots(2, 4, figsize=(12, 5.2)); fig.subplots_adjust(wspace=0.3, hspace=0.3)
     for j, (d, lab) in enumerate(data):
-        for i, s in enumerate(["IR-R", "IR-O", "JR-S"]):
-            q = d[d.strategy == i + 1]
-            nm = {"JR-S": "联合恢复 JR"}.get(s, NAME[s])
-            ax[0, j].plot(q.x, q.fulfil_pct, color=C[s], lw=2, marker="o", ms=4, label=nm)
-            ax[1, j].plot(q.x, q.max_rebound, color=C[s], lw=2, marker="o", ms=4, label=nm)
-        ax[0, j].set_ylim(0, 105); ax[0, j].set_title(f"({'abcd'[j]}) {lab}")
-        ax[1, j].set_xlabel(lab); ax[1, j].set_ylim(bottom=0)
-    ax[0, 0].set_ylabel("连续响应兑现率 / %"); ax[1, 0].set_ylabel("恢复阶段最大反弹 / MW")
+        for i, s in SENS.items():
+            q = d[d.strategy == i]
+            ax[0, j].plot(q.x, q.fulfil_rate_pct, color=C[s], lw=2, marker=MK[s], ms=5, mec="#fcfcfb", mew=0.8, label=NAME[s])
+            ax[1, j].plot(q.x, q.net_cost_adj / 1e4, color=C[s], lw=2, marker=MK[s], ms=5, mec="#fcfcfb", mew=0.8, label=NAME[s])
+        ax[0, j].set_ylim(40, 103); ax[0, j].set_title(f"({'abcd'[j]}) {lab}")
+        ax[1, j].set_xlabel(lab)
+    ax[0, 0].set_ylabel("连续响应兑现率 / %"); ax[1, 0].set_ylabel("综合成本（期末状态折算）/ 万元")
     ax[0, 0].legend(fontsize=7, loc="lower left")
-    save(fig, "fig05_sensitivity.png")
+    save(fig, f"fig05_sensitivity{tag}.png")
 
 
 def fig_map():
-    d = rd("exp3_map.csv")
-    if d is None: return
-    taus = sorted(d.x.unique()); gams = sorted(d.gamma.unique())
-    def get(g, t, s, col):
-        return float(d[(d.gamma == g) & (d.x == t) & (d.strategy == s)][col].iloc[0])
-    Zf = np.array([[get(g, t, 3, "fulfil_pct") - get(g, t, 2, "fulfil_pct") for t in taus] for g in gams])
-    Zr = np.array([[get(g, t, 2, "max_rebound") - get(g, t, 3, "max_rebound") for t in taus] for g in gams])
-    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.6)); fig.subplots_adjust(wspace=0.55)
-    for a, Z, title, unit in [(ax[0], Zf, "(a) 兑现率提升（JR − IR-O）", "百分点"), (ax[1], Zr, "(b) 最大反弹降低（IR-O − JR）", "MW")]:
-        im = a.imshow(Z, origin="lower", aspect="auto", cmap="Blues", vmin=min(0, Z.min()))
+    out = []
+    for tag, lab in [("", "c_rb=3 元/kW"), ("_crb0", "c_rb=0")]:
+        d = rd(f"exp3_map{tag}.csv")
+        if d is not None: out.append((d, lab))
+    if not out: return
+    fig, ax = plt.subplots(1, len(out), figsize=(5.4 * len(out), 3.6), squeeze=False); fig.subplots_adjust(wspace=0.45)
+    for j, (d, lab) in enumerate(out):
+        taus = sorted(d.x.unique()); gams = sorted(d.gamma.unique())
+        def get(g, t, s):
+            return float(d[(d.gamma == g) & (d.x == t) & (d.strategy == s)].fulfil_rate_pct.iloc[0])
+        Z = np.array([[get(g, t, 5) - max(get(g, t, 3), get(g, t, 4)) for t in taus] for g in gams])
+        a = ax[0, j]; im = a.imshow(np.maximum(Z, 0), origin="lower", aspect="auto", cmap="Blues", vmin=0, vmax=max(Z.max(), 1))
         a.set_xticks(range(len(taus))); a.set_xticklabels([f"{t:g}" for t in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{g:.2f}" for g in gams])
         for i in range(len(gams)):
             for k in range(len(taus)):
-                a.text(k, i, f"{Z[i,k]:.1f}", ha="center", va="center", fontsize=7, color="white" if Z[i, k] > 0.6 * Z.max() else "#0b0b0b")
-        a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("并网容量裕度 γ"); a.set_title(title); a.grid(False)
-        fig.colorbar(im, ax=a, label=unit)
+                a.text(k, i, f"{Z[i,k]:.1f}", ha="center", va="center", fontsize=7, color="white" if Z[i, k] > 0.6 * Z.max() else INK)
+        a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("并网容量裕度 γ"); a.grid(False)
+        a.set_title(f"({'ab'[j]}) JR 兑现率减最强独立基准（百分点），{lab}")
+        fig.colorbar(im, ax=a, label="百分点")
     save(fig, "fig06_interval_capacity_map.png")
 
 
+# ---------------------------------------------------------------- fig07 Monte Carlo
 def fig_mc():
-    d = rd("exp4_montecarlo.csv")
-    if d is None: return
-    S = ["IR-R", "IR-O", "JR-D", "JR-S"]
-    fig, ax = plt.subplots(1, 3, figsize=(11, 3.6))
-    for j, (col, lab) in enumerate([("fulfil_pct", "连续响应兑现率 / %"), ("max_rebound", "最大反弹功率 / MW"), ("net_cost", "综合运行成本 / 万元")]):
-        a = ax[j]
-        vals = [d[d.strategy == i + 1][col].values / (1e4 if col == "net_cost" else 1) for i in range(4)]
-        bp = a.boxplot(vals, widths=0.45, patch_artist=True, showfliers=False)
-        for k, b in enumerate(bp["boxes"]):
-            b.set_facecolor(C[S[k]] + "33"); b.set_edgecolor(C[S[k]])
-        for k, m in enumerate(bp["medians"]): m.set_color(C[S[k]]); m.set_linewidth(2)
-        for k, v in enumerate(vals):
-            a.scatter(np.full(len(v), k + 1) + np.linspace(-0.12, 0.12, len(v)), v, s=10, color=C[S[k]], zorder=3, edgecolor="white", linewidth=0.6)
-        a.set_xticks(range(1, 5)); a.set_xticklabels(S); a.set_title(f"({'abc'[j]}) {lab}")
+    sets = [("_certain", "事件确定 · c_rb=3 元/kW"), ("_certain_crb0", "事件确定 · c_rb=0"), ("_e3uncertain", "E3 不确定（p=0.6，提前1 h确认）")]
+    rows = [(rd(f"exp4{t}.csv"), rd(f"exp4{t}_strategies.csv"), lab) for t, lab in sets]
+    rows = [r for r in rows if r[0] is not None and r[1] is not None]
+    if not rows: return
+    fig, ax = plt.subplots(len(rows), 2, figsize=(11, 3.2 * len(rows)), squeeze=False); fig.subplots_adjust(hspace=0.5, wspace=0.2)
+    for i, (d, s, lab) in enumerate(rows):
+        names = list(s["label"])
+        for j, (col, ylab, sc) in enumerate([("fulfil_rate_pct", "兑现率 / %", 1), ("net_cost_adj", "综合成本 / 万元", 1e4)]):
+            a = ax[i, j]
+            vals = [d[d.strategy == k + 1][col].values / sc for k in range(len(names))]
+            bp = a.boxplot(vals, widths=0.5, patch_artist=True, showfliers=False)
+            for k, b in enumerate(bp["boxes"]):
+                b.set_facecolor(C[names[k]] + "33"); b.set_edgecolor(C[names[k]])
+            for k, m in enumerate(bp["medians"]): m.set_color(C[names[k]]); m.set_linewidth(2)
+            for k, v in enumerate(vals):
+                a.scatter(np.full(len(v), k + 1) + np.linspace(-0.15, 0.15, len(v)), v, s=8, color=C[names[k]], zorder=3, edgecolor="#fcfcfb", linewidth=0.5)
+                a.text(k + 1, np.nanmax(v), f"{np.nanmean(v):.1f}", ha="center", va="bottom", fontsize=7, color=INK2)
+            a.set_xticks(range(1, len(names) + 1)); a.set_xticklabels(names)
+            a.set_title(f"({'abcdef'[2 * i + j]}) {lab}（数字为均值）"); a.set_ylabel(ylab)
     save(fig, "fig07_montecarlo.png")
 
 
+# ---------------------------------------------------------------- fig08 shadow prices
 def fig_shadow():
-    d = rd("exp5_shadow.csv"); t = rd("exp5_shadow_gamma100.csv")
+    d = rd("exp5_shadow.csv"); z = rd("exp5_shadow_crb0.csv"); g = rd("exp5_shadow_gamma100_crb0.csv")
     if d is None: return
-    fig, ax = plt.subplots(3, 1, figsize=(8.5, 6.6), sharex=True)
+    fig, ax = plt.subplots(3, 1, figsize=(8.5, 6.8), sharex=True)
     for a in ax: shade(a)
-    ax[0].plot(d.hour, d.lambda_headroom, color=C["JR-S"], lw=2, label="γ=1.10：恢复通道总影子价格（并网约束+反弹考核）")
-    ax[0].plot(d.hour, d.lambda_cap, color=C["cap"], lw=1.5, label="γ=1.10：其中并网容量约束")
-    if t is not None:
-        ax[0].plot(t.hour, t.lambda_cap, color=C["IR-O"], lw=1.5, label="γ=1.00：并网容量约束")
-    ax[0].axhline(1010, color=C["base"], lw=1, ls="--", label="峰时电价 1010 元/MWh")
-    ax[0].set_ylabel("元/MWh"); ax[0].legend(fontsize=7, loc="upper right"); ax[0].set_title("(a) 事件间隔内“恢复通道”的边际价值")
-    ax[1].plot(d.hour, d.value_E, color=C["JR-S"], lw=2, label="电储能电量")
-    ax[1].plot(d.hour, d.value_S, color=C["IR-R"], lw=2, label="蓄冷量")
+    ax[0].step(d.hour, d.price, where="post", color=C["base"], lw=1, ls="--", label="分时电价")
+    ax[0].plot(d.hour, d.lambda_el, color=C["JR-D"], lw=2, label="恢复通道价格 λ（γ=1.10，c_rb=3 元/kW）")
+    if z is not None: ax[0].plot(z.hour, z.lambda_el, color=C["IR-O*"], lw=1.5, label="λ（γ=1.10，c_rb=0）")
+    if g is not None: ax[0].plot(g.hour, g.lambda_el, color=C["IR-P"], lw=1.5, label="λ（γ=1.00，c_rb=0）")
+    ax[0].set_ylabel("元/MWh"); ax[0].legend(fontsize=7, loc="upper left"); ax[0].set_title("(a) 设施用电的边际价值（电平衡对偶）")
+    ax[0].set_ylim(0, max(2500, float(np.nanpercentile(d.lambda_el, 97)) * 1.1))
+    ax[1].plot(d.hour, d.value_E, color=C["JR-D"], lw=2, label="电储能电量 ν")
+    ax[1].plot(d.hour, d.value_S, color=C["IR-P"], lw=2, label="蓄冷量")
     ax[1].set_ylabel("元/MWh"); ax[1].legend(fontsize=7); ax[1].set_title("(b) 储侧状态的边际价值")
     for k, col in zip([1, 2, 3], ["#1baf7a", "#eb6834", "#2a78d6"]):
         ax[2].plot(d.hour, d[f"cost_B{k}"], color=col, lw=2, label=f"C{k} 积压（L={[0.5,1.5,3][k-1]} h）")
-    ax[2].set_ylabel("元/(GPU·h)"); ax[2].set_xlabel("时刻 / h"); ax[2].legend(fontsize=7); ax[2].set_title("(c) 算侧积压状态的边际成本")
+    ax[2].set_ylabel("元/(GPU·h)"); ax[2].set_xlabel("时刻 / h"); ax[2].legend(fontsize=7); ax[2].set_title("(c) 算侧积压状态的边际成本 μ")
     for a in ax: a.set_xlim(12, 30); a.set_xticks(range(12, 31, 2))
     save(fig, "fig08_shadow_prices.png")
 
 
+# ---------------------------------------------------------------- fig09 commitment pairing
 def fig_commit():
-    d = rd("exp6_commitment.csv")
-    if d is None: return
-    fig, ax = plt.subplots(1, 2, figsize=(9.5, 3.4))
-    x = np.arange(3); w = 0.32
-    cpl = d[d.assessment == 1].iloc[0]; sgl = d[d.assessment == 2].iloc[0]
-    ax[0].bar(x - w / 2 - 0.01, [cpl.C1, cpl.C2, cpl.C3], w, color=C["JR-S"], label="耦合评估（本文）")
-    ax[0].bar(x + w / 2 + 0.01, [sgl.C1, sgl.C2, sgl.C3], w, color=C["IR-O"], label="单事件独立评估")
-    ax[0].set_xticks(x); ax[0].set_xticklabels(["E1", "E2", "E3"]); ax[0].set_ylabel("日前响应承诺 / MW"); ax[0].legend(fontsize=7); ax[0].set_title("(a) 日前承诺")
-    labs = d.label.tolist(); v = d.fulfil_pct.values
-    cols = [C["JR-S"] if l.startswith("coupled") else C["IR-O"] for l in labs]
-    ax[1].bar(range(len(v)), v, 0.6, color=cols)
-    ax[1].set_xticks(range(len(v))); ax[1].set_xticklabels([l.split("|")[1] for l in labs], fontsize=7)
-    for i, t in enumerate(v): ax[1].text(i, t + 1, f"{t:.0f}", ha="center", fontsize=7)
-    ax[1].set_ylabel("实际兑现率 / %"); ax[1].set_ylim(0, 110); ax[1].set_title("(b) 实际兑现率（蓝=耦合承诺，橙=单事件承诺）")
+    out = [(rd(f"exp6_commitment{t}.csv"), lab) for t, lab in [("", "c_rb=3 元/kW"), ("_crb0", "c_rb=0")]]
+    out = [o for o in out if o[0] is not None]
+    if not out: return
+    fig, ax = plt.subplots(1, len(out), figsize=(5.6 * len(out), 3.6), squeeze=False); fig.subplots_adjust(wspace=0.3)
+    for j, (d, lab) in enumerate(out):
+        a = ax[0, j]
+        packs = list(dict.fromkeys(l.split("|")[0] for l in d.label))
+        ops = ["IR-O*", "JR-D"]; w = 0.36; x = np.arange(len(packs))
+        for i, op in enumerate(ops):
+            v = [float(d[d.label == f"{p}|{op}"].mc_net_cost_adj.iloc[0]) / 1e4 for p in packs]
+            sh = [float(d[d.label == f"{p}|{op}"].mc_share_all_valid.iloc[0]) for p in packs]
+            bars = a.bar(x + (i - 0.5) * (w + 0.02), v, w, color=C[op], label=NAME[op], edgecolor="#fcfcfb", linewidth=2)
+            for xx, vv, ss in zip(x + (i - 0.5) * (w + 0.02), v, sh):
+                a.text(xx, vv + 0.2, f"{vv:.1f}\n全有效{100*ss:.0f}%", ha="center", va="bottom", fontsize=6.5, color=INK2)
+        tick = []
+        for p in packs:
+            r = d[d.label == f"{p}|JR-D"].iloc[0]
+            tick.append(f"{p}\n[{r.C1:.1f}/{r.C2:.1f}/{r.C3:.1f}] MW")
+        a.set_xticks(x); a.set_xticklabels(tick, fontsize=7); a.set_ylabel("蒙特卡洛平均综合成本 / 万元")
+        a.set_ylim(0, a.get_ylim()[1] * 1.15); a.set_title(f"({'ab'[j]}) 承诺—运行配对，{lab}"); a.legend(fontsize=7, loc="lower right")
     save(fig, "fig09_commitment.png")
 
 
+# ---------------------------------------------------------------- fig10 rebound policy
+def fig_pareto():
+    d = rd("exp8_rebound.csv"); s = rd("exp8_strategies.csv")
+    if d is None or s is None: return
+    names = dict(zip(s["index"], s["label"])); d["name"] = d.strategy.map(names)
+    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.8)); fig.subplots_adjust(wspace=0.3)
+    for nm in ["IR-O*", "IR-P", "JR-D"]:
+        q = d[d.name == nm].sort_values("c_rb")
+        ax[0].plot(q.max_rebound_MW, q.net_cost_excl_rb / 1e4, color=C[nm], lw=1.5, marker=MK[nm], ms=6, mec="#fcfcfb", mew=0.8, label=NAME[nm])
+        for _, r in q.iterrows():
+            if r.c_rb in (0, 3000, 6000):
+                ax[0].annotate(f"{r.c_rb/1000:g}", (r.max_rebound_MW, r.net_cost_excl_rb / 1e4), xytext=(4, 3), textcoords="offset points", fontsize=7, color=INK2)
+        ax[1].plot(q.c_rb / 1000, q.fulfil_rate_pct, color=C[nm], lw=2, marker=MK[nm], ms=6, mec="#fcfcfb", mew=0.8, label=NAME[nm])
+    ax[0].set_xlabel("恢复期最大反弹（相对基线）/ MW"); ax[0].set_ylabel("规则口径综合成本（不含反弹考核）/ 万元")
+    ax[0].set_title("(a) 反弹—成本权衡（点旁数字为 c_rb，元/kW）"); ax[0].legend(fontsize=7)
+    ax[1].set_xlabel("反弹考核价格 c_rb / (元/kW·次)"); ax[1].set_ylabel("连续响应兑现率 / %"); ax[1].set_title("(b) 兑现率"); ax[1].set_ylim(80, 101.5); ax[1].legend(fontsize=7, loc="lower right")
+    save(fig, "fig10_rebound_pareto.png")
+
+
+# ---------------------------------------------------------------- fig11 capacity
+def fig_capacity():
+    d = rd("exp12_capacity_crb0.csv"); s = rd("exp12_strategies_crb0.csv")
+    if d is None or s is None: return
+    names = dict(zip(s["index"], s["label"])); d["name"] = d.strategy.map(names)
+    g = d.groupby(["C", "name"]).agg(av=("all_valid", "mean"), f=("fulfil_rate_pct", "mean"), net=("net_cost_adj", "mean")).reset_index()
+    fig, ax = plt.subplots(1, 3, figsize=(12, 3.6)); fig.subplots_adjust(wspace=0.3)
+    for nm in s["label"]:
+        q = g[g.name == nm]
+        kw = dict(color=C[nm], lw=2, marker=MK[nm], ms=6, mec="#fcfcfb", mew=0.8, label=NAME[nm])
+        ax[0].plot(q.C, 100 * q.av, **kw); ax[1].plot(q.C, q.f, **kw); ax[2].plot(q.C, q.net / 1e4, **kw)
+    ax[0].axhline(95, color=MUTED, lw=1, ls="--"); ax[0].text(ax[0].get_xlim()[0], 96, "95% 可靠性", fontsize=7, color=INK2)
+    ax[0].set_ylabel("三次事件全部有效的天数占比 / %"); ax[1].set_ylabel("平均兑现率 / %"); ax[2].set_ylabel("平均综合成本 / 万元")
+    for a, t in zip(ax, ["(a) 可靠性", "(b) 兑现率", "(c) 综合成本（越低越好）"]):
+        a.set_xlabel("每次事件的统一承诺 C / MW"); a.set_title(t)
+    ax[0].legend(fontsize=7, loc="lower left")
+    save(fig, "fig11_capacity.png")
+
+
+# ---------------------------------------------------------------- fig12 stylised theorem
+def fig_stylized():
+    d = rd("exp11_stylized.csv")
+    if d is None: return
+    Ls = sorted(d.L_h.unique())
+    fig, ax = plt.subplots(1, len(Ls), figsize=(3.0 * len(Ls), 3.0), sharey=True); fig.subplots_adjust(wspace=0.08)
+    for a, L in zip(np.atleast_1d(ax), Ls):
+        q = d[d.L_h == L]
+        a.plot(q.tau_h, q.G_JR_closed, color=C["JR"], lw=2, label="JR 闭式解")
+        a.plot(q.tau_h, q.G_IR_closed, color=C["IR"], lw=2, label="IR 闭式解")
+        a.scatter(q.tau_h, q.G_JR_lp, s=14, color=C["JR"], marker="o", edgecolor="#fcfcfb", linewidth=0.6, zorder=3, label="JR 线性规划")
+        a.scatter(q.tau_h, q.G_IR_lp, s=14, color=C["IR"], marker="s", edgecolor="#fcfcfb", linewidth=0.6, zorder=3, label="IR 线性规划")
+        a.set_title(f"滞后上界 L = {L:g} h"); a.set_xlabel("事件间隔 τ / h")
+    np.atleast_1d(ax)[0].set_ylabel("事件 B 可交付削减 / MW"); np.atleast_1d(ax)[0].legend(fontsize=7, loc="lower right")
+    save(fig, "fig12_stylized_theorem.png")
+
+
+# ---------------------------------------------------------------- fig13 robustness
+def fig_robust():
+    d = rd("exp9_price.csv"); s = rd("exp9_strategies.csv"); r = rd("exp10_realism.csv")
+    if d is None or s is None: return
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    fig, ax = plt.subplots(1, 2, figsize=(11, 3.8)); fig.subplots_adjust(wspace=0.35)
+    prices = sorted(d.price.unique()); kap = sorted(d.kappa.unique())
+    Z = np.zeros((len(kap), len(prices)))
+    for i, k in enumerate(kap):
+        for j, p in enumerate(prices):
+            q = d[(d.price == p) & (d.kappa == k)].set_index("name").net_cost_adj
+            best = min(q.get("IR-O*", np.inf), q.get("IR-P", np.inf))
+            Z[i, j] = 100 * (q["JR-D"] - best) / abs(best)
+    a = ax[0]; im = a.imshow(-Z, origin="lower", aspect="auto", cmap="Blues", vmin=0)
+    for i in range(len(kap)):
+        for j in range(len(prices)):
+            a.text(j, i, f"{-Z[i,j]:.1f}%", ha="center", va="center", fontsize=8, color="white" if -Z[i, j] > 0.6 * (-Z).max() else INK)
+    a.set_xticks(range(len(prices))); a.set_xticklabels([f"{p/1000:g}" for p in prices]); a.set_yticks(range(len(kap))); a.set_yticklabels([f"{k:g}" for k in kap])
+    a.set_xlabel("需求响应补贴单价 / (元/kWh)"); a.set_ylabel("偏差考核系数 κ"); a.grid(False)
+    a.set_title("(a) JR-D 相对最强独立基准的综合成本降幅"); fig.colorbar(im, ax=a, label="%")
+    if r is not None:
+        r["cfg"] = r.label.str.split("|").str[0]; r["nm"] = r.label.str.split("|").str[1]
+        cfgs = list(dict.fromkeys(r.cfg)); x = np.arange(len(cfgs)); w = 0.26
+        lab = {"base": "基准", "liquid_cooling": "液冷", "it_ramp_2MW": "IT爬坡≤2MW/15min", "it_ramp_1MW": "IT爬坡≤1MW/15min", "preload_charge": "事件前抬升考核"}
+        for i, nm in enumerate(["IR-O*", "IR-P", "JR-D"]):
+            v = [float(r[(r.cfg == c) & (r.nm == nm)].net_cost_adj.iloc[0]) / 1e4 for c in cfgs]
+            ax[1].bar(x + (i - 1) * (w + 0.02), v, w, color=C[nm], label=NAME[nm], edgecolor="#fcfcfb", linewidth=2)
+        ax[1].set_xticks(x); ax[1].set_xticklabels([lab.get(c, c) for c in cfgs], fontsize=7)
+        ax[1].set_ylabel("综合成本 / 万元"); ax[1].set_title("(b) 模型设定稳健性（统一 6 MW 承诺）"); ax[1].legend(fontsize=7, loc="lower right")
+    save(fig, "fig13_robustness.png")
+
+
 if __name__ == "__main__":
-    fig_case(); fig_mechanism(); fig_timeseries("DAcommit"); fig_timeseries("uniform6")
-    fig_sensitivity(); fig_map(); fig_mc(); fig_shadow(); fig_commit()
+    fig_case(); fig_mechanism()
+    for case in ["DAcommit", "uniform6"]:
+        fig_timeseries(case); fig_timeseries(case, "_crb0")
+    fig_sensitivity(); fig_sensitivity("_crb0"); fig_map(); fig_mc(); fig_shadow(); fig_commit()
+    fig_pareto(); fig_capacity(); fig_stylized(); fig_robust()

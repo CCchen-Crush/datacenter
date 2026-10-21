@@ -16,6 +16,18 @@ if sum(y) > gfree + 1e-9
     red = min(extra, extra / max(sum(extra), 1e-9) * cut);
     y = y - red;
 end
+% physical limit on the swing of deferrable IT power (if set): applies to every controller
+if isfinite(it.ramp_max) && isfield(st, 'y_prev') && ~isnan(st.y_prev)
+    Rr = it.ramp_max / d.pdyn; ys = sum(y);
+    if ys > st.y_prev + Rr + 1e-9                    % too fast up: defer the least urgent work
+        due = sum(st.rem(1:t, :), 1) / dt;
+        extra = max(y - due, 0); cut = ys - (st.y_prev + Rr);
+        y = y - min(extra, extra / max(sum(extra), 1e-9) * cut);
+    elseif ys < st.y_prev - Rr - 1e-9                % too fast down: keep running available work
+        room = max(avail - y, 0); add = min([sum(room), st.y_prev - Rr - ys, max(gfree - ys, 0)]);
+        y = y + room / max(sum(room), 1e-9) * add;
+    end
+end
 for c = 1:3
     x = y(c) * dt;
     r = st.rem(:, c);

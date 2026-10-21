@@ -101,21 +101,24 @@ if t0 + H - 1 >= par.Tsim
     for c = 1:3, m.f(B{c}(H, :)) = m.f(B{c}(H, :)) + d.c_B_end * pr(:); end
 end
 
-%% optional limit on deferrable IT power swings (pause / resume of large jobs)
+%% optional limit on deferrable IT power swings (pause / resume of large jobs); soft, so that GPUs
+%  can still go idle when the work runs out (excess ramp priced at par.it.c_ramp CNY per MW and step)
 if isfinite(par.it.ramp_max)
     Rr = par.it.ramp_max / d.pdyn;                       % GPUs per step
+    [m, RU] = addb(m, H, S, 0, Inf, W(par.it.c_ramp * d.pdyn));
+    [m, RD] = addb(m, H, S, 0, Inf, W(par.it.c_ramp * d.pdyn));
     for s = 1:S
         for h = 1:H
             if h == 1
                 if ~isfield(st, 'y_prev') || isnan(st.y_prev), continue; end
                 cols = [Y{1}(1, s); Y{2}(1, s); Y{3}(1, s)];
-                m = lpb_addle(m, [1;1;1], cols, [1;1;1], Rr + st.y_prev);
-                m = lpb_addle(m, [1;1;1], cols, -[1;1;1], Rr - st.y_prev);
+                m = lpb_addle(m, ones(4,1), [cols; RU(1, s)], [1;1;1;-1], Rr + st.y_prev);
+                m = lpb_addle(m, ones(4,1), [cols; RD(1, s)], [-1;-1;-1;-1], Rr - st.y_prev);
             else
                 cols = [Y{1}(h, s); Y{2}(h, s); Y{3}(h, s); Y{1}(h-1, s); Y{2}(h-1, s); Y{3}(h-1, s)];
                 vv = [1;1;1;-1;-1;-1];
-                m = lpb_addle(m, ones(6,1), cols, vv, Rr);
-                m = lpb_addle(m, ones(6,1), cols, -vv, Rr);
+                m = lpb_addle(m, ones(7,1), [cols; RU(h, s)], [vv; -1], Rr);
+                m = lpb_addle(m, ones(7,1), [cols; RD(h, s)], [-vv; -1], Rr);
             end
         end
     end
