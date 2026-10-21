@@ -1,0 +1,8 @@
+Pdesign 22.258 MW, typical peak 14.573 MW, Pcap 16.031 MW (gamma 1.10)
+alpha (IR compute share) 0.411, compute capability 4.71 MW, storage capability 6.75 MW
+flex scale 1.9481, PAI DR day 27, baseline days [20 21 22 23 26], Azure DR day 2024-05-14
+GPU utilisation DR day: mean 0.682 max 0.949; IT power mean 12.15 MW; facility no-DR mean 12.45 MW
+PUE (no-DR, day D): 1.259
+event 1: 17.00-18.00 h, price 3000 CNY/MWh, baseline mean 9.68 MW
+event 2: 19.00-20.00 h, price 3000 CNY/MWh, baseline mean 9.48 MW
+event 3: 21.00-22.00 h, price 4200 CNY/MWh, baseline mean 9.40 MW
