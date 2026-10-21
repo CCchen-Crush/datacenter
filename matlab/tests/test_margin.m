@@ -1,0 +1,11 @@
+here = fileparts(mfilename('fullpath')); addpath(fullfile(here, '..', 'src')); addpath(fullfile(here, '..', 'config'));
+dcdr_setup_paths(); par = dcdr_params(); par.dr.c_rb = 0; ctx = setup_case(par);
+c = set_events(ctx, [17, 20, 23], 2, 6);
+R = run_strategy(c, 'JR', 'open');
+fprintf('JR open, 2-h events: valid %s red %s pay %.0f net_adj %.0f\n', mat2str(R.M.valid'), mat2str(round(R.M.avg_red'*100)/100), R.M.dr_pay, R.M.net_cost_adj);
+c2 = c; c2.alpha_star = alpha_hindsight(c); R2 = run_strategy(c2, 'IR-O*', 'open');
+fprintf('IR-O* open (alpha %.1f): valid %s red %s pay %.0f net_adj %.0f\n', c2.alpha_star, mat2str(R2.M.valid'), mat2str(round(R2.M.avg_red'*100)/100), R2.M.dr_pay, R2.M.net_cost_adj);
+c3 = apply_commit(ctx, [8 8 8]); R3 = run_strategy(c3, 'JR', 'expected');
+fprintf('JR-D 8 MW case day: valid %s red %s fulfil %.1f net_adj %.0f\n', mat2str(R3.M.valid'), mat2str(round(R3.M.avg_red'*100)/100), 100*R3.M.fulfil_rate, R3.M.net_cost_adj);
+p2 = par; p2.it.cap_on = true; cx = setup_case(p2); cx = apply_commit(cx, [6 6 6]); R4 = run_strategy(cx, 'JR', 'expected');
+fprintf('JR-D with capping: fulfil %.1f net_adj %.0f capped GPU-h %.0f\n', 100*R4.M.fulfil_rate, R4.M.net_cost_adj, sum(R4.log.z(:))*0.25);

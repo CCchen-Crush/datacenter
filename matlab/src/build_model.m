@@ -56,6 +56,29 @@ if ~isempty(opt.fix_y)
 end
 n = H * S; one = ones(n, 1); r = (1:n)';
 
+%% optional GPU power capping during DR events (Z = capped GPUs, Z <= Y, only in event steps)
+capon = isfield(par.it, 'cap_on') && par.it.cap_on;
+for c = 1:3
+    if capon, [m, ZC{c}] = addb(m, H, S, 0, Inf, 0); else, ZC{c} = zeros(H, S); end
+end
+if capon
+    evstep = false(H, S);
+    for k = 1:numel(ev)
+        if strcmp(ev(k).mode, 'none'), continue; end
+        hk = (max(ev(k).s, t0):min(ev(k).e, t0 + H - 1)) - t0 + 1;
+        if isempty(hk) || hk(1) < 1, continue; end
+        for s = 1:S, if opt.active(k, s), evstep(hk, s) = true; end, end
+    end
+    rc = (1:H*S)';
+    for c = 1:3
+        m.ub(ZC{c}(~evstep)) = 0;
+        m = lpb_addle(m, [rc; rc], [ZC{c}(:); Y{c}(:)], [ones(H*S,1); -ones(H*S,1)], zeros(H*S,1));
+        if ~isempty(opt.fix_z)
+            v = repmat(opt.fix_z(:, c), 1, S); m.lb(ZC{c}(:)) = v(:); m.ub(ZC{c}(:)) = v(:);
+        end
+    end
+end
+
 %% GPU capacity
 capfree = par.it.u_max * par.it.Ngpu - sc.inf - sc.fix;
 m = lpb_addle(m, [r; r; r], [Y{1}(:); Y{2}(:); Y{3}(:)], [one; one; one], capfree(:));
@@ -76,6 +99,7 @@ for c = 1:3
     % B(h) - B(h-1) + dt*y(h) = arr(h)
     Bc = B{c}; rhs = arr; rhs(1, :) = rhs(1, :) + B0;
     I = [r; r]; J = [Bc(:); Y{c}(:)]; Vv = [one; dt * one];
+    if capon, I = [I; r]; J = [J; ZC{c}(:)]; Vv = [Vv; -dt * par.it.cap_beta * par.it.cap_rho * one]; end
     prev = Bc(1:end-1, :); cur = (2:H)' + (0:S-1) * H;
     I = [I; cur(:)]; J = [J; prev(:)]; Vv = [Vv; -ones(numel(prev), 1)];
     [m, ix.row_B{c}] = lpb_addeq(m, I, J, Vv, rhs(:));
@@ -88,12 +112,18 @@ th = par.fac.theta; a = par.fac.a_aux;
 base_it = d.Pfix + d.pdyn * (par.it.k_inf * sc.inf + sc.fix);
 I = [r; r; r; r; r; r; r]; J = [QEC(:); HAC(:); QTD(:); QTC(:); Y{1}(:); Y{2}(:); Y{3}(:)];
 Vv = [one; par.ac.cop * one; one; -one; -th * d.pdyn * [one; one; one]];
+if capon
+    I = [I; r; r; r]; J = [J; ZC{1}(:); ZC{2}(:); ZC{3}(:)]; Vv = [Vv; th * d.pdyn * par.it.cap_rho * [one; one; one]];
+end
 m = lpb_addeq(m, I, J, Vv, th * base_it(:) + par.fac.Q0);
 
 %% electric balance: pg + ppv + pgt + pdis - pch - qec/cop - (1+a)*pdyn*sum(y) = (1+a)*base_it + P_aux0
 I = repmat(r, 9, 1);
 J = [PG(:); PPV(:); PGT(:); PDS(:); PCH(:); QEC(:); Y{1}(:); Y{2}(:); Y{3}(:)];
 Vv = [one; one; one; one; -one; -1 ./ sc.cop(:); -(1 + a) * d.pdyn * [one; one; one]];
+if capon
+    I = [I; r; r; r]; J = [J; ZC{1}(:); ZC{2}(:); ZC{3}(:)]; Vv = [Vv; (1 + a) * d.pdyn * par.it.cap_rho * [one; one; one]];
+end
 [m, ix.row_el] = lpb_addeq(m, I, J, Vv, (1 + a) * base_it(:) + par.fac.P_aux0);
 
 %% leftover backlog at the end of the evaluation window is valued at its energy cost (flat price)
@@ -144,6 +174,7 @@ m.lb(PGT(1, :)) = max(0, st.pgt_prev - par.gt.ramp);
 %% non-anticipativity of the first-step decisions
 if S > 1 && opt.nonant
     X = {Y{1}, Y{2}, Y{3}, PCH, PDS, PGT, HAC, QEC, QTC, QTD, PPV};
+    if capon, X = [X, {ZC{1}, ZC{2}, ZC{3}}]; end
     for q = 1:numel(X)
         xx = X{q}; ns = S - 1; rr = (1:ns)';
         m = lpb_addeq(m, [rr; rr], [xx(1, 2:S)'; repmat(xx(1, 1), ns, 1)], [ones(ns,1); -ones(ns,1)], zeros(ns,1));
@@ -162,6 +193,7 @@ for k = 1:numel(ev)
         hk = (max(e.s, t0):e.e) - t0 + 1; nk = e.e - e.s + 1; Dh = nk * dt;
         rhs0 = (st.ev_r(k) + sum(sc.Pb(hk))) / nk;
         nh = numel(hk);
+        vmar = 0; if isfield(par.dr, 'valid_margin'), vmar = par.dr.valid_margin; end   % planning margin above 80 %
         switch e.mode
             case 'settle'
                 [m, R]  = addb(m, 1, S, 0, par.dr.pay_hi * e.C, -e.price * Dh * pr);
@@ -174,7 +206,7 @@ for k = 1:numel(ev)
                     pgk = PG(hk, s);
                     m = lpb_addle(m, ones(nh+1,1), [R(s); pgk], [1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [1; 1], [R(s); Z(s)], [1; -par.dr.pay_hi * e.C], 0);
-                    m = lpb_addle(m, ones(nh+1,1), [Z(s); pgk], [par.dr.valid_lo * e.C; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+1,1), [Z(s); pgk], [par.dr.valid_lo * e.C + vmar; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, ones(nh+1,1), [SF(s); pgk], [-1; ones(nh,1)/nk], rhs0 - e.C);
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [pgk; repmat(MX(s), nh, 1)], [ones(nh,1); -ones(nh,1)], e.Pbmax * ones(nh,1));
                 end
@@ -195,7 +227,7 @@ for k = 1:numel(ev)
                     m = lpb_addle(m, [1;1;1], [Cv; Wv(s); Z(s)], [1; -1; Cm], Cm);
                     m = lpb_addle(m, ones(nh+1,1), [R(s); pgk], [1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [1;1], [R(s); Wv(s)], [1; -par.dr.pay_hi], 0);
-                    m = lpb_addle(m, ones(nh+1,1), [Wv(s); pgk], [par.dr.valid_lo; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+2,1), [Wv(s); Z(s); pgk], [par.dr.valid_lo; vmar; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, ones(nh+2,1), [Cv; SF(s); pgk], [1; -1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [pgk; repmat(MX(s), nh, 1)], [ones(nh,1); -ones(nh,1)], e.Pbmax * ones(nh,1));
                 end
@@ -255,7 +287,8 @@ if opt.terminal
 end
 
 P = lpb_finalize(m);
-ix.Y = Y; ix.B = B; ix.V = V; ix.PG = PG; ix.POV = POV; ix.PCH = PCH; ix.PDS = PDS; ix.E = E;
+ix.Y = Y; ix.Zc = []; if capon, ix.Zc = ZC; end
+ix.B = B; ix.V = V; ix.PG = PG; ix.POV = POV; ix.PCH = PCH; ix.PDS = PDS; ix.E = E;
 ix.PGT = PGT; ix.HAC = HAC; ix.QEC = QEC; ix.QTC = QTC; ix.QTD = QTD; ix.SS = SS; ix.PPV = PPV;
 ix.H = H; ix.S = S; ix.t0 = t0;
 end
@@ -279,7 +312,7 @@ end
 
 function opt = defaults(opt, K)
 f = {'milp', true; 'nonant', true; 'fix_y', []; 'terminal', false; 'Eref_end', 0; 'Sref_end', 0; ...
-     'no_late', false; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []};
+     'no_late', false; 'fix_z', []; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []};
 for i = 1:size(f,1)
     if ~isfield(opt, f{i,1}), opt.(f{i,1}) = f{i,2}; end
 end

@@ -19,13 +19,15 @@ s1 = solve_milp(P1, ctx.solver);
 info.ok = s1.ok; info.time = s1.time; info.fallback = false;
 if ~s1.ok, [u, ~] = planner_irr(st, data, ctx); info.fallback = true; return; end
 yfix = [s1.x(ix1.Y{1}), s1.x(ix1.Y{2}), s1.x(ix1.Y{3})];
+zfix = []; if ~isempty(ix1.Zc), zfix = [s1.x(ix1.Zc{1}), s1.x(ix1.Zc{2}), s1.x(ix1.Zc{3})]; end
 o2 = struct('milp', ctx.milp, 'nonant', true, 'fix_y', yfix, 'visible', vis, 'active', act);
+o2.fix_z = zfix;
 [o2.terminal, o2.Eref_end, o2.Sref_end] = terminal_ref(ctx, t0 + H - 1);
 [P2, ix2] = build_model(par, st, sc, ctx.ev, o2);
 s2 = solve_milp(P2, ctx.solver);
 info.time = info.time + s2.time;
 if ~s2.ok, [u, ~] = planner_irr(st, data, ctx); info.fallback = true; info.ok = false; return; end
 u = first_step(s2.x, ix2);
-u.y = yfix(1, :);
+u.y = yfix(1, :); if ~isempty(zfix), u.z = zfix(1, :); end
 info.sol = s2; info.ix = ix2;
 end

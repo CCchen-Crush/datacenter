@@ -186,16 +186,16 @@ def fig_map():
     for j, (d, lab) in enumerate(out):
         taus = sorted(d.x.unique()); gams = sorted(d.gamma.unique())
         def get(g, t, s):
-            return float(d[(d.gamma == g) & (d.x == t) & (d.strategy == s)].fulfil_rate_pct.iloc[0])
-        Z = np.array([[get(g, t, 5) - max(get(g, t, 3), get(g, t, 4)) for t in taus] for g in gams])
+            return float(d[(d.gamma == g) & (d.x == t) & (d.strategy == s)].net_cost_adj.iloc[0])
+        Z = np.array([[100 * (min(get(g, t, 3), get(g, t, 4)) - get(g, t, 5)) / min(get(g, t, 3), get(g, t, 4)) for t in taus] for g in gams])
         a = ax[0, j]; im = a.imshow(np.maximum(Z, 0), origin="lower", aspect="auto", cmap="Blues", vmin=0, vmax=max(Z.max(), 1))
         a.set_xticks(range(len(taus))); a.set_xticklabels([f"{t:g}" for t in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{g:.2f}" for g in gams])
         for i in range(len(gams)):
             for k in range(len(taus)):
                 a.text(k, i, f"{Z[i,k]:.1f}", ha="center", va="center", fontsize=7, color="white" if Z[i, k] > 0.6 * Z.max() else INK)
         a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("并网容量裕度 γ"); a.grid(False)
-        a.set_title(f"({'ab'[j]}) JR 兑现率减最强独立基准（百分点），{lab}")
-        fig.colorbar(im, ax=a, label="百分点")
+        a.set_title(f"({'ab'[j]}) JR 相对最强独立基准的综合成本降幅，{lab}")
+        fig.colorbar(im, ax=a, label="%")
     save(fig, "fig06_interval_capacity_map.png")
 
 

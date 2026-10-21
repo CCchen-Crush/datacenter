@@ -14,8 +14,13 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RES = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "..", "matlab", "results")
 pd.set_option("display.width", 220); pd.set_option("display.max_columns", 40)
 
+# month-to-date maximum demand before the DR day: largest daily peak import of the 5 baseline workdays
+# (computed by compute_baseline; the peaks occur at night, during valley-price storage charging)
+D_REF = 15.29          # MW
+C_DEM = 40.0e3         # CNY per MW and month: two-part tariff demand charge, typical provincial 1-10 kV level [A]
 KEY = ["fulfil_rate_pct", "n_valid", "max_rebound_MW", "max_rebound6_MW", "payback_gap_MWh", "preload_vs_nodr_MW",
-       "true_red_mean", "term_backlog_GPUh", "dr_pay", "pen_dev", "pen_rb", "net_cost_adj", "net_cost_excl_rb", "co2_t", "gas_MWh"]
+       "true_red_mean", "term_backlog_GPUh", "cost_op", "cost_delay", "dr_pay", "pen_dev", "pen_rb", "net_cost_adj",
+       "net_cost_excl_rb", "co2_t", "gas_MWh"]
 
 
 def rd(n):
@@ -47,6 +52,11 @@ for tag, lab in [("", "c_rb = 3 CNY/kW"), ("_crb0", "c_rb = 0 (Jiangsu rules onl
         d = d.set_index("label")
         print(f"\n--- {case}, {lab}")
         print(d[[k for k in KEY if k in d.columns]].round(2).to_string())
+        if "NoDR" in d.index and "peak_grid_MW" in d.columns:
+            ref = max(D_REF, d.loc["NoDR", "peak_grid_MW"])
+            dd = (d.peak_grid_MW - ref).clip(lower=0)
+            print("  demand-charge exposure (peak above max(month peak, same-day no-DR peak), MW / CNY per month): " +
+                  ", ".join(f"{i} {v:.2f}/{C_DEM * v:.0f}" for i, v in dd.items()))
         for p in ["JR-D", "JR-S"]:
             for b in ["IR-O*", "IR-P", "JR-M", "IR-O", "IR-R"]:
                 if p in d.index and b in d.index:
@@ -159,10 +169,13 @@ for tag in ["", "_crb0"]:
         print(d.pivot(index="x", columns="strategy", values=["fulfil_rate_pct", "max_rebound_MW", "net_cost_adj"]).round(1).to_string())
     d = rd(f"exp3_map{tag}.csv")
     if d is not None:
-        a = d[d.strategy == 5].set_index(["gamma", "x"]).fulfil_rate_pct
-        b = d[d.strategy.isin([3, 4])].groupby(["gamma", "x"]).fulfil_rate_pct.max()
+        a = d[d.strategy == 5].set_index(["gamma", "x"])
+        b = d[d.strategy.isin([3, 4])].groupby(["gamma", "x"])
         print(f"--- map{tag}: fulfilment gain of JR over the best of IR-O*/IR-P (pp)")
-        print((a - b).unstack(1).round(1).to_string())
+        print((a.fulfil_rate_pct - b.fulfil_rate_pct.max()).unstack(1).round(1).to_string())
+        print(f"--- map{tag}: cost reduction of JR vs the cheaper of IR-O*/IR-P (%)")
+        best = b.net_cost_adj.min()
+        print((100 * (best - a.net_cost_adj) / best).unstack(1).round(1).to_string())
 
 # ------------------------------------------------------------------ Exp5
 header("Exp5  shadow prices and Proposition 2 check (perfect information, uniform 6 MW)")

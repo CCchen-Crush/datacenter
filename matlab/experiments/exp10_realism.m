@@ -7,7 +7,8 @@ cfg = {'base',            @(p) p;
        'liquid_cooling',  @liquid;
        'it_ramp_2MW',     @(p) setf(p, 'it', 'ramp_max', 2);
        'it_ramp_1MW',     @(p) setf(p, 'it', 'ramp_max', 1);
-       'preload_charge',  @(p) setf(p, 'dr', 'c_pre', 1000)};
+       'preload_charge',  @(p) setf(p, 'dr', 'c_pre', 1000);
+       'power_capping',   @(p) setf(p, 'it', 'cap_on', true)};
 S = [{'NoDR', 'open', 'NoDR'}; bench_list('core')];
 rows = []; rl = {}; hdr = {};
 for i = 1:size(cfg, 1)

@@ -18,6 +18,22 @@ for c = 1:3
     [m, V{c}] = lpb_addvar(m, H, 0, Inf, dt * par.qos.c_late);
 end
 r = (1:H)'; one = ones(H,1);
+% optional power capping during (visible) DR events: Z{c} capped GPUs <= Y{c}
+capon = isfield(par.it, 'cap_on') && par.it.cap_on; rho = 0; bet = 0;
+if capon
+    rho = par.it.cap_rho; bet = par.it.cap_beta;
+    evstep = false(H, 1);
+    for k = 1:numel(ev)
+        if ~opt.visible(k), continue; end
+        hk = (max(ev(k).s, t0):min(ev(k).e, t0 + H - 1)) - t0 + 1;
+        if ~isempty(hk) && hk(1) >= 1, evstep(hk) = true; end
+    end
+    for c = 1:3
+        [m, Z{c}] = lpb_addvar(m, H, 0, Inf, -dt * (sc.price + lam) .* phi * d.pdyn * rho);
+        m.ub(Z{c}(~evstep)) = 0;
+        m = lpb_addle(m, [r; r], [Z{c}; Y{c}], [one; -one], zeros(H, 1));
+    end
+end
 capfree = par.it.u_max * par.it.Ngpu - sc.inf(:,1) - sc.fix(:,1);
 m = lpb_addle(m, [r; r; r], [Y{1}; Y{2}; Y{3}], [one; one; one], capfree);
 % IT power budget (compute has priority on the connection headroom)
@@ -26,7 +42,11 @@ qac = min(par.ac.cop * d.kh * opt.pgt_nom(:), par.ac.Qmax);
 fac_other = (1 + a) * base_it + par.fac.P_aux0 + (th * base_it + par.fac.Q0 - qac) ./ sc.cop(:,1) ...
             - opt.pgt_nom(:) - sc.pv(:,1);
 budget = d.Pcap - fac_other;
-m = lpb_addle(m, [r; r; r], [Y{1}; Y{2}; Y{3}], repmat(phi * d.pdyn, 3, 1), max(budget, 0));
+if capon
+    m = lpb_addle(m, repmat(r, 6, 1), [Y{1}; Y{2}; Y{3}; Z{1}; Z{2}; Z{3}], [repmat(phi * d.pdyn, 3, 1); -repmat(phi * d.pdyn * rho, 3, 1)], max(budget, 0));
+else
+    m = lpb_addle(m, [r; r; r], [Y{1}; Y{2}; Y{3}], repmat(phi * d.pdyn, 3, 1), max(budget, 0));
+end
 for c = 1:3
     L = d.lag(c); remc = st.rem(:, c); B0 = sum(remc);
     Dk = cumsum(remc); Dk = Dk(min(t0 + (0:H-1)', numel(Dk)));
@@ -35,6 +55,7 @@ for c = 1:3
     if H > L, Dn(L+1:end) = cumsum(arr(1:H-L)); end
     Bmax = max(A - (Dk + Dn), 0);
     I = [r; r; (2:H)']; J = [B{c}; Y{c}; B{c}(1:end-1)]; Vv = [one; dt*one; -ones(H-1,1)];
+    if capon, I = [I; r]; J = [J; Z{c}]; Vv = [Vv; -dt * bet * rho * one]; end
     rhs = arr; rhs(1) = rhs(1) + B0;
     m = lpb_addeq(m, I, J, Vv, rhs);
     m = lpb_addle(m, [r; r], [B{c}; V{c}], [one; -one], Bmax);
@@ -69,8 +90,11 @@ for k = 1:numel(ev)
     rr = (1:nh)';
     I = [rr; rr; rr; rr]; J = [Y{1}(hk); Y{2}(hk); Y{3}(hk); SFC];
     Vv = [repmat(phi(hk) * d.pdyn, 3, 1); -ones(nh,1)];
+    if capon
+        I = [I; rr; rr; rr]; J = [J; Z{1}(hk); Z{2}(hk); Z{3}(hk)]; Vv = [Vv; -repmat(phi(hk) * d.pdyn * rho, 3, 1)];
+    end
     m = lpb_addle(m, I, J, Vv, phi(hk) * d.pdyn .* ynom(hk) - tgt);
 end
 P = lpb_finalize(m);
-ix.Y = Y; ix.B = B; ix.V = V; ix.H = H;
+ix.Y = Y; ix.B = B; ix.V = V; ix.H = H; ix.Zc = []; if capon, ix.Zc = Z; end
 end

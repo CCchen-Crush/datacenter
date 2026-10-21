@@ -20,6 +20,12 @@ par.it.flex_share = 0.75;        % [A] part of that work enrolled in Flex 1-3 ti
 par.it.phi_inf   = 0.25;         % [A] mean share of GPUs busy with online inference (non-deferrable)
 % deferrable classes from PAI runtime bins (<=1 h, 1-12 h, >12 h) [D]; lag-bounded SLA
 par.it.lag_h     = [0.5 1.5 3];  % [A] max lag L_c (h): Emerald AI Flex1-3 (10/25/50 % throughput loss over 6 h)
+% GPU power capping as an additional DR-only lever (Acun et al., ACM e-Energy 2026): a capped GPU draws
+% (1-rho) of its dynamic power and loses beta*rho of its throughput, i.e. it leaves a recovery debt of
+% beta per unit of power reduction instead of 1 for pausing. Off in the base case (exp10 sensitivity).
+par.it.cap_on    = false;        % [A] power capping available during DR events
+par.it.cap_rho   = 0.30;         % [A] dynamic-power reduction of a capped GPU
+par.it.cap_beta  = 0.40;         % [A] throughput loss per unit power reduction (30 % less power -> 12 % slower)
 par.it.class_name = {'C1 short batch (<=1h)', 'C2 medium (1-12h)', 'C3 long training (>12h)'};
 par.it.ramp_max  = Inf;          % [A] max change of deferrable IT power per step (MW/15 min); Inf = no limit
 par.it.c_ramp    = 5e4;          % [A] penalty on ramping beyond ramp_max (CNY per MW and step; soft so GPUs may idle)
@@ -76,6 +82,7 @@ par.dr.price_da   = 3000;        % [S] day-ahead peak-shaving cap 3 CNY/kWh (spe
 par.dr.coef_2to4h = 1.4;         % [S] intraday notice 2-4 h
 par.dr.coef_05to2h= 1.6;         % [S] intraday notice 0.5-2 h
 par.dr.valid_lo   = 0.80;        % [S] effective response if avg reduction >= 80 % of confirmed value
+par.dr.valid_margin = 0.1;       % [A] planning margin above the 80 % threshold (MW), against metering / forecast error
 par.dr.pay_hi     = 1.20;        % [S] payment capped at 120 %
 par.dr.kappa_dev = 1.0;          % [A] shortfall assessed at kappa x the event's DR unit price (symmetric)
 par.dr.c_rb       = 3000;        % [A] rebound assessment (CNY/MW per event) = 3 CNY/kW, i.e. the pay of a 1-h event
@@ -90,8 +97,8 @@ par.dr.payback_h  = 6;           % horizon of the window-independent payback-ene
 par.qos.c_late   = 1000;         % [A] CNY per GPU-h per hour late (acts as a hard SLA)
 par.qos.c_jct    = 0.5;          % [A] small preference for early completion (CNY per GPU-h per h)
 par.cap.c_over   = 1e5;          % CNY/MWh above the grid limit (soft, should be 0)
-par.term.c_E     = 900;          % [A] CNY/MWh value of terminal BESS energy shortfall
-par.term.c_S     = 200;          % [A] CNY/MWh_th value of terminal TES shortfall
+par.term.c_E     = 500;          % [A] CNY/MWh value of terminal BESS shortfall, just above the refill cost (valley price + c_deg) / eta_c = 482
+par.term.c_S     = 100;          % [A] CNY/MWh_th value of terminal TES shortfall, just above the refill cost valley price / (eta_c * COP) = 77
 % leftover backlog at the end of the evaluation window is valued at its energy cost at the flat price
 % (set in sys_derived as d.c_B_end, CNY per GPU-h)
 

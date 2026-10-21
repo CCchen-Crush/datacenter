@@ -12,6 +12,7 @@ function M = evaluate_run(L, ev, base, par, inp, refL)
 %     term_adj      value of the end state w.r.t. no-DR (leftover backlog at its energy cost,
 %                   storage deficit at the valley price), added to the "_adj" costs
 %     co2           grid electricity (East China factor) + natural gas burnt (t CO2)
+%     cost_delay    service cost of deferred work c_jct * backlog-hours (+ lateness), part of net_cost
 dt = par.dt; d = sys_derived(par); T = numel(L.pg);
 K = numel(ev);
 if nargin < 6, refL = []; end
@@ -57,6 +58,8 @@ M.gas_MWh = sum(L.pgt) * dt;
 M.cost_gas = M.gas_MWh * par.price.gas / par.gt.eta_e;
 M.cost_deg = sum(L.pch + L.pdis) * dt * par.bess.c_deg;
 M.cost_op = M.cost_energy + M.cost_gas + M.cost_deg;
+% service cost of deferred work (the same delay price c_jct that every optimiser has in its objective)
+M.cost_delay = par.qos.c_jct * dt * sum(L.backlog(:)) + par.qos.c_late * dt * sum(L.overdue);
 M.dr_pay = sum(M.pay);
 M.pen_dev = sum(par.dr.kappa_dev * [ev(kc).price]' .* M.short(kc) .* Dk(kc));
 M.pen_rb = par.dr.c_rb * sum(M.rebound);
@@ -71,7 +74,7 @@ else
     after = (eK + 1):min(T, eK + round(par.dr.payback_h / dt));
 end
 M.pen_pre = par.dr.c_pre * sum(max(L.pg(pre) - base(pre), 0)) * dt;   % optional load-up assessment (0 by default)
-M.net_cost = M.cost_op - M.dr_pay + M.pen_dev + M.pen_rb + M.pen_pre;
+M.net_cost = M.cost_op + M.cost_delay - M.dr_pay + M.pen_dev + M.pen_rb + M.pen_pre;
 M.preload_mean = mean_or_nan(L.pg(pre) - base(pre));
 M.preload_max = max_or_nan(L.pg(pre) - base(pre));
 M.ramp_up_max = max([diff(L.pg); 0]);
@@ -93,7 +96,7 @@ if ~isempty(refL)
     pval = min(inp.price(1:T));
     dB = M.term_backlog - sum(refL.backlog(T, :));
     dE = refL.E(T) - L.E(T); dS = refL.S(T) - L.S(T);
-    M.term_adj = d.c_B_end * dB + pval * (dE / par.bess.eta_c + dS / (par.tes.eta_c * L.cop(T)));
+    M.term_adj = d.c_B_end * dB + (pval + par.bess.c_deg) * dE / par.bess.eta_c + pval * dS / (par.tes.eta_c * L.cop(T));
 else
     M.term_adj = d.c_B_end * M.term_backlog;
 end

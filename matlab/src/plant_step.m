@@ -28,15 +28,19 @@ if isfinite(it.ramp_max) && isfield(st, 'y_prev') && ~isnan(st.y_prev)
         y = y + room / max(sum(room), 1e-9) * add;
     end
 end
+% optional power capping: z capped GPUs (<= y) draw (1-rho) dynamic power and do (1-beta*rho) work
+z = zeros(1, 3);
+if isfield(u, 'z') && isfield(it, 'cap_on') && it.cap_on, z = min(max(u.z(:)', 0), y); end
+rho = 0; bet = 0; if isfield(it, 'cap_on') && it.cap_on, rho = it.cap_rho; bet = it.cap_beta; end
 for c = 1:3
-    x = y(c) * dt;
+    x = (y(c) - bet * rho * z(c)) * dt;
     r = st.rem(:, c);
     cs = cumsum(r);
     take = min(r, max(0, x - (cs - r)));
     st.rem(:, c) = r - take;
 end
 %% IT power and cooling
-pit = d.Pfix + d.pdyn * (it.k_inf * data.inf + data.fix + sum(y));
+pit = d.Pfix + d.pdyn * (it.k_inf * data.inf + data.fix + sum(y) - rho * sum(z));
 qload = fac.theta * pit + fac.Q0;
 pgt = min(max(u.pgt, 0), par.gt.Pmax);
 pgt = min(max(pgt, st.pgt_prev - par.gt.ramp), st.pgt_prev + par.gt.ramp);
@@ -93,7 +97,7 @@ for k = 1:numel(ev)
         st.rb(k) = max(st.rb(k), pg - base(t));
     end
 end
-rec = struct('pg', pg, 'pit', pit, 'y', y, 'pch', pch, 'pdis', pdis, 'E', st.E, 'S', st.S, ...
+rec = struct('pg', pg, 'pit', pit, 'y', y, 'z', z, 'pch', pch, 'pdis', pdis, 'E', st.E, 'S', st.S, ...
     'pgt', pgt, 'qac', qac, 'qec', qec, 'qtc', qtc, 'qtd', qtd, 'ppv', ppv, 'pv', data.pv, ...
     'cop', data.cop, 'overdue', overdue, 'backlog', sum(st.rem, 1), 'over', max(pg - d.Pcap, 0), ...
     'inf', data.inf);

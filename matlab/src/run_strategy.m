@@ -74,11 +74,12 @@ if ~isempty(ctx.lambda_hr), o1.lambda = ctx.lambda_hr; o1.use_share = false; end
 s1 = solve_milp(P1, ctx.solver);
 if ~s1.ok, error('run_strategy:iro1', 'IR-O stage 1 infeasible'); end
 yfix = [s1.x(ix1.Y{1}), s1.x(ix1.Y{2}), s1.x(ix1.Y{3})];
-o2 = struct('milp', ctx.milp, 'fix_y', yfix, 'visible', vis, 'active', act, 'terminal', true, ...
+zfix = []; if ~isempty(ix1.Zc), zfix = [s1.x(ix1.Zc{1}), s1.x(ix1.Zc{2}), s1.x(ix1.Zc{3})]; end
+o2 = struct('milp', ctx.milp, 'fix_y', yfix, 'fix_z', zfix, 'visible', vis, 'active', act, 'terminal', true, ...
             'Eref_end', ctx.Eref(end), 'Sref_end', ctx.Sref(end));
 [P2, ix2] = build_model(par, st, sc, ctx.ev, o2);
 s2 = solve_milp(P2, ctx.solver);
 if ~s2.ok, error('run_strategy:iro2', 'IR-O stage 2 infeasible'); end
 plan = extract_plan(s2.x, ix2);
-plan.y = yfix;
+plan.y = yfix; if ~isempty(zfix), plan.z = zfix; end
 end
