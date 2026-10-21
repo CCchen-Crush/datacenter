@@ -10,7 +10,7 @@ par = ctx.par; dt = par.dt; t = st.t; d = sys_derived(par);
 info.ok = true; info.time = 0; info.fallback = false;
 r = rule_common(st, par, data, ctx.inp.price(t));
 pdyn = d.pdyn; phi = r.phi;
-ev = ctx.ev; known = t >= [ev.notice_step] | ctx.all_visible;
+ev = ctx.ev; known = event_known(ctx, t)';
 kin = find(known & t >= [ev.s] & t <= [ev.e], 1);
 knext = find(known & [ev.s] > t, 1);
 % ---- gas engine / absorption chiller (economic rule) ----

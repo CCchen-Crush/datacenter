@@ -21,6 +21,7 @@ par.it.phi_inf   = 0.25;         % [A] mean share of GPUs busy with online infer
 % deferrable classes from PAI runtime bins (<=1 h, 1-12 h, >12 h) [D]; lag-bounded SLA
 par.it.lag_h     = [0.5 1.5 3];  % [A] max lag L_c (h): Emerald AI Flex1-3 (10/25/50 % throughput loss over 6 h)
 par.it.class_name = {'C1 short batch (<=1h)', 'C2 medium (1-12h)', 'C3 long training (>12h)'};
+par.it.ramp_max  = Inf;          % [A] max change of deferrable IT power per step (MW/15 min); Inf = no limit
 
 %% ---------------- facility & cooling ----------------
 par.fac.a_aux    = 0.05;         % [A] UPS / distribution losses + air handlers (fraction of IT power)
@@ -80,6 +81,9 @@ par.dr.c_rb       = 3000;        % [A] rebound assessment (CNY/MW per event) = 3
 par.dr.rb_win_h   = 2;           % [A] post-event window in which load must stay <= baseline
 par.dr.c_maxload  = 1e5;         % rule (1): load in event <= baseline max (soft, CNY/MW)
 par.dr.eps_commit = 100;         % [A] tie-breaker value of committed capacity in the day-ahead model (CNY/MW)
+par.dr.pre_win_h  = 3;           % window before the first event used for the load-up metric (h)
+par.dr.c_pre      = 0;           % [A] optional pre-event load-up assessment (CNY/MWh above baseline); 0 = none (Jiangsu rules have none)
+par.dr.payback_h  = 6;           % horizon of the window-independent payback-energy metric after the last event (h)
 
 %% ---------------- QoS / misc ----------------
 par.qos.c_late   = 1000;         % [A] CNY per GPU-h per hour late (acts as a hard SLA)
@@ -87,6 +91,15 @@ par.qos.c_jct    = 0.5;          % [A] small preference for early completion (CN
 par.cap.c_over   = 1e5;          % CNY/MWh above the grid limit (soft, should be 0)
 par.term.c_E     = 900;          % [A] CNY/MWh value of terminal BESS energy shortfall
 par.term.c_S     = 200;          % [A] CNY/MWh_th value of terminal TES shortfall
+% leftover backlog at the end of the evaluation window is valued at its energy cost at the flat price
+% (set in sys_derived as d.c_B_end, CNY per GPU-h)
+
+%% ---------------- carbon accounting ----------------
+par.co2.ef_grid  = 0.5617;       % [S] tCO2/MWh, East China grid 2022 average (MEE & NBS notice, 2024-12-20)
+par.co2.ef_gas   = 56.1 * 3.6 / 1000;  % [S] tCO2/MWh_fuel, IPCC 2006 default for natural gas (56.1 t/TJ)
+
+%% ---------------- benchmarks ----------------
+par.bench.alpha_grid = 0.1:0.1:0.9;   % static compute share searched day-ahead for IR-O*
 
 %% ---------------- case selection ----------------
 par.case.weather_date = '2024-08-05';          % hot weekday (Tmax 38.3 C, Suzhou-Wujiang)
@@ -97,11 +110,13 @@ par.case.lat = 31.16; par.case.lon = 120.64;
 
 %% ---------------- DR events (base case) ----------------
 % start/end in hours of day D, notice (h before start), commitment (MW)
-par.ev = struct('t0', {17, 19, 21}, 't1', {18, 20, 22}, 'notice', {24, 24, 3}, 'C', {6, 6, 6});
+par.ev = struct('t0', {17, 19, 21}, 't1', {18, 20, 22}, 'notice', {24, 24, 3}, 'C', {6, 6, 6}, 'prob', {1, 1, 1});
+% prob = probability that a pre-announced event is actually called (confirmed at its notice time)
 
 %% ---------------- MPC ----------------
 par.mpc.H        = 72;           % prediction horizon (steps)
 par.mpc.S        = 5;            % scenarios
 par.mpc.decay    = 0.9;          % persistence of observed forecast error per step
 par.mpc.seed     = 2024;
+par.mpc.ce_threshold = 0.5;     % deterministic planners treat an unconfirmed event as called if prob >= this
 end

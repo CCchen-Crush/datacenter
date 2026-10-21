@@ -1,14 +1,19 @@
 function [P, ix] = build_compute_model(par, st, sc, ev, opt)
-%BUILD_COMPUTE_MODEL  IT-side scheduler used by the independent-recovery benchmark (IR-O, stage 1).
+%BUILD_COMPUTE_MODEL  IT-side scheduler used by the independent-recovery benchmarks (stage 1).
 %   The IT scheduler sees only its own state (backlog), an IT power budget that keeps the facility
-%   under the connection limit assuming storage is idle, the TOU price, and its own DR share
-%   alpha*C_k as a per-step power-reduction target. It ignores storage recovery needs.
+%   under the connection limit assuming storage is idle, and the TOU price. Two variants:
+%     IR-O / IR-O* : its own DR share alpha*C_k as a per-step power-reduction target;
+%     IR-P         : no fixed share; instead it pays a day-ahead shadow price opt.lambda (CNY/MWh) on
+%                    facility power (price-coordinated independent recovery).
+%   It never sees the storage state or the storage recovery needs.
 d = sys_derived(par); dt = par.dt; H = sc.H; t0 = st.t;
 a = par.fac.a_aux; th = par.fac.theta;
 m = lpb_new();
 phi = 1 + a + th ./ sc.cop(:, 1);                       % facility MW per IT MW
+lam = zeros(H, 1); if isfield(opt, 'lambda') && ~isempty(opt.lambda), lam = opt.lambda(:); end
+use_share = ~isfield(opt, 'use_share') || opt.use_share;
 for c = 1:3
-    [m, Y{c}] = lpb_addvar(m, H, 0, Inf, dt * sc.price .* phi * d.pdyn);
+    [m, Y{c}] = lpb_addvar(m, H, 0, Inf, dt * (sc.price + lam) .* phi * d.pdyn);
     [m, B{c}] = lpb_addvar(m, H, 0, Inf, dt * par.qos.c_jct);
     [m, V{c}] = lpb_addvar(m, H, 0, Inf, dt * par.qos.c_late);
 end
@@ -33,11 +38,13 @@ for c = 1:3
     rhs = arr; rhs(1) = rhs(1) + B0;
     m = lpb_addeq(m, I, J, Vv, rhs);
     m = lpb_addle(m, [r; r], [B{c}; V{c}], [one; -one], Bmax);
+    if t0 + H - 1 >= par.Tsim, m.f(B{c}(H)) = m.f(B{c}(H)) + d.c_B_end; end
 end
 % DR share of the IT side (per-step power-reduction target relative to nominal execution)
 ynom = sum(sc.flex(:, :, 1), 2); ynom(1) = opt.ynom_now;
 for k = 1:numel(ev)
     e = ev(k);
+    if ~use_share, break; end
     if ~opt.visible(k) || e.e < t0 || e.s > t0 + H - 1, continue; end
     hk = (max(e.s, t0):min(e.e, t0 + H - 1)) - t0 + 1; nh = numel(hk);
     [m, SFC] = lpb_addvar(m, nh, 0, Inf, dt * e.price * (1 + par.dr.kappa_dev));

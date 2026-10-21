@@ -1,11 +1,19 @@
 function [u, info] = planner_jr(st, data, ctx)
-%PLANNER_JR  Joint computing-storage recovery (proposed): solve the joint model on a rolling horizon
-%   and apply the first-step decisions. ctx.fmode chooses oracle / expected / scenario forecasts.
+%PLANNER_JR  Joint computing-storage recovery: solve the joint model on a rolling horizon and apply
+%   the first-step decisions. ctx.fmode: 'oracle' | 'expected' (deterministic, certainty-equivalent
+%   event calls) | 'scenario' (scenario MPC; unconfirmed events enter as a scenario tree).
+%   ctx.myopic = true gives the event-by-event joint benchmark JR-M.
 par = ctx.par; t0 = st.t;
 H = min(ctx.H, par.Tsim - t0 + 1);
 sc = make_scen(ctx.inp, par, ctx.base, t0, H, ctx);
+switch ctx.fmode
+    case 'scenario', amode = 'scenario';
+    case 'oracle',   amode = 'oracle';
+    otherwise,       amode = 'ce';
+end
 opt = struct('milp', ctx.milp, 'nonant', true);
-opt.visible = t0 >= [ctx.ev.notice_step]' | ctx.all_visible;
+opt.active = event_activity(ctx, t0, sc.S, amode);
+opt.visible = any(opt.active, 2);
 [opt.terminal, opt.Eref_end, opt.Sref_end] = terminal_ref(ctx, t0 + H - 1);
 [P, ix] = build_model(par, st, sc, ctx.ev, opt);
 sol = solve_milp(P, ctx.solver);

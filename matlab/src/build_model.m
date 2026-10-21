@@ -11,7 +11,10 @@ function [P, ix] = build_model(par, st, sc, ev, opt)
 %     'commit'  day-ahead: commitment C is a first-stage decision variable
 %     'none'    ignored
 %   opt: milp, nonant, fix_y (Hx3), terminal, Eref_end, Sref_end, no_late, visible (Kx1 logical),
-%        Cmax (for 'commit'), w_max (weight of 'max')
+%        active (KxS logical, event happens in scenario s; default = visible), Cmax (for 'commit'),
+%        w_max (weight of 'max')
+%   Optional par fields used: par.dr.c_pre (pre-event load-up assessment), par.it.ramp_max (limit on
+%   deferrable IT power swings), terminal backlog value d.c_B_end when the horizon reaches par.Tsim.
 %
 %   Decision variables per step and scenario: y_c (busy GPUs, 3 classes), backlog B_c, overdue v_c,
 %   grid pg, overflow pov, BESS pch/pdis/E, gas engine pgt, absorption heat hac, electric chiller qec,
@@ -19,6 +22,8 @@ function [P, ix] = build_model(par, st, sc, ev, opt)
 if nargin < 5, opt = struct(); end
 opt = defaults(opt, numel(ev));
 d = sys_derived(par); dt = par.dt; H = sc.H; S = sc.S; t0 = st.t;
+if isempty(opt.active), opt.active = repmat(logical(opt.visible(:)), 1, S); end
+if size(opt.active, 2) == 1 && S > 1, opt.active = repmat(opt.active, 1, S); end
 pr = sc.prob(:)';
 m = lpb_new();
 W = @(c) dt * repmat(pr, H, 1) .* c;     % cost weight helper (c: HxS or scalar)
@@ -89,7 +94,32 @@ m = lpb_addeq(m, I, J, Vv, th * base_it(:) + par.fac.Q0);
 I = repmat(r, 9, 1);
 J = [PG(:); PPV(:); PGT(:); PDS(:); PCH(:); QEC(:); Y{1}(:); Y{2}(:); Y{3}(:)];
 Vv = [one; one; one; one; -one; -1 ./ sc.cop(:); -(1 + a) * d.pdyn * [one; one; one]];
-m = lpb_addeq(m, I, J, Vv, (1 + a) * base_it(:) + par.fac.P_aux0);
+[m, ix.row_el] = lpb_addeq(m, I, J, Vv, (1 + a) * base_it(:) + par.fac.P_aux0);
+
+%% leftover backlog at the end of the evaluation window is valued at its energy cost (flat price)
+if t0 + H - 1 >= par.Tsim
+    for c = 1:3, m.f(B{c}(H, :)) = m.f(B{c}(H, :)) + d.c_B_end * pr(:); end
+end
+
+%% optional limit on deferrable IT power swings (pause / resume of large jobs)
+if isfinite(par.it.ramp_max)
+    Rr = par.it.ramp_max / d.pdyn;                       % GPUs per step
+    for s = 1:S
+        for h = 1:H
+            if h == 1
+                if ~isfield(st, 'y_prev') || isnan(st.y_prev), continue; end
+                cols = [Y{1}(1, s); Y{2}(1, s); Y{3}(1, s)];
+                m = lpb_addle(m, [1;1;1], cols, [1;1;1], Rr + st.y_prev);
+                m = lpb_addle(m, [1;1;1], cols, -[1;1;1], Rr - st.y_prev);
+            else
+                cols = [Y{1}(h, s); Y{2}(h, s); Y{3}(h, s); Y{1}(h-1, s); Y{2}(h-1, s); Y{3}(h-1, s)];
+                vv = [1;1;1;-1;-1;-1];
+                m = lpb_addle(m, ones(6,1), cols, vv, Rr);
+                m = lpb_addle(m, ones(6,1), cols, -vv, Rr);
+            end
+        end
+    end
+end
 
 %% grid connection limit
 [m, ix.row_cap] = lpb_addle(m, [r; r], [PG(:); POV(:)], [one; -one], d.Pcap * one);
@@ -120,9 +150,10 @@ end
 %% demand-response events (Jiangsu settlement), rebound windows
 ix.ev = struct('R', {}, 'Z', {}, 'SF', {}, 'MX', {}, 'RHO', {}, 'C', {}, 'row_rb', {}, 'hw', {});
 tend = t0 + H - 1;
+act = opt.active;
 for k = 1:numel(ev)
     e = ev(k); ix.ev(k).C = [];
-    if strcmp(e.mode, 'none') || ~opt.visible(k), continue; end
+    if strcmp(e.mode, 'none') || ~any(act(k, :)), continue; end
     % ---- event window ----
     if e.e >= t0 && e.e <= tend
         hk = (max(e.s, t0):e.e) - t0 + 1; nk = e.e - e.s + 1; Dh = nk * dt;
@@ -136,6 +167,7 @@ for k = 1:numel(ev)
                 [m, MX] = addb(m, 1, S, 0, Inf, par.dr.c_maxload * pr);
                 if st.ev_mx(k) > e.Pbmax + 1e-6, m.ub(Z) = 0; end
                 for s = 1:S
+                    if ~act(k, s), m.ub([R(s); Z(s); SF(s); MX(s)]) = 0; continue; end
                     pgk = PG(hk, s);
                     m = lpb_addle(m, ones(nh+1,1), [R(s); pgk], [1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [1; 1], [R(s); Z(s)], [1; -par.dr.pay_hi * e.C], 0);
@@ -153,6 +185,7 @@ for k = 1:numel(ev)
                 [m, MX] = addb(m, 1, S, 0, Inf, par.dr.c_maxload * pr);
                 Cm = opt.Cmax;
                 for s = 1:S
+                    if ~act(k, s), m.ub([R(s); Z(s); Wv(s); SF(s); MX(s)]) = 0; continue; end
                     pgk = PG(hk, s);
                     m = lpb_addle(m, [1;1], [Wv(s); Z(s)], [1; -Cm], 0);
                     m = lpb_addle(m, [1;1], [Wv(s); Cv], [1; -1], 0);
@@ -165,12 +198,12 @@ for k = 1:numel(ev)
                 end
                 ix.ev(k).R = R; ix.ev(k).Z = Z; ix.ev(k).SF = SF; ix.ev(k).MX = MX; ix.ev(k).C = Cv;
             case 'hard'
-                for s = 1:S
+                for s = find(act(k, :))
                     m.ub(PG(hk, s)) = min(m.ub(PG(hk, s)), max(sc.Pb(hk) - e.C, 0));
                 end
             case 'max'
                 [m, Cv] = addb(m, 1, 1, 0, Inf, -opt.w_max);
-                for s = 1:S
+                for s = find(act(k, :))
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [PG(hk, s); repmat(Cv, nh, 1)], ones(2*nh,1), sc.Pb(hk));
                 end
                 ix.ev(k).C = Cv;
@@ -184,9 +217,26 @@ for k = 1:numel(ev)
             [m, RHO] = addb(m, 1, S, max(st.rb(k), 0), Inf, par.dr.c_rb * pr);
             rows_rb = zeros(nw, S);
             for s = 1:S
+                if ~act(k, s), m.lb(RHO(s)) = 0; m.ub(RHO(s)) = 0; continue; end
                 [m, rows_rb(:, s)] = lpb_addle(m, [(1:nw)'; (1:nw)'], [PG(hw, s); repmat(RHO(s), nw, 1)], [ones(nw,1); -ones(nw,1)], sc.Pb(hw));
             end
             ix.ev(k).RHO = RHO; ix.ev(k).row_rb = rows_rb; ix.ev(k).hw = hw;
+        end
+    end
+end
+
+%% optional pre-event load-up assessment: (pg - baseline)^+ in the window before the first event
+if par.dr.c_pre > 0 && ~isempty(ev)
+    s1 = min([ev(any(act, 2)).s]);
+    if ~isempty(s1)
+        wp = max(1, s1 - round(par.dr.pre_win_h / dt)):(s1 - 1);
+        wp = wp(wp >= t0 & wp <= tend);
+        if ~isempty(wp)
+            hp = wp - t0 + 1; np = numel(hp);
+            [m, UP] = addb(m, np, S, 0, Inf, par.dr.c_pre * dt * repmat(pr, np, 1));
+            for s = 1:S
+                m = lpb_addle(m, [(1:np)'; (1:np)'], [PG(hp, s); UP(:, s)], [ones(np,1); -ones(np,1)], sc.Pb(hp));
+            end
         end
     end
 end
@@ -226,7 +276,7 @@ end
 
 function opt = defaults(opt, K)
 f = {'milp', true; 'nonant', true; 'fix_y', []; 'terminal', false; 'Eref_end', 0; 'Sref_end', 0; ...
-     'no_late', false; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7};
+     'no_late', false; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []};
 for i = 1:size(f,1)
     if ~isfield(opt, f{i,1}), opt.(f{i,1}) = f{i,2}; end
 end

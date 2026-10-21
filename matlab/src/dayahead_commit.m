@@ -14,7 +14,10 @@ st = state_init(par, K);
 st = add_arrivals(st, sc.flex(1, :, 1), par);
 sc.flex(1, :, :) = repmat(sc.flex(1, :, 1), [1 1 sc.S]);   % identical first step
 sc.inf(1, :) = sc.inf(1, 1); sc.fix(1, :) = sc.fix(1, 1); sc.pv(1, :) = sc.pv(1, 1);
-opt = struct('milp', true, 'visible', true(K,1), 'terminal', true, 'Eref_end', ctx.Eref(end), ...
+% events with call probability < 1 occur only in the first round(prob*S) scenarios
+amode = 'scenario'; if sc.S == 1, amode = 'ce'; end
+act = event_activity(ctx, 1, sc.S, amode);
+opt = struct('milp', true, 'visible', any(act, 2), 'active', act, 'terminal', true, 'Eref_end', ctx.Eref(end), ...
              'Sref_end', ctx.Sref(end), 'Cmax', 15);
 DA.C = zeros(K, 1); DA.mode = mode;
 switch mode

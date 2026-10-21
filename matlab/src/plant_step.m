@@ -68,6 +68,7 @@ end
 st.E = st.E + (par.bess.eta_c * pch - pdis / par.bess.eta_d) * dt;
 st.S = (1 - par.tes.loss * dt) * st.S + (par.tes.eta_c * qtc - qtd / par.tes.eta_d) * dt;
 st.pgt_prev = pgt;
+st.y_prev = sum(y);
 overdue = sum(sum(st.rem(1:t, :)));
 st.late = st.late + overdue * dt;
 for k = 1:numel(ev)

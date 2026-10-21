@@ -14,4 +14,7 @@ else
     d.Pcap = d.Pdesign;                   % before the baseline is known: design peak
 end
 d.nlagmax = max(d.lag);
+d.eps_ref = (1 + par.fac.a_aux + par.fac.theta / d.cop_design) * d.pdyn;   % facility MWh per GPU-h
+d.price_flat = par.price.nonfloat + par.price.purchase;
+d.c_B_end = d.eps_ref * d.price_flat;          % CNY per GPU-h of backlog left at the end of the window
 end

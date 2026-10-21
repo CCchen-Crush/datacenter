@@ -5,8 +5,7 @@ par.cap.Pcap_abs = [];
 [base, ~] = compute_baseline(par, inp);            % typical days, connection limit not binding
 par.cap.Pbase_peak = max(base(1:par.Tday));
 par.cap.Pcap_abs = par.cap.gamma * par.cap.Pbase_peak;
-noev = struct('s', {}, 'e', {}, 'win', {});
-ref = run_closed_loop(par, inp.real, base, noev, @nominal_wrap, struct('par', par, 'inp', inp));
+ref = run_nodr(par, inp, base);
 d = sys_derived(par);
 ev = inp.ev;
 for k = 1:numel(ev)
@@ -23,7 +22,7 @@ for k = 1:numel(ev)
 end
 ctx.alpha = gc / (gc + gs);
 ctx.cap_comp = gc / numel(ev); ctx.cap_stor = gs / numel(ev);
-ctx.par = par; ctx.inp = inp; ctx.base = base; ctx.ref = ref; ctx.ev = ev;
+ctx.par = par; ctx.inp = inp; ctx.base = base; ctx.ref = ref; ctx.ref_eval = ref; ctx.ev = ev;
 ctx.pgt_nom = ref.log.pgt; ctx.Eref = ref.log.E; ctx.Sref = ref.log.S;
 ctx.H = par.mpc.H; ctx.milp = true; ctx.solver = struct(); ctx.fmode = 'oracle'; ctx.all_visible = false;
 ctx.sidx = scenario_index(par, inp);
@@ -42,9 +41,4 @@ lp = sum(inp.pool.pv(1:par.Tday, :), 1);
 [~, o] = sort(lp); pv = o(max(1, round(q * numel(o))));
 sidx.pv = pv([2 5 1 4 3]);
 if S ~= 5, sidx.pv = pv; end
-end
-
-function [u, info] = nominal_wrap(st, data, ctx)
-u = planner_nominal(st, ctx.par, data, ctx.inp.price(st.t));
-info.ok = true; info.time = 0; info.fallback = false;
 end

@@ -11,4 +11,5 @@ st.ev_n  = zeros(nev, 1);   % elapsed event steps
 st.ev_mx = zeros(nev, 1);   % max grid power inside event (MW)
 st.rb    = zeros(nev, 1);   % max rebound in post-event window (MW)
 st.late  = 0;               % accumulated lateness (GPU-h * h)
+st.y_prev = NaN;            % deferrable GPUs executed in the previous step (for the ramp limit)
 end

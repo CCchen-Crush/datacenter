@@ -12,10 +12,14 @@ switch ctx.fmode
         S = 1; flex = inp.real.flex(hh, :); fix = inp.real.fix(hh); inf = inp.real.inf(hh); pv = inp.real.pv(hh);
     case 'expected'
         S = 1;
+        if da                               % day-ahead: plain historical-mean forecast
+            flex = inp.fc.flex(hh, :); fix = inp.fc.fix(hh); inf = inp.fc.inf(hh); pv = inp.fc.pv(hh);
+        else
         flex = corr_series(inp.fc.flex, inp.real.flex, t0, hh, dec);
         fix  = corr_series(inp.fc.fix,  inp.real.fix,  t0, hh, dec);
         inf  = corr_series(inp.fc.inf,  inp.real.inf,  t0, hh, dec);
         pv   = corr_series(inp.fc.pv,   inp.real.pv,   t0, hh, dec);
+        end
     case 'scenario'
         S = numel(ctx.sidx.flex);
         flex = zeros(H, 3, S); fix = zeros(H, S); inf = zeros(H, S); pv = zeros(H, S);
