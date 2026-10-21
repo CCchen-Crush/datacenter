@@ -25,7 +25,7 @@ plt.rcParams.update({"axes.unicode_minus": False, "font.size": 9, "axes.titlesiz
                      "axes.edgecolor": "#c9c8c2", "axes.linewidth": 0.8, "axes.grid": True,
                      "grid.color": "#e6e5e0", "grid.linewidth": 0.6, "grid.linestyle": "-",
                      "xtick.color": "#52514e", "ytick.color": "#52514e", "axes.labelcolor": "#0b0b0b",
-                     "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight"})
+                     "legend.frameon": False, "figure.dpi": 150, "savefig.bbox": "tight", "axes.axisbelow": True})
 
 # fixed categorical slots (reference palette, light mode); colour follows the entity
 C = {"JR-S": "#2a78d6", "IR-O": "#eb6834", "IR-R": "#1baf7a", "JR-D": "#eda100", "JR-oracle": "#e87ba4",
@@ -81,7 +81,7 @@ def fig_mechanism():
     files = [("exp1_mechanism_CA6_DA2.csv", "前序 6 MW×2 h，后续 1 h"), ("exp1_mechanism_CA6_DA1_DB2.csv", "前序 6 MW×1 h，后续 2 h")]
     data = [(rd(f), t) for f, t in files]
     if any(x is None for x, _ in data): return
-    fig, ax = plt.subplots(2, 2, figsize=(9, 6.2))
+    fig, ax = plt.subplots(2, 2, figsize=(9.5, 7.4)); fig.subplots_adjust(hspace=0.42, wspace=0.32)
     for j, (d, t) in enumerate(data):
         a = ax[0, j]; g = d[np.isclose(d.gamma, 1.10)]
         for key, col, lab in [("G_IR", C["IR-O"], "独立恢复 IR"), ("G_IRJ", C["IRJ"], "IR后状态+联合恢复"), ("G_JR", C["JR-S"], "联合响应+联合恢复 JR")]:
@@ -166,7 +166,7 @@ def fig_map():
         return float(d[(d.gamma == g) & (d.x == t) & (d.strategy == s)][col].iloc[0])
     Zf = np.array([[get(g, t, 3, "fulfil_pct") - get(g, t, 2, "fulfil_pct") for t in taus] for g in gams])
     Zr = np.array([[get(g, t, 2, "max_rebound") - get(g, t, 3, "max_rebound") for t in taus] for g in gams])
-    fig, ax = plt.subplots(1, 2, figsize=(9.5, 3.6))
+    fig, ax = plt.subplots(1, 2, figsize=(10.5, 3.6)); fig.subplots_adjust(wspace=0.55)
     for a, Z, title, unit in [(ax[0], Zf, "(a) 兑现率提升（JR − IR-O）", "百分点"), (ax[1], Zr, "(b) 最大反弹降低（IR-O − JR）", "MW")]:
         im = a.imshow(Z, origin="lower", aspect="auto", cmap="Blues", vmin=min(0, Z.min()))
         a.set_xticks(range(len(taus))); a.set_xticklabels([f"{t:g}" for t in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{g:.2f}" for g in gams])
@@ -197,17 +197,22 @@ def fig_mc():
 
 
 def fig_shadow():
-    d = rd("exp5_shadow.csv")
+    d = rd("exp5_shadow.csv"); t = rd("exp5_shadow_gamma100.csv")
     if d is None: return
-    fig, ax = plt.subplots(3, 1, figsize=(8.5, 6.4), sharex=True)
+    fig, ax = plt.subplots(3, 1, figsize=(8.5, 6.6), sharex=True)
     for a in ax: shade(a)
-    ax[0].plot(d.hour, d.lambda_cap, color=C["cap"], lw=2); ax[0].set_ylabel("元/MWh"); ax[0].set_title("(a) 并网容量约束影子价格（恢复“通道”的稀缺性）")
-    ax[1].plot(d.hour, d.value_E, color=C["JR-S"], lw=2, label="电储能电量边际价值")
-    ax[1].plot(d.hour, d.value_S, color=C["IR-R"], lw=2, label="蓄冷量边际价值")
+    ax[0].plot(d.hour, d.lambda_headroom, color=C["JR-S"], lw=2, label="γ=1.10：恢复通道总影子价格（并网约束+反弹考核）")
+    ax[0].plot(d.hour, d.lambda_cap, color=C["cap"], lw=1.5, label="γ=1.10：其中并网容量约束")
+    if t is not None:
+        ax[0].plot(t.hour, t.lambda_cap, color=C["IR-O"], lw=1.5, label="γ=1.00：并网容量约束")
+    ax[0].axhline(1010, color=C["base"], lw=1, ls="--", label="峰时电价 1010 元/MWh")
+    ax[0].set_ylabel("元/MWh"); ax[0].legend(fontsize=7, loc="upper right"); ax[0].set_title("(a) 事件间隔内“恢复通道”的边际价值")
+    ax[1].plot(d.hour, d.value_E, color=C["JR-S"], lw=2, label="电储能电量")
+    ax[1].plot(d.hour, d.value_S, color=C["IR-R"], lw=2, label="蓄冷量")
     ax[1].set_ylabel("元/MWh"); ax[1].legend(fontsize=7); ax[1].set_title("(b) 储侧状态的边际价值")
     for k, col in zip([1, 2, 3], ["#1baf7a", "#eb6834", "#2a78d6"]):
-        ax[2].plot(d.hour, d[f"cost_B{k}"], color=col, lw=2, label=f"C{k} 积压的边际成本")
-    ax[2].set_ylabel("元/GPU·h"); ax[2].set_xlabel("时刻 / h"); ax[2].legend(fontsize=7); ax[2].set_title("(c) 算侧积压状态的边际成本")
+        ax[2].plot(d.hour, d[f"cost_B{k}"], color=col, lw=2, label=f"C{k} 积压（L={[0.5,1.5,3][k-1]} h）")
+    ax[2].set_ylabel("元/(GPU·h)"); ax[2].set_xlabel("时刻 / h"); ax[2].legend(fontsize=7); ax[2].set_title("(c) 算侧积压状态的边际成本")
     for a in ax: a.set_xlim(12, 30); a.set_xticks(range(12, 31, 2))
     save(fig, "fig08_shadow_prices.png")
 

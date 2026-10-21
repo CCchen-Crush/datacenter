@@ -44,7 +44,10 @@ if any(RUN == 4)
     if QUICK, N = 3; else, N = 20; end
     E4 = exp4_uncertainty(ctx, root, DA, N);
 end
-if any(RUN == 5), fprintf('== Exp5: shadow prices\n'); E5 = exp5_shadow(ctx, root, DA); end
+if any(RUN == 5)
+    fprintf('== Exp5: shadow prices\n'); E5 = exp5_shadow(ctx, root, DA);
+    E5t = exp5_shadow(ctx_with_gamma(ctx, 1.0), root, DA, '_gamma100');
+end
 if any(RUN == 6), fprintf('== Exp6: commitment assessment\n'); E6 = exp6_commitment(ctx, root, DA, SE); end
 if any(RUN == 7), fprintf('== Exp7: ablation\n'); E7 = exp7_ablation(ctx, root, [6 6 6]); end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);

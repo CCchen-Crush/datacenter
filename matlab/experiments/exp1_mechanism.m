@@ -56,6 +56,7 @@ function [Rc, Rs, Hh, bnd] = recovery_terms(c, st, evB, G0)
 %   (i)  energy type : C_B*D_B <= Xbar_B - X_A + E_s + H_eff
 %   (ii) power type  : C_B <= max_{Hc+Hs<=H} { p_f - (X_due - Hc - W_sw)^+/D_B + min(P_s, (E_s + eta*Hs)/D_B) }
 %   (iii) C_B <= G0 (single-event capability).   bound = min of (i)-(iii).
+%   Both (i) and (ii) add the spare gas-engine output (+ absorption cooling) if the engine is off in the baseline.
 %   X = computing backlog in facility energy, p_f = deferrable power that can still be paused in B,
 %   X_due = backlog of A that falls due before the end of B, W_sw = interval work that can be swapped
 %   past e_B (EDF reordering frees GPUs for due work without extra headroom), P_s / E_s = storage power / energy.
@@ -85,12 +86,14 @@ eta = par.bess.eta_c * par.bess.eta_d;
 gfree = mean(par.it.u_max * par.it.Ngpu - c.inp.real.inf(iv) - c.inp.real.fix(iv) - sum(c.inp.real.flex(iv, :), 2));
 Hc_max = min(Hh, eps_ * max(gfree, 0) * tau);                 % catch-up limited by headroom and free GPUs
 Hs_max = par.bess.Pmax * tau;                                 % recharge limited by charger power
+gt_add = max(par.gt.Pmax - mean(c.pgt_nom(tB)), 0);          % gas engine not already running in the baseline
+gt_eff = gt_add + min(d.kh * gt_add * par.ac.cop, par.ac.Qmax) / cop;
 if Hh <= XA, Heff = Hh; else, Heff = XA + eta * (Hh - XA); end
-b1 = (Xbar - XA + Es + Heff) / DB;
+b1 = (Xbar - XA + Es + Heff) / DB + gt_eff;
 b2 = -Inf;
 for Hc = linspace(0, Hc_max, 51)
     Hs = min(Hh - Hc, Hs_max);
-    b2 = max(b2, pf - max(Xdue - Hc - Wsw, 0) / DB + min(Ps, (Es + eta * Hs) / DB));
+    b2 = max(b2, pf - max(Xdue - Hc - Wsw, 0) / DB + min(Ps, (Es + eta * Hs) / DB) + gt_eff);
 end
 bnd = max(0, min([G0, b1, b2]));
 end

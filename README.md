@@ -8,6 +8,26 @@ systems (AIDC-IES) considering cross-event computing-storage recovery — reprod
 * **Data (derived from public traces):** [`data/`](data), provenance in [`data_prep/README.md`](data_prep/README.md)
 * **Figures:** [`matlab/figures/`](matlab/figures) (regenerate with `tools/plot_results.py` or `plot_all.m`)
 
+## Key results (reproduced by `main_run_all`)
+
+Same DR commitments and task SLAs for all strategies; Jiangsu settlement rules; 16 000-GPU AI data center
+with PV, gas engine + absorption chiller, chilled-water storage and a 6 MW / 12 MWh battery.
+
+| Joint recovery (scenario MPC) vs independent recovery | Fulfillment | Peak rebound | Comprehensive cost |
+|---|---|---|---|
+| 20 operating days, vs optimisation-based independent | **+12.7 pp** (99.1 % vs 86.4 %) | **−37.8 %** | **−15.7 %** |
+| 20 operating days, vs rule-based independent | +25.5 pp | −42.7 % | −30.5 % |
+
+* Mechanism: after a 6 MW × 2 h event, independent recovery leaves only 38–39 % of the next event's
+  stand-alone capability for gaps ≤ 1 h; joint recovery from the *same* post-event state restores 96 %
+  within 0.75 h (it repays only what the next event needs and carries long-deadline backlog).
+* An analytical upper bound on the next event's deliverable capability (Proposition 1) holds in all 80
+  tested cases and is within 0.05 MW of the optimum in 47 of them.
+* Single-event day-ahead capability assessment over-commits by 35 %; under independent recovery those
+  commitments are only 66.6 % fulfilled.
+
+![mechanism](matlab/figures/fig02_mechanism.png)
+
 ## Quick start
 
 ```matlab
@@ -18,6 +38,11 @@ main_run_all          % all 7 experiments (MATLAB: ~10 min; Octave/glpk: ~35 min
 
 or from a shell: `octave --no-gui --eval "run('matlab/main_run_all.m')"`, then
 `python3 tools/plot_results.py` for the figures (needs numpy, pandas, matplotlib).
+
+Verification status: every experiment was run end-to-end in GNU Octave 8.4 + glpk (the committed
+`matlab/results/*.csv` and `run_output.txt` come from that run, about 28 min). The figures in
+`matlab/figures/` were rendered with `tools/plot_results.py`; `plot_all.m` (MATLAB graphics) could not be
+rendered in the headless test environment, so check it on first use in MATLAB.
 
 Requirements: MATLAB R2019b+ with Optimization Toolbox (`linprog`, `intlinprog`), or Gurobi's MATLAB
 interface on the path, or GNU Octave 6+ (built-in `glpk`). No other toolboxes. All randomness is

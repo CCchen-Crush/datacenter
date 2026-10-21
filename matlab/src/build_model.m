@@ -21,7 +21,6 @@ opt = defaults(opt, numel(ev));
 d = sys_derived(par); dt = par.dt; H = sc.H; S = sc.S; t0 = st.t;
 pr = sc.prob(:)';
 m = lpb_new();
-blk = @(lb, ub, f) deal_blk(H, S, lb, ub, f);
 W = @(c) dt * repmat(pr, H, 1) .* c;     % cost weight helper (c: HxS or scalar)
 
 %% variables
@@ -119,7 +118,7 @@ if S > 1 && opt.nonant
 end
 
 %% demand-response events (Jiangsu settlement), rebound windows
-ix.ev = struct('R', {}, 'Z', {}, 'SF', {}, 'MX', {}, 'RHO', {}, 'C', {});
+ix.ev = struct('R', {}, 'Z', {}, 'SF', {}, 'MX', {}, 'RHO', {}, 'C', {}, 'row_rb', {}, 'hw', {});
 tend = t0 + H - 1;
 for k = 1:numel(ev)
     e = ev(k); ix.ev(k).C = [];
@@ -183,10 +182,11 @@ for k = 1:numel(ev)
         if ~isempty(w) && e.e <= tend
             hw = w - t0 + 1; nw = numel(hw);
             [m, RHO] = addb(m, 1, S, max(st.rb(k), 0), Inf, par.dr.c_rb * pr);
+            rows_rb = zeros(nw, S);
             for s = 1:S
-                m = lpb_addle(m, [(1:nw)'; (1:nw)'], [PG(hw, s); repmat(RHO(s), nw, 1)], [ones(nw,1); -ones(nw,1)], sc.Pb(hw));
+                [m, rows_rb(:, s)] = lpb_addle(m, [(1:nw)'; (1:nw)'], [PG(hw, s); repmat(RHO(s), nw, 1)], [ones(nw,1); -ones(nw,1)], sc.Pb(hw));
             end
-            ix.ev(k).RHO = RHO;
+            ix.ev(k).RHO = RHO; ix.ev(k).row_rb = rows_rb; ix.ev(k).hw = hw;
         end
     end
 end
@@ -213,8 +213,6 @@ if numel(f) == 1, f = f * ones(H*S, 1); end
 [m, id] = lpb_addvar(m, H*S, lb, ub, f(:));
 X = reshape(id, H, S);
 end
-
-function varargout = deal_blk(varargin), varargout = varargin; end
 
 function [m, rows] = add_store(m, X, PC, PD, eta_c, inv_eta_d, keep, X0, dt, H, S)
 % X(h) - keep*X(h-1) - eta_c*dt*PC(h) + dt/eta_d*PD(h) = 0 ; X(0) = X0
