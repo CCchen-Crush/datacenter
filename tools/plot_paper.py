@@ -284,7 +284,75 @@ def fig7(rho=0.95):
     save(fig, "Fig7_ablation")
 
 
-FIGS = {"2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8}
+# ------------------------------------------------------------------ Fig. 1 system and recovery channel
+def _box(ax, x, y, w, h, text, fc, ec="#333333", fs=7, bold=False):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.015", fc=fc, ec=ec, lw=0.7))
+    ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fs, fontweight="bold" if bold else "normal")
+
+
+def _arr(ax, p, q, color, ls="-", lw=1.1, style="-|>", rad=0.0):
+    ax.add_patch(FancyArrowPatch(p, q, arrowstyle=style, mutation_scale=7, color=color, lw=lw, ls=ls,
+                                 connectionstyle=f"arc3,rad={rad}", shrinkA=1, shrinkB=1))
+
+
+def fig1():
+    fig = plt.figure(figsize=(DOUBLE_COL, 3.6)); gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1], wspace=0.2)
+    ax = fig.add_subplot(gs[0, 0]); ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.06, 1.0); ax.axis("off")
+    E, Cc, Hh, W = "#1f5fa8", "#2aa7c9", "#c0392b", "#7a5cb8"
+    _box(ax, 0.00, 0.83, 0.40, 0.13, "Day-ahead recovery-aware\ncommitment $C_k$ (chance-constrained)", "#eef3fa", fs=5.8)
+    _box(ax, 0.44, 0.83, 0.56, 0.13, "Intraday cross-event joint recovery MPC\n$y_{c,t}$, BESS, TES, gas engine", "#eef3fa", fs=5.9)
+    _box(ax, 0.00, 0.53, 0.17, 0.15, "Utility grid\n$P^{grid}_t \\leq P^{cap}$", "#f2f2f2", fs=6.0)
+    _box(ax, 0.00, 0.30, 0.17, 0.12, "DR operator\n(Jiangsu rules)", "#fff7e6", fs=6.0)
+    _box(ax, 0.23, 0.58, 0.14, 0.09, "PV", "#fff3cc", fs=6.2)
+    _box(ax, 0.23, 0.40, 0.14, 0.12, "Gas engine\n(CCHP)", "#fde3d6", fs=6.0)
+    _box(ax, 0.23, 0.18, 0.14, 0.12, "BESS\nSOC $E_t$", "#dce9f7", fs=6.0)
+    _box(ax, 0.43, 0.04, 0.17, 0.11, "Absorption\nchiller", "#e3f4f8", fs=6.0)
+    _box(ax, 0.43, 0.20, 0.17, 0.11, "Electric chiller\nCOP($T_t$)", "#e3f4f8", fs=6.0)
+    _box(ax, 0.66, 0.04, 0.14, 0.11, "TES\n$S_t$", "#e3f4f8", fs=6.0)
+    ax.add_patch(FancyBboxPatch((0.43, 0.38), 0.57, 0.36, boxstyle="round,pad=0.012,rounding_size=0.02", fc="#f6f1fb", ec=W, lw=0.8))
+    ax.text(0.715, 0.70, "GPU cluster (16 000 GPUs)", ha="center", fontsize=6.4, fontweight="bold", color=W)
+    _box(ax, 0.445, 0.53, 0.125, 0.12, "Inference\n+ Flex-0\n(fixed)", "white", ec=W, fs=5.4)
+    for k, (lab, L) in enumerate([("C1", "0.5 h"), ("C2", "1.5 h"), ("C3", "3 h")]):
+        _box(ax, 0.585 + 0.137 * k, 0.53, 0.125, 0.12, f"{lab} queue\n$L_c$ = {L}", "white", ec=W, fs=5.4)
+    ax.text(0.715, 0.435, "backlog $B_{c,t}$: deadline-bound debt", ha="center", fontsize=5.8, color=W, style="italic")
+    _arr(ax, (0.17, 0.61), (0.43, 0.61), E); _arr(ax, (0.37, 0.625), (0.43, 0.625), E)
+    _arr(ax, (0.37, 0.46), (0.43, 0.46), E); _arr(ax, (0.37, 0.24), (0.43, 0.40), E, rad=-0.15)
+    _arr(ax, (0.17, 0.56), (0.23, 0.27), E, rad=-0.25)
+    _arr(ax, (0.30, 0.40), (0.47, 0.15), Hh, rad=0.2)
+    _arr(ax, (0.60, 0.09), (0.66, 0.09), Cc, ls="--"); _arr(ax, (0.56, 0.31), (0.62, 0.38), Cc, ls="--"); _arr(ax, (0.74, 0.15), (0.78, 0.38), Cc, ls="--")
+    _arr(ax, (0.085, 0.42), (0.085, 0.53), "#b8860b", style="<|-|>")
+    _arr(ax, (0.12, 0.83), (0.085, 0.68), "#555555", ls=":"); _arr(ax, (0.72, 0.83), (0.72, 0.74), "#555555", ls=":")
+    for k, (c, l, ls_) in enumerate([(E, "electricity", "-"), (Cc, "cooling", "--"), (Hh, "heat", "-"), (W, "computing", "-")]):
+        ax.plot([0.02 + 0.25 * k, 0.07 + 0.25 * k], [-0.01, -0.01], color=c, ls=ls_, lw=1.2); ax.text(0.08 + 0.25 * k, -0.01, l, fontsize=5.8, va="center")
+    panel(ax, "a", x=0.0, y=0.98)
+    ax = fig.add_subplot(gs[0, 1]); t = np.linspace(16, 22, 600)
+    base = 9.6 + 0.25 * np.sin((t - 16) / 1.7)
+    ev = [(17, 18), (18.75, 19.75)]
+    pg = base.copy()
+    for a0, b0 in ev: pg = np.where((t >= a0) & (t < b0), base - 6.0, pg)
+    gap = (t >= 18) & (t < 18.75); after = t >= 19.75
+    cap = 14.9
+    pg = np.where(gap, base + (cap - 0.15 - base) * (1 - np.exp(-(t - 18) * 14)), pg)
+    pg = np.where(after, base + 3.0 * np.exp(-(t - 19.75) * 1.4), pg)
+    ax.plot(t, base, color="black", lw=0.9, ls="--", label="DR baseline $P^{base}_t$")
+    ax.axhline(cap, color="#b22222", lw=0.9, label="Connection limit $P^{cap}$")
+    ax.plot(t, pg, color=COL["JR-D"], lw=1.6, label="Grid import $P^{grid}_t$")
+    for a0, b0 in ev: ax.axvspan(a0, b0, color="#1f5fa8", alpha=0.08, lw=0)
+    tg = t[gap]; bg = base[gap]; top = pg[gap]; mid = bg + 0.55 * (top - bg)
+    ax.fill_between(tg, bg, mid, color="#e07b2a", alpha=0.55, lw=0, label="Compute catch-up (backlog)")
+    ax.fill_between(tg, mid, top, color="#1f5fa8", alpha=0.35, lw=0, label="Storage recharge (SOC deficit)")
+    ax.annotate("one recovery channel,\ntwo heterogeneous debts", xy=(18.4, 13.3), xytext=(19.95, 13.0), fontsize=6.2, ha="left", va="center",
+                arrowprops=dict(arrowstyle="-|>", lw=0.7, color="#333333"))
+    yb = base[np.argmin(np.abs(t - 17.5))] - 6.0
+    ax.text(17.5, yb + 0.45, "$R_1 \\geq C_1$", ha="center", fontsize=6.4); ax.text(19.25, yb + 0.45, "$R_2 \\geq C_2$ ?", ha="center", fontsize=6.4)
+    ax.annotate("", xy=(18.0, 2.4), xytext=(18.75, 2.4), arrowprops=dict(arrowstyle="<|-|>", lw=0.7)); ax.text(18.37, 2.75, "τ", ha="center", fontsize=6.6)
+    ax.set_xlim(16, 22); ax.set_ylim(1.5, 16.2); ax.set_xlabel("Hour of day"); ax.set_ylabel("Power (MW)")
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=5.8, ncol=2, columnspacing=0.8, handlelength=1.8)
+    panel(ax, "b", x=-0.16, y=1.0)
+    save(fig, "Fig1_system_recovery_channel")
+
+
+FIGS = {"1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8}
 
 if __name__ == "__main__":
     which = sys.argv[1:] or list(FIGS)
