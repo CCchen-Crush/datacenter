@@ -120,8 +120,9 @@ def fig6_region(lo=1.0):
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.05))
     if p is not None:
         q = p[np.isclose(p.tau_h, 0.5) & np.isclose(p.DA_h, 1) & np.isclose(p.DB_h, 1)].sort_values("C1")
-        if not q.empty:
-            ax.plot(q.C1, q.C2_JR, color="black", lw=1.1, ls=(0, (5, 2)), label="Physical capability (perfect information)")
+        if not q.empty:                                   # reduction -> commitment delivered in full (tolerance 2 %)
+            ax.plot(q.C1, q.C2_JR / 0.98, color="black", lw=1.1, ls=(0, (5, 2)),
+                    label="Physical capability, perfect information\n(same for JR-D, JR-M and IR-O)")
     top = {}
     for n in ["JR-D", "JR-M"]:
         q = r[r.strategy == n][["C1", "C_rho"]].copy()

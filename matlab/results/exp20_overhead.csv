@@ -1,2 +1,6 @@
 label,C_rho,rho,n_eval
+ovh0.02|IR-O*,,0.95,1
 ovh0.02|JR-D,7.75,0.95,7
+ovh0.02|JR-M,4.75,0.95,8
+ovh0.05|JR-D,7.5,0.95,8
+ovh0.05|JR-M,4.75,0.95,8

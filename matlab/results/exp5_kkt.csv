@@ -1,0 +1,4 @@
+label,n_steps,max_abs_residual
+BESS_charge (CNY/MWh),42,2.27374e-13
+BESS_discharge (CNY/MWh),4,6.82121e-13
+compute_catchup (relative),330,3.33067e-16
