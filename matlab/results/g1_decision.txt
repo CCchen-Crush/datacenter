@@ -125,7 +125,133 @@ JR-D       8.5      7.5
   C= 8.0: +11.58 [+8.43, +14.38]
   C= 8.5: +10.59 [+7.70, +13.33]
   C= 9.0:  +9.96 [+7.23, +12.58]
-G1a_oracle: no exp12 results
+====================================================================================================
+G1a_oracle  reliable capacity, uniform commitment, same controllers with perfect forecasts (information diagnostic), c_rb = 0
+====================================================================================================
+realisations (distinct PAI weekdays): 20; commitment grid: [np.float64(4.0), np.float64(4.5), np.float64(5.0), np.float64(5.5), np.float64(6.0), np.float64(6.5), np.float64(7.0), np.float64(7.5), np.float64(8.0), np.float64(8.5), np.float64(9.0)] MW
+
+--- share of days with every event delivered in full (>= 98 %)
+name  IR-O*  IR-P   JR-M   JR-D
+C                              
+4.0    85.0  75.0  100.0  100.0
+4.5    85.0  60.0   95.0  100.0
+5.0    70.0  40.0   95.0  100.0
+5.5    65.0  45.0   65.0  100.0
+6.0    85.0  30.0   45.0  100.0
+6.5    60.0  45.0   30.0  100.0
+7.0    35.0  30.0   25.0   95.0
+7.5    30.0  20.0   25.0   80.0
+8.0    15.0   5.0   20.0   65.0
+8.5     0.0   0.0    0.0    0.0
+9.0     0.0   0.0    0.0    0.0
+
+--- share of days with every event valid (Jiangsu >= 80 %)
+name  IR-O*  IR-P   JR-M   JR-D
+C                              
+4.0    95.0  90.0  100.0  100.0
+4.5    95.0  85.0  100.0  100.0
+5.0    90.0  70.0  100.0  100.0
+5.5    95.0  70.0   80.0  100.0
+6.0    95.0  65.0   65.0  100.0
+6.5    95.0  65.0   40.0  100.0
+7.0    85.0  50.0   30.0  100.0
+7.5    80.0  45.0   30.0  100.0
+8.0    60.0  35.0   30.0  100.0
+8.5    40.0  30.0   25.0   95.0
+9.0    30.0  25.0   25.0   90.0
+
+--- mean fulfilment (%)
+name  IR-O*  IR-P   JR-M   JR-D
+C                              
+4.0    97.0  94.6  100.0  100.0
+4.5    97.3  92.0  100.0  100.0
+5.0    95.4  88.2   99.7  100.0
+5.5    95.6  87.0   97.3  100.0
+6.0    98.1  87.4   93.7  100.0
+6.5    96.6  85.9   89.1  100.0
+7.0    91.0  82.9   87.0   99.7
+7.5    88.0  80.0   85.8   99.0
+8.0    84.4  76.4   84.4   96.6
+8.5    79.8  71.9   80.1   90.6
+9.0    74.9  68.0   75.6   85.5
+
+--- mean comprehensive cost (kCNY)
+name  IR-O*   IR-P   JR-M   JR-D
+C                               
+4.0   213.3  213.6  210.2  206.0
+4.5   208.9  212.5  206.7  201.1
+5.0   206.8  212.6  204.2  196.6
+5.5   204.0  210.5  208.3  192.6
+6.0   200.1  209.2  212.9  189.3
+6.5   199.4  208.7  221.5  186.7
+7.0   203.5  211.9  225.7  186.4
+7.5   206.1  215.9  227.8  187.0
+8.0   210.9  221.6  235.6  188.8
+8.5   218.6  229.8  240.6  194.0
+9.0   225.6  239.9  247.9  199.9
+
+--- mean extra completion time per deferred GPU-h (h)
+name  IR-O*  IR-P  JR-M  JR-D
+C                            
+4.0     0.8   0.6   0.9   0.5
+4.5     1.0   0.6   1.1   0.5
+5.0     1.0   0.6   1.4   0.7
+5.5     1.2   0.7   1.6   0.9
+6.0     1.6   1.0   1.8   1.1
+6.5     1.6   1.1   2.0   1.3
+7.0     1.5   1.1   2.1   1.4
+7.5     1.6   1.1   2.0   1.4
+8.0     1.6   1.1   2.0   1.4
+8.5     1.6   1.1   2.0   1.4
+9.0     1.6   1.1   2.0   1.4
+
+--- share of the SLA slack used by deferred work (%)
+name  IR-O*  IR-P  JR-M  JR-D
+C                            
+4.0    61.6  42.9  48.0  27.2
+4.5    66.5  43.0  54.5  31.2
+5.0    69.4  43.4  65.2  39.1
+5.5    74.4  49.0  75.8  47.4
+6.0    90.1  62.4  83.9  55.2
+6.5    90.9  69.5  89.8  63.2
+7.0    89.3  70.3  93.3  65.0
+7.5    89.9  70.3  92.8  65.2
+8.0    90.4  70.3  93.2  66.9
+8.5    90.9  70.4  92.5  65.8
+9.0    90.1  70.5  93.3  65.8
+
+simulator checks: max connection overrun 467.7 kW, max lateness 94.5 GPU-h*h, solver fallbacks 0
+
+--- reliable capacity C_rho by full delivery (>= 98 % in every event) (MW per event; NaN = below the smallest grid value 4 MW)
+       rho=90%  rho=95%
+IR-O*      NaN      NaN
+IR-P       NaN      NaN
+JR-M       5.0      5.0
+JR-D       7.0      7.0
+  rho=90%: dC(JR-D - best of IR-O*/IR-P) > +3.0 MW, bootstrap 95% CI [+2.5, +3.0] (lower bounds), P(dC >= 1 MW) = 1.00 | dC(JR-D - JR-M) = +2.0 MW, CI [+2.0, +2.5], P(dC >= 0.5) = 1.00
+  rho=95%: dC(JR-D - best of IR-O*/IR-P) > +3.0 MW, bootstrap 95% CI [+2.5, +3.0] (lower bounds), P(dC >= 1 MW) = 1.00 | dC(JR-D - JR-M) = +2.0 MW, CI [+2.0, +2.5], P(dC >= 0.5) = 1.00
+
+--- reliable capacity C_rho by Jiangsu validity (>= 80 % in every event) (MW per event; NaN = below the smallest grid value 4 MW)
+       rho=90%  rho=95%
+IR-O*      6.5      4.5
+IR-P       4.0      NaN
+JR-M       5.0      5.0
+JR-D       9.0      8.5
+  rho=90%: dC(JR-D - best of IR-O*/IR-P) = +2.5 MW, bootstrap 95% CI [+1.5, +4.0], P(dC >= 1 MW) = 1.00 | dC(JR-D - JR-M) = +4.0 MW, CI [+3.0, +4.0], P(dC >= 0.5) = 1.00
+  rho=95%: dC(JR-D - best of IR-O*/IR-P) = +4.0 MW, bootstrap 95% CI [+1.5, +4.0], P(dC >= 1 MW) = 1.00 | dC(JR-D - JR-M) = +3.5 MW, CI [+3.0, +4.0], P(dC >= 0.5) = 1.00
+
+--- paired fulfilment gap JR-D - JR-M (pp), mean [95% bootstrap CI over days]
+  C= 4.0:  +0.00 [+0.00, +0.00]
+  C= 4.5:  +0.04 [+0.00, +0.13]
+  C= 5.0:  +0.30 [+0.00, +0.89]
+  C= 5.5:  +2.69 [+1.10, +4.60]
+  C= 6.0:  +6.32 [+3.32, +9.65]
+  C= 6.5: +10.91 [+6.95, +15.06]
+  C= 7.0: +12.76 [+8.80, +16.84]
+  C= 7.5: +13.22 [+9.00, +16.98]
+  C= 8.0: +12.19 [+8.89, +15.34]
+  C= 8.5: +10.50 [+7.31, +13.64]
+  C= 9.0:  +9.89 [+6.75, +12.74]
 
 ====================================================================================================
 G1b  two-event capacity region (perfect information, deadlines met, connection limit hard)

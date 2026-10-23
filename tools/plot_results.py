@@ -317,12 +317,19 @@ def fig_capacity():
     for _, r in off.iterrows():
         ax[3].annotate(f"{r.net / 1e4:.0f}", (r.C, top), xytext=(0, -9), textcoords="offset points", ha="center", fontsize=6.5, color=C[r["name"]])
     if len(off): ax[3].text(0.02, 0.03, "顶部数字：超出范围的均值 / 万元（个别日 SLA 违约罚金）", transform=ax[3].transAxes, fontsize=6.5, color=INK2, va="bottom")
+    do, _ = _exp12("_oracle")            # same controllers with perfect forecasts: thin dashed in (a)
+    if do is not None:
+        go = do.groupby(["C", "name"]).all_full.mean().reset_index()
+        for nm in s["label"]:
+            q = go[go.name == nm]
+            ax[0].plot(q.C, 100 * q.all_full, color=C[nm], lw=1, ls="--", alpha=0.8)
+        ax[0].text(0.98, 0.55, "细虚线：完美预测", transform=ax[0].transAxes, ha="right", fontsize=6.5, color=INK2)
     for a in ax[:2]:
         a.axhline(95, color=MUTED, lw=1, ls="--"); a.axhline(90, color=MUTED, lw=0.8, ls=":")
         a.set_ylim(-3, 103)
     ax[0].set_ylabel("每次事件均足额（≥98%）的天数占比 / %"); ax[1].set_ylabel("三次事件全部有效（≥80%）的天数占比 / %")
     ax[2].set_ylabel("平均兑现率 / %"); ax[3].set_ylabel("平均综合成本 / 万元")
-    for a, t in zip(ax, ["(a) 足额可靠性（虚线 95%，点线 90%）", "(b) 有效性（江苏 80% 口径）", "(c) 兑现率", "(d) 综合成本（越低越好）"]):
+    for a, t in zip(ax, ["(a) 足额可靠性（灰虚线 95%，灰点线 90%）", "(b) 有效性（江苏 80% 口径）", "(c) 兑现率", "(d) 综合成本（越低越好）"]):
         a.set_xlabel("每次事件的统一承诺 C / MW"); a.set_title(t)
     ax[2].legend(fontsize=7, loc="lower left")
     save(fig, "fig11_capacity.png")
