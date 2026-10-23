@@ -1,0 +1,7 @@
+# batch 3: two-event reliability region (S2-30, C1, C2 in 5..9 MW, 25 pairs in 4 parts; IR-O* re-tuned per pair)
+# and the typical-day recovery mechanism (short interval S2-30 vs long interval S2-180, C = 7 MW, case day)
+reg1|RUN=14; E14_SET='region'; E14_SCEN='S2-30'; E14_CG=5:9; E14_PAIRS=1:7; E14_TAG='_S2-30_p1';
+reg2|RUN=14; E14_SET='region'; E14_SCEN='S2-30'; E14_CG=5:9; E14_PAIRS=8:13; E14_TAG='_S2-30_p2';
+reg3|RUN=14; E14_SET='region'; E14_SCEN='S2-30'; E14_CG=5:9; E14_PAIRS=14:19; E14_TAG='_S2-30_p3';
+reg4|RUN=14; E14_SET='region'; E14_SCEN='S2-30'; E14_CG=5:9; E14_PAIRS=20:25; E14_TAG='_S2-30_p4';
+mech|RUN=15; E15_CASES={'S2-30', 7, 0, 'short'; 'S2-180', 7, 0, 'long'};

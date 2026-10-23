@@ -1,0 +1,158 @@
+# 交接文档（Applied Energy 重构版，2026-10-23 05:00 UTC）
+
+> 给下一位接手者（人或 AI）。**工作分支：`claude/ae-reliable-capacity`**（仓库 CCchen-Crush/datacenter）。
+> 主线以 [`研究方案_AE重构.md`](研究方案_AE重构.md) 为准，写法与图表规范以 [`论文蓝图_AE.md`](论文蓝图_AE.md) 为准（对标 Zhang 等 2026，Applied Energy 128499）。
+> 用户要求：保持主线，不再扩展实验种类；论文要“创新点明确、结果好、图表精美、问题真实紧迫”，不追求工程级认证；写作要主动自信，数据来源只在算例设置里交代一次，不反复自我否定结论量级。
+
+## 0 一句话现状
+
+模型修正、场景定义、全部实验代码、作图脚本、取数脚本和论文第 1–4 节初稿都已完成并推送。**新版本的正式实验结果还没有一个落盘**：本容器内正在跑，但结果 CSV 要等每个分段跑完才写出，换容器后需要按第 3 节重跑（4 核约 4–5 小时）。第 4 节给出了从运行日志摘录的初步结果，结论方向已经清楚。
+
+## 1 文档与代码索引
+
+| 内容 | 位置 |
+|---|---|
+| 研究方案（主线，用户提供） | `docs/研究方案_AE重构.md` |
+| 论文蓝图（结构、Highlights、贡献、算法包装、Table 2、八张图、写作规则） | `docs/论文蓝图_AE.md` |
+| 论文初稿（英文；第 1–4 节、符号表、附录 A 已写，第 5–6 节和摘要待填数） | `paper/manuscript.md` |
+| 本交接文档 | `docs/交接文档_AE.md` |
+| 判定实验 G1（旧版三事件结果，已被本轮取代，作历史记录） | `docs/判定实验G1.md`，结果在 `matlab/results/legacy_G1/` |
+| 理论证明（命题 1、原定理 1 = 现命题 2） | `docs/理论推导.md` |
+| 参数 | `matlab/config/dcdr_params.m`（每项标注 [S]/[D]/[A]） |
+| 实验入口与全部选项 | `matlab/main_run_all.m`（文件头注释） |
+| 作业清单 | `tools/jobs/checkpoint.txt`、`batch2.txt`、`batch3.txt` |
+| 并行运行、合并、取数、作图 | `tools/run_queue.sh`、`tools/merge_all.sh`、`tools/paper_numbers.py`、`tools/plot_paper.py`（样式在 `tools/paper_style.py`） |
+
+旧分支：`claude/pensive-goodall-wm35vr`（P0 与 G1 阶段，已全部包含在新分支中）；`Firstthinking`（v1 初稿，勿改）。
+
+## 2 已完成的工作
+
+### 2.1 模型与程序修正（方案第七节 P0）
+
+| 修正 | 位置 | 说明 |
+|---|---|---|
+| NoDR 无承诺结算 | `src/evaluate_run.m`（参数 `settle`）、`src/run_strategy.m` | 不计补贴与考核，只报物理指标 |
+| 反弹考核默认 0 | `config/dcdr_params.m` | 3 元/kW 作为政策敏感性（exp8） |
+| 足额与用户侧指标 | `src/evaluate_run.m`、`src/metrics_row.m` | `all_full`（每次 ≥98% 承诺）、`mean_delay_h`、`sla_use_pct`、`c3_carry_GPUh` 等 |
+| 冷机 COP 用预测气温 | `src/load_inputs.m`、`src/make_scen.m` | 前 3 日均值，与光伏同源；`par.mpc.cop_fc='perfect'` 可恢复旧设定 |
+| **结算约束 big-M** | `src/build_model.m`（'settle'、'commit'） | “计补贴削减 ≤ 实际削减”和“≥80% 有效”只对有效事件生效。原写法在事件已判无效时仍强制负荷不高于基线，使独立基准在高负荷日（第 17 日）储能阶段无可行解、回退到规则控制 |
+| **回放不越限** | `src/plant_step.m` | 储能、蓄冷之后仍越限时削减可延后算力（先未到期、再到期，后者计逾期）；修正了 `grid` 匿名函数捕获旧 `pit` 的问题。原来 JR-M 有 0.2–0.5 MW 越限 |
+| 场景 S1/S2/S3 | `src/set_scenario.m`、`dcdr_params.m` | S1 = 17、19 时两次约定响应（基础，符合江苏“每日不多于两次、累计不超过 2 h”）；`S2-<分钟>` = 第二次在第一次结束后若干分钟开始；S3 = 再加 21 时快速避峰（提前 3 h，系数 1.4），作压力扩展 |
+| 日前机会约束选项 | `src/build_model.m`、`src/dayahead_commit.m`（参数 `rho`） | 场景足额指示变量 u_s，Σp_s u_s ≥ ρ |
+
+### 2.2 实验代码（方案第五节五个模块）
+
+| 模块 | 代码 | 输出 |
+|---|---|---|
+| 模块二 可靠容量（核心） | `experiments/exp12_capacity.m`（`E12_SCEN`、26 个不重复 PAI 测试日、承诺 3–9 MW） | `exp12_capacity_S1/S2/S3.csv` |
+| 模块二 两事件可靠可行域 | `experiments/exp14_sweep.m`（`E14_SET='region'`） | `exp14_region_S2-30.csv` |
+| 模块三 恢复机理 | `experiments/exp15_mechanism.m`（短间隔 S2-30 与长间隔 S2-180 对照） | `ts15_short_*.csv`、`ts15_long_*.csv`、`exp15_mechanism.csv` |
+| 模块一 内生承诺 | `experiments/exp16_endogenous.m`（各策略用相同 5 个日前场景和相同目标回测自选统一承诺；记录日前期望成本与足额率；另有完美追索 MILP 与单事件评估作参照） | `exp16_dayahead_S1.csv`、`exp16_endogenous_S1.csv`、`exp16_packages_S1.csv` |
+| 模块一 固定承诺 | 直接取 `exp12_capacity_*.csv` 中某一承诺的 26 日结果 | — |
+| 模块四 敏感性 | `exp14_sweep.m`：`tau_gamma`（τ ∈ {0.25,0.5,1,2,3} h × γ ∈ {1.00,1.05,1.10,1.20}，C = 7 MW）、`single`（L_c ×0.5/0.75/1.25/1.5，BESS 0/2/4 MW） | `exp14_tau_gamma.csv`、`exp14_single.csv` |
+| 消融（Table 2） | `exp14_sweep.m` `ablation`：仅 BESS、仅算力、算力+BESS（JR-D 控制器，承诺 1–8 MW）；其余档位取 exp12 的 IR/JR-M/JR-D | `exp14_ablation.csv` |
+| 模块五 不确定性 | `exp4_montecarlo.m`（S3，E3 以 0.6 概率被调用、提前 1 h 确认；含 JR-S、JR-oracle；26 日） | `exp4_e3uncertain.csv` |
+| 补充材料 | exp1（机理上界）、exp5（影子价格，S1）、exp8（反弹考核扫描）、exp11（命题 2 闭式解）、exp13（完美信息能力域） | 同名 CSV |
+
+辅助函数：`src/ctx_with_par.m`（改参数后重建基线、并网上限、不响应参照）。
+
+### 2.3 作图、取数与论文
+
+- `tools/plot_paper.py`：Fig. 1–8 与 Fig. S1–S6，英文、Liberation Serif（Times 等宽替代）、PDF/SVG/PNG 输出到 `paper/figures/`。Fig. 1（系统与恢复通道示意）已生成。其余图的版式已用旧数据试画并调好（置信带、ΔC 标注、裁剪轴标注、山脊图、小提琴图等）。
+- `tools/paper_numbers.py`：输出论文要用的全部数字（C_ρ、ΔC_ρ、I_ρ 及按测试日区组自助法的 95% 区间；固定承诺对比表；内生承诺表；敏感性、消融汇总）到 `paper/numbers.md`。
+- `paper/manuscript.md`：Highlights、符号表（三级）、引言（背景 → 三段综述 → 缺口 → 三条编号贡献）、第 2–4 节（模型、可靠容量定义、命题、方法、Algorithm 1）、Table 2（✓/✕ 情景矩阵）、附录 A 参数表。
+
+## 3 实验运行（换容器后必须重跑）
+
+### 3.1 环境
+
+```bash
+apt-get install -y --no-install-recommends octave fonts-liberation fonts-noto-cjk
+python3 -m venv /tmp/venv && /tmp/venv/bin/pip install numpy pandas scipy matplotlib tabulate
+```
+
+系统自带的 python3 是 3.13，而 Ubuntu 的 matplotlib 包是为 3.12 编译的，直接 import 会报错，所以作图和取数要用 venv 里的 python。
+
+### 3.2 运行顺序与耗时（4 核）
+
+```bash
+cd <repo>
+nohup tools/run_queue.sh 4 tools/jobs/checkpoint.txt > matlab/results/queue_checkpoint.log 2>&1 &
+# 可同时排队（总吞吐不变，只是各自变慢）：
+nohup tools/run_queue.sh 4 tools/jobs/batch2.txt > matlab/results/queue_batch2.log 2>&1 &
+nohup tools/run_queue.sh 4 tools/jobs/batch3.txt > matlab/results/queue_batch3.log 2>&1 &
+# 进度：grep -h "exp12_S\|exp14\|exp16" matlab/results/stdout_*.txt ；完成：queue_*.log 出现 "queue done"
+tools/merge_all.sh
+/tmp/venv/bin/python tools/paper_numbers.py > paper/numbers.md
+cd tools && /tmp/venv/bin/python plot_paper.py       # 全部图；也可只画某几张：plot_paper.py 3 5
+```
+
+| 作业 | 内容 | CPU 时间（约） |
+|---|---|---|
+| checkpoint（8 段） | S1、S2、S3 × 13 个承诺 × 26 日 × 4 策略 | 6.5 h |
+| batch2 `e16S1` | 内生承诺 S1 | 2 h |
+| batch2 `tg*`（4 段） | τ×γ 图 20 个工况 | 3.3 h |
+| batch2 `sg*`、`ab*` | 单因素 7 工况；消融 3 工况 × 15 承诺 | 1.2 h + 1.3 h |
+| batch2 `jrs`、`supp`、`rb` | JR-S 不确定性；exp1/5/11/13；反弹扫描 | 约 1.5 h |
+| batch3 `reg*`（4 段）、`mech` | 两事件可靠可行域 25 对；典型日时序 | 3.3 h + 0.1 h |
+
+合计约 19 CPU 小时，4 核约 5 小时。单次确定性闭环约 4 s/日，JR-S 约 60 s/日，每个承诺水平的 IR-O* 日前调优约 3 min。
+
+### 3.3 运行注意
+
+- `run_queue.sh` 会把作业文件路径转成绝对路径，空作业文件不会启动任何进程（之前因为相对路径读不到作业文件，空参数启动了全套 `main_run_all`）。
+- 结束某个作业要按 PID 结束（`kill <pid>`）。不要用 `pkill -f <宽泛模式>`，它可能匹配到自己所在的 shell。
+- Octave 运行中会重新加载被修改的 `.m` 文件。要么改代码前确认没有作业在跑，要么只做向后兼容的改动。
+- `matlab/results/` 下的 `stdout_*.txt`、`queue_*.log` 和分段 CSV 已写进本地 `.git/info/exclude`（不随仓库走）；新容器里注意别把它们 `git add` 进去。
+- 结果分段文件（`*_S1_a.csv`、`*_g100.csv`、`*_p1.csv` 等）由 `merge_all.sh` 合并并删除，不要提交分段文件。
+
+## 4 初步结果（运行日志摘录，2026-10-23 04:56；非最终，供判断方向）
+
+每次事件均足额（≥98%）的天数占比，26 个测试日；列顺序 IR-O* / IR-P / JR-M / JR-D：
+
+| 承诺 | S1（间隔 1 h） | S2（间隔 30 min） |
+|---|---|---|
+| 3.0 MW | 0.88 / 0.85 / 1.00 / 1.00 | 0.81 / 0.85 / 1.00 / 1.00 |
+| 4.0 MW | 0.88 / 0.58 / 1.00 / 1.00 | 0.73 / 0.62 / 1.00 / 1.00 |
+| 4.5 MW | 0.77 / 0.69 / 1.00 / 1.00 | 0.65 / 0.50 / 1.00 / 1.00 |
+| 6.5 MW | 0.69 / 0.27 / 0.96 / 1.00 | 0.92 / 0.38 / 0.27 / 1.00 |
+| 7.0 MW | 0.85 / 0.12 / 0.92 / 1.00 | 0.81 / 0.27 / 0.15 / 1.00 |
+| 7.5 MW | 0.42 / 0.04 / 0.77 / 1.00 | 0.38 / 0.23 / 0.00 / 1.00 |
+| 8.0 MW | 0.27 / 0.00 / 0.27 / 0.81 | 0.23 / 0.19 / 0.00 / 0.81 |
+
+平均综合成本（千元/日，同顺序）：S1 7 MW 215 / 238 / 218 / 211；S2 7.5 MW 220 / 229 / 238 / 212。
+
+τ×γ（C = 7 MW，间隔 15 min）足额天数占比：γ=1.00 → 0.46 / 0.15 / 0.00 / 0.96；γ=1.05 → 0.69 / 0.15 / 0.00 / 1.00；γ=1.10 → 0.73 / 0.31 / 0.00 / 1.00。
+
+**读法（写进论文的主线）：**
+
+1. **可靠容量**：JR-D 在 S1、S2 的 95% 足额可靠容量约 7.5 MW。最强独立基准在 3 MW 也只有 81–88% 的天数足额，因此 C_0.95 低于 3 MW。JR-M 在 S1 约 6.5 MW，在 S2 约 5 MW（需补 5–6 MW 数据确认）。
+2. **跨事件远见的价值随间隔缩短而上升**：S1 中 JR-M 接近 JR-D；S2（30 min）中 JR-M 在 6.5 MW 以上崩溃（7.5 MW 时为 0%）；间隔 15 min 时 JR-M 在 7 MW 全部失败，而 JR-D 为 96–100%。
+3. **独立恢复的问题与间隔关系不大**：IR-O*、IR-P 在低承诺下也会失败。逐日诊断（见 `判定实验G1.md` 第 4、5 节）表明，失败日实际负荷比固定基线高 1–4.5 MW，固定分摊或日前价格无法把缺口实时转给算力。
+4. **成本**：JR-D 在高承诺下每日成本最低（比最强基准低 4–26 千元），且补贴收入最高。
+5. **完美追索的日前 MILP 给出的承诺等于单事件能力**（S1 为 8.18/7.98 MW，S3 为 8.18/7.98/7.90 MW），高估了闭环可兑现的容量。所以承诺层采用“闭环回测 + 可靠率约束”（论文式 (15)），这一点已写进 `paper/manuscript.md` 4.1 节。
+
+## 5 关键决策记录（不要推翻）
+
+- S1 双事件为基础算例，S3 三事件只作压力扩展；主算例不设反弹考核。
+- 可靠容量用“每次事件均足额（≥98%）”口径，江苏 80% 有效口径另报。
+- IR-O* 在每个承诺水平用日前场景回测重新调分摊比例 α，IR-P 用日前联合计划的通道影子价格，都是最强形态。
+- 测试日是 DR 日之后的 26 个不重复 PAI 工作日（各配高温日气象与 Azure 推理日）；置信区间用按测试日的区组自助法。
+- 两事件完美信息能力域（exp13）在 1 h 事件下几乎是矩形。可行域改用闭环可靠率口径（exp14 region），完美信息结果只放补充材料（Fig. S3），说明“物理能力相近、差别在运行与协调”。
+- 不再新增实验种类；不开发新算法；不建作业级 GPU 仿真。
+
+## 6 下一步清单（按顺序）
+
+1. **跑完第 3 节全部作业**，执行 `merge_all.sh`。验收：`matlab/results/` 中有 `exp12_capacity_S1/S2/S3.csv`、`exp14_{tau_gamma,single,ablation,region_S2-30}.csv`、`exp16_*_S1.csv`、`exp4_e3uncertain.csv`、`ts15_*`、`exp1_*`、`exp5_*`、`exp8_*`、`exp11_*`、`exp13_*`。
+2. **取数**：`paper_numbers.py > paper/numbers.md`。检查 JR-D 在 26 日内无越限、无逾期、无求解回退（`cap_violation_MW`、`lateness_GPUh_h`、`fallbacks` 列）。
+3. **作图**：`plot_paper.py`，逐张检查。Fig. 3 的 ΔC 标注要与 numbers 一致；Fig. 5 要确认裁剪后的轴是否合适；Fig. 2 先确认典型日是否体现机理（IR-O* 事后先补完长时限任务、挤占回充）。若案例日不典型，把 `batch3.txt` 中 `mech` 的第三个参数改成一个“S2-30、7 MW 下 IR-O* 或 JR-M 失败而 JR-D 足额”的测试日编号（从 `exp12_capacity_S2.csv` 中筛选），重跑 `mech`。
+4. **内生承诺表**：从 `exp16_dayahead_S1.csv` 按式 (15) 对 ρ ∈ {0, 0.8, 1.0} 选各策略 C*，样本外结果直接查 `exp12_capacity_S1.csv`（同一批 26 日）。把这一步加到 `paper_numbers.py` 的 `endogenous_section()`。
+5. **写论文第 5 节与摘要、结论**。按蓝图第 5 节结构、八张图和 Table 2、Table 3（内生承诺），语气见蓝图第 0 节。摘要放 3–4 个最强数字（ΔC_0.95、S2 下 JR-M 的崩溃、成本差、适用条件）。
+6. **文档同步**：新建 `docs/实验结果_AE.md`（中文结果汇总，数字来自 numbers.md）；更新 README 的关键结果；更新 `docs/修改进度.md`。
+7. **投稿前**：核对参考文献 [38]–[42] 的作者与卷期；把 `paper/manuscript.md` 转成 Elsevier LaTeX 模板（elsarticle）；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 3 拼成）。
+
+## 7 其他说明
+
+- `matlab/figures/` 是 v1 和 G1 阶段的旧图（中文），论文用图一律在 `paper/figures/`。
+- `tools/plot_results.py`、`tools/summarize_results.py`、`tools/g1_decision.py` 是旧版工具，只用于 `legacy_G1` 数据（如 `python3 tools/g1_decision.py matlab/results/legacy_G1`），新结果请用 `paper_numbers.py` 和 `plot_paper.py`。
+- 参考论文 PDF（Zhang 等 2026）未入库（20 MB），其结构要点已整理进 `docs/论文蓝图_AE.md`。
