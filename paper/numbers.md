@@ -14,10 +14,10 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 | S2 | full | 95% | <1 | <1 | 4.5 | 7.5 | > +6.5 | > 650 % | +3.0 [+2.5, +3.0] |
 | S2 | 80 % | 90% | <1 | <1 | 6 | 9 | > +8.0 | > 800 % | +3.0 [+3.0, +4.5] |
 | S2 | 80 % | 95% | <1 | <1 | 5.5 | 9 | > +8.0 | > 800 % | +3.5 [+3.0, +4.5] |
-| S3 | full | 90% | <1 | <1 | 1 | 1 | > +0.0 | > 0 % | +0.0 [+0.0, +0.0] |
-| S3 | full | 95% | <1 | <1 | 1 | 1 | > +0.0 | > 0 % | +0.0 [+0.0, +0.0] |
-| S3 | 80 % | 90% | <1 | <1 | 1 | 8.5 | > +7.5 | > 750 % | +7.5 [+0.0, +7.5] |
-| S3 | 80 % | 95% | <1 | <1 | 1 | 1 | > +0.0 | > 0 % | +0.0 [+0.0, +7.5] |
+| S3 | full | 90% | <1 | <1 | 5 | 7 | > +6.0 | > 600 % | +2.0 [+2.0, +3.0] |
+| S3 | full | 95% | <1 | <1 | 4.5 | 6.5 | > +5.5 | > 550 % | +2.0 [+2.0, +3.0] |
+| S3 | 80 % | 90% | <1 | <1 | 5.5 | 8.5 | > +7.5 | > 750 % | +3.0 [+2.0, +3.0] |
+| S3 | 80 % | 95% | <1 | <1 | 5 | 7.5 | > +6.5 | > 650 % | +2.5 [+2.0, +3.0] |
 
 ## Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
 
@@ -25,7 +25,7 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 |---|---|---|---|---|---|
 | S1 | <1 | <1 | 6.5 [6, 7] | 7.5 [7.5, 8] | 1–9 |
 | S2 | <1 | <1 | 4.5 [4.5, 5] | 7.5 [7.5, 8] | 1–9 |
-| S3 | <1 | <1 | 1 [1, 1] | 1 [1, 1] | 1–9 |
+| S3 | <1 | <1 | 4.5 [1.5, 5] | 6.5 [4.5, 7] | 1–9 |
 
 ## Full-delivery share by commitment (%, 26 test days)
 
@@ -50,12 +50,12 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 
 **S3: three events (stress)**
 
-| name   |   1.0 |   8.0 |   8.5 |   9.0 |
-|:-------|------:|------:|------:|------:|
-| IR-O*  |    42 |     4 |     0 |     0 |
-| IR-P   |    46 |     0 |     0 |     0 |
-| JR-M   |   100 |     8 |     0 |     0 |
-| JR-D   |   100 |    27 |     0 |     0 |
+| name   |   1.0 |   1.5 |   2.0 |   2.5 |   3.0 |   3.5 |   4.0 |   4.5 |   5.0 |   5.5 |   6.0 |   6.5 |   7.0 |   7.5 |   8.0 |   8.5 |   9.0 |
+|:-------|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|------:|
+| IR-O*  |    42 |    54 |    65 |    69 |    62 |    77 |    62 |    65 |    58 |    50 |    77 |    50 |    31 |    12 |     4 |     0 |     0 |
+| IR-P   |    46 |    54 |    62 |    73 |    62 |    54 |    50 |    38 |    35 |    35 |    27 |    27 |     8 |     8 |     0 |     0 |     0 |
+| JR-M   |   100 |   100 |    96 |    96 |   100 |    96 |   100 |    96 |    92 |    65 |    42 |    31 |    23 |    19 |     8 |     0 |     0 |
+| JR-D   |   100 |   100 |   100 |   100 |   100 |   100 |   100 |   100 |    96 |    96 |    96 |    96 |    92 |    54 |    27 |     0 |     0 |
 
 ## Fixed-commitment comparison (module 1, protocol 1; means over 26 test days)
 
@@ -186,6 +186,69 @@ Cost change vs no DR (k CNY/day, mean over days):
 - JR-D − IR-P: cost -16.5 k CNY/day [95% CI -22.1, -11.4], median -12.4; cheaper on 26/26 days
 - JR-D − JR-M: cost -26.2 k CNY/day [95% CI -30.4, -21.8], median -33.8; cheaper on 26/26 days
 
+**S3: three events (stress), C = 6 MW**
+
+| strategy | fulfil % | all full % | all valid % | cost (k CNY) | DR pay (k) | peak rebound (MW) | extra delay (h) | SLA slack used % | C3 carried (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | 98.2 | 76.9 | 96.2 | 372.0 | 64.7 | 6.5 | 1.4 | 87.9 | 316.2 |
+| IR-P | 89.0 | 26.9 | 57.7 | 211.6 | 54.7 | 6.5 | 1.0 | 69.3 | 0.0 |
+| JR-M | 94.1 | 42.3 | 65.4 | 214.0 | 59.9 | 6.5 | 1.7 | 80.3 | 4448.3 |
+| JR-D | 99.8 | 96.2 | 100.0 | 190.8 | 72.1 | 6.5 | 1.0 | 51.6 | 2500.4 |
+
+Cost change vs no DR (k CNY/day, mean over days):
+
+| strategy | electricity | gas | degradation | delay | end state | shortfall | DR revenue (-) | net change | E_start E2 (MWh) | backlog into E2 (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | -3.6 | -0.7 | +0.4 | +183.2 | +0.8 | +1.2 | -64.7 | +116.7 | 8.06 | 677 |
+| IR-P | -2.3 | -0.7 | +0.9 | +5.8 | +0.4 | +6.8 | -54.7 | -43.8 | 7.44 | 0 |
+| JR-M | -7.7 | +4.3 | +1.1 | +16.3 | +0.0 | +4.5 | -59.9 | -41.4 | 4.99 | 2936 |
+| JR-D | -5.8 | +3.1 | +1.0 | +8.9 | -0.0 | +0.1 | -72.1 | -64.6 | 6.81 | 90 |
+- JR-D − IR-O*: cost -181.2 k CNY/day [95% CI -527.3, -7.4], median -7.6; cheaper on 26/26 days
+- JR-D − IR-P: cost -20.8 k CNY/day [95% CI -28.6, -13.8], median -15.4; cheaper on 26/26 days
+- JR-D − JR-M: cost -23.2 k CNY/day [95% CI -29.9, -17.0], median -16.8; cheaper on 26/26 days
+
+**S3: three events (stress), C = 7 MW**
+
+| strategy | fulfil % | all full % | all valid % | cost (k CNY) | DR pay (k) | peak rebound (MW) | extra delay (h) | SLA slack used % | C3 carried (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | 91.2 | 30.8 | 88.5 | 426.8 | 65.7 | 6.5 | 1.5 | 88.9 | 407.2 |
+| IR-P | 82.9 | 7.7 | 46.2 | 216.9 | 55.2 | 6.5 | 1.1 | 70.5 | 0.8 |
+| JR-M | 87.1 | 23.1 | 30.8 | 227.8 | 56.8 | 6.5 | 2.0 | 90.3 | 5002.4 |
+| JR-D | 99.3 | 92.3 | 96.2 | 188.9 | 77.3 | 6.5 | 1.3 | 62.6 | 3528.9 |
+
+Cost change vs no DR (k CNY/day, mean over days):
+
+| strategy | electricity | gas | degradation | delay | end state | shortfall | DR revenue (-) | net change | E_start E2 (MWh) | backlog into E2 (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | -3.6 | -0.7 | +0.4 | +234.3 | +0.8 | +6.0 | -65.7 | +171.5 | 8.19 | 728 |
+| IR-P | -2.5 | -0.7 | +0.8 | +7.3 | +0.5 | +11.3 | -55.2 | -38.4 | 7.56 | 0 |
+| JR-M | -8.2 | +4.6 | +1.1 | +20.4 | +0.0 | +11.3 | -56.8 | -27.6 | 5.37 | 4282 |
+| JR-D | -6.9 | +3.9 | +1.1 | +12.3 | +0.0 | +0.5 | -77.3 | -66.4 | 6.53 | 224 |
+- JR-D − IR-O*: cost -237.9 k CNY/day [95% CI -684.9, -12.0], median -14.2; cheaper on 26/26 days
+- JR-D − IR-P: cost -28.0 k CNY/day [95% CI -35.1, -21.9], median -30.4; cheaper on 26/26 days
+- JR-D − JR-M: cost -38.9 k CNY/day [95% CI -45.9, -30.8], median -49.7; cheaper on 26/26 days
+
+**S3: three events (stress), C = 7.5 MW**
+
+| strategy | fulfil % | all full % | all valid % | cost (k CNY) | DR pay (k) | peak rebound (MW) | extra delay (h) | SLA slack used % | C3 carried (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | 88.2 | 11.5 | 88.5 | 635.0 | 67.2 | 6.5 | 1.5 | 89.9 | 639.4 |
+| IR-P | 78.8 | 7.7 | 34.6 | 225.7 | 50.1 | 6.5 | 1.1 | 70.4 | 0.8 |
+| JR-M | 86.0 | 19.2 | 30.8 | 229.8 | 56.7 | 6.5 | 2.0 | 90.4 | 4967.6 |
+| JR-D | 98.3 | 53.8 | 96.2 | 190.1 | 77.2 | 6.5 | 1.3 | 63.9 | 3594.8 |
+
+Cost change vs no DR (k CNY/day, mean over days):
+
+| strategy | electricity | gas | degradation | delay | end state | shortfall | DR revenue (-) | net change | E_start E2 (MWh) | backlog into E2 (GPU·h) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| IR-O* | -3.9 | -0.7 | +0.4 | +441.3 | +0.9 | +8.7 | -67.2 | +379.6 | 8.55 | 888 |
+| IR-P | -2.5 | -0.7 | +0.8 | +7.3 | +0.5 | +15.0 | -50.1 | -29.7 | 7.77 | 0 |
+| JR-M | -8.2 | +4.6 | +1.1 | +20.5 | +0.0 | +13.1 | -56.7 | -25.6 | 5.34 | 4248 |
+| JR-D | -7.0 | +3.9 | +1.0 | +12.4 | +0.0 | +1.4 | -77.2 | -65.3 | 6.49 | 291 |
+- JR-D − IR-O*: cost -444.9 k CNY/day [95% CI -1302.2, -14.0], median -16.6; cheaper on 26/26 days
+- JR-D − IR-P: cost -35.7 k CNY/day [95% CI -44.0, -27.6], median -35.5; cheaper on 26/26 days
+- JR-D − JR-M: cost -39.8 k CNY/day [95% CI -46.9, -32.3], median -51.0; cheaper on 26/26 days
+
 ## Endogenous commitment (module 1, protocol 2), S1
 
 Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-delivery share by uniform commitment:
@@ -277,12 +340,13 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size (S2, connection fixed)
 
-| cfg    |   IR-O* |   JR-D |
-|:-------|--------:|-------:|
-| bess0  |     nan |   3.75 |
-| bess12 |     nan |   6.75 |
-| bess3  |     nan |   6    |
-| bess9  |     nan |   7.5  |
+| cfg    |   IR-O* |   JR-D |   JR-M |
+|:-------|--------:|-------:|-------:|
+| bess0  |     nan |   3.75 | nan    |
+| bess12 |     nan |   6.75 | nan    |
+| bess3  |     nan |   6    | nan    |
+| bess6  |     nan |   7.75 |   4.75 |
+| bess9  |     nan |   7.5  | nan    |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size, JR-M (S2, connection fixed)
 
@@ -292,6 +356,13 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | bess12 |   4.75 |
 | bess3  |   4.5  |
 | bess9  |   5.25 |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Connection margin (S2)
+
+| cfg   |   JR-D |
+|:------|-------:|
+| g1.00 |   7.5  |
+| g1.20 |   7.75 |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Resource ablation (S2, JR-D, connection fixed)
 
