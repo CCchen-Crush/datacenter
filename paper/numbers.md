@@ -359,10 +359,27 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Connection margin (S2)
 
+| cfg   |   IR-O* |   JR-D |   JR-M |
+|:------|--------:|-------:|-------:|
+| g1.00 |     nan |   7.5  |   4.5  |
+| g1.05 |     nan |   7.75 |   4.75 |
+| g1.20 |     nan |   7.75 |   5    |
+| g1.30 |     nan |   8    |   5    |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Event interval
+
+| cfg   |   IR-O* |   JR-D |   JR-M |
+|:------|--------:|-------:|-------:|
+| tau15 |     nan |   7.5  |    3.5 |
+| tau60 |     nan |   7.75 |  nan   |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): IES devices (S2, JR-D, connection fixed)
+
 | cfg   |   JR-D |
 |:------|-------:|
-| g1.00 |   7.5  |
-| g1.20 |   7.75 |
+| noAC  |   8    |
+| noGT  |   5.75 |
+| noTES |   7.5  |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Resource ablation (S2, JR-D, connection fixed)
 
