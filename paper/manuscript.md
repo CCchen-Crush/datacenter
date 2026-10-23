@@ -5,7 +5,7 @@
 ## Highlights
 
 - Computing backlog and storage deficit compete for one grid recovery channel.
-- Firm consecutive DR capacity is certified with a Wasserstein ambiguity set.
+- Commitments are sized by closed-loop capability within a Wasserstein ball.
 - Cross-event joint recovery firmly delivers 7.5 MW, 94 % of the physical capability.
 - Foresight is worth up to 3 MW at 30-min intervals and vanishes beyond 2 h.
 - Joint recovery substitutes [X] MWh of battery or [Y] MW of grid connection.
@@ -311,7 +311,27 @@ Fig. 9 translates the capacity gain into the battery energy and the connection c
 
 ### 5.6 Distributionally robust commitment
 
-[Fig. 10, Table 4: capability distributions on historical and test days; C^DRO(ε); calibration of predicted vs realised full-delivery probability; endogenous commitment C* (Eq. (18)) and its out-of-sample reliability and benefit; perfect-recourse and single-event commitments.]
+**Capabilities.** Fig. 10a shows the closed-loop capability $\xi_d$ (15) of every controller on the 14 historical days and on the 26 operating days. Independent recovery has a dispersed, bimodal capability: IR-O\* fails already at 1 MW on 4 of the 14 historical days and reaches 7.75–8.25 MW on the others, and the same pattern recurs on the operating days (8 of 26 below 1 MW). The capability of JR-M lies at 7.75–8.25 MW on the historical days and spreads down to 6.25 MW on the operating days. JR-D reaches 8.25 MW, the midpoint between the last delivered and the first failed commitment at its physical limit, on every historical day and on 21 of the 26 operating days.
+
+**Robust capacity.** With $\rho$ = 0.95 and $N$ = 14, the sample-average capacity is the smallest historical capability rounded down to the grid: below 1 MW for IR-O\* and IR-P, 7.5 MW for JR-M and 8.0 MW for JR-D (Table 4). The robust capacity (16) lowers it by the certified margin (17): because a 5 % share of the days may lose its whole margin, every 0.025 MW of radius costs 0.5 MW of commitment (Fig. 10b). The radius (18a) is 0.91 MW for IR-O\*, 0.066 MW for JR-M and zero for JR-D, whose capability does not vary. For JR-M the radius lowers the commitment from 7.5 to 6.0 MW and corrects the over-confidence of the sample average: out of sample, 7.5 MW is delivered in full on 77 % of the days and 6.0 MW on all of them, and the worst-case probabilities within the ball, 0.74, 0.91 and 0.95 at 7.5, 7.0 and 6.5 MW, match the realised shares of 0.77, 0.92 and 0.96 (Fig. 10c). For IR-O\* the radius is as large as the actual distance between the historical and the operating capabilities ($W_1$ = 0.89 MW), and no commitment of 1 MW or more is robust. For JR-D the robust capacity equals the sample-average 8.0 MW, which is delivered in full on 81 % of the operating days. The operating days are more loaded than the historical ones: during the first event the load without DR exceeds the baseline by 0.78 MW on average, against −0.16 MW on the historical days, and on the five most loaded days JR-D can no longer reach its physical limit. A radius estimated from the historical days covers the sampling error of the capability, not such a systematic shift; it is covered by the margin that the cost-optimal commitment keeps below the limit.
+
+**Commitment.** The commitment (18) minimises the back-tested cost below the robust capacity. It selects 7 MW for JR-D and 6 MW for JR-M, which are delivered in full on all 26 operating days with benefits of 44.8 and 35.8 k CNY/day (Table 4). For JR-D the cost minimum lies 1 MW below the capability limit, because the payment is capped at 120 % of the commitment while the delay cost keeps growing with it; at this commitment the certified margin is 0.063 MW, five times the margin at 8.0 MW. Independent recovery receives no robust commitment, which is the right decision: at 1 MW it delivers in full on only 69 % of the operating days. Commitments derived from physical capability are not deliverable. The perfect-recourse model (19) commits the single-event capabilities of 8.18/7.98 MW, which JR-D delivers in full on 85 % of the days; operated by independent recovery, as in conventional single-event practice, the share falls to 27 % (IR-O\*) and 0 % (IR-P). ⟨S2: the same comparison with the 30-min interval.⟩
+
+**Table 4.** Day-ahead commitment in S1 from the 14 historical days and its out-of-sample performance on the 26 operating days ($\rho$ = 0.95). $\Phi$: certified reliability margin (17) at the commitment.
+
+| Commitment method | Operated by | Commitment (MW) | $\Phi$ (MW) | Days with full delivery (%) | Benefit vs no DR (k CNY/day) |
+|---|---|---|---|---|---|
+| Perfect-recourse MILP (19) | JR-D | 8.18 / 7.98 | – | 85 | 44.7 |
+| Single-event capability | IR-O\* | 8.18 / 7.98 | – | 27 | 37.2 |
+| | IR-P | 8.18 / 7.98 | – | 0 | 1.8 |
+| Closed-loop back-test, sample average ($\varepsilon$ = 0) | IR-O\*, IR-P | none ≥ 1 | – | – | – |
+| | JR-M | 7.5 | 0.013 | 77 | 36.9 |
+| | JR-D | 8.0 | 0.013 | 81 | 44.6 |
+| Closed-loop back-test, robust ($\varepsilon_N$) | IR-O\*, IR-P ($\varepsilon_N$ = 0.91, 0.90) | none ≥ 1 | – | – | – |
+| | JR-M ($\varepsilon_N$ = 0.066) | 6.0 | 0.088 | 100 | 35.8 |
+| | JR-D ($\varepsilon_N$ = 0) | 8.0 | 0.013 | 81 | 44.6 |
+| Cost-optimal below the robust capacity (18) | JR-M | 6.0 | 0.088 | 100 | 35.8 |
+| | **JR-D** | **7.0** | **0.063** | **100** | **44.8** |
 
 ### 5.7 Role of the integrated energy system
 
@@ -327,24 +347,6 @@ Fig. 12a quantifies these roles as firm capacities of JR-D in S2 with the connec
 
 **Robustness.** ⟨PENDING exp19, exp20 overhead, exp4 JR-S: (i) static split in hindsight; (ii) pause/resume overhead 2 % and 5 %; (iii) event-call uncertainty S4-U with JR-S.⟩
 
-### 5.9 [to merge into 5.6] Endogenous commitment on the five day-ahead scenarios (exp16)
-
-**Endogenous commitment.** In Table 4 every strategy chooses its own uniform commitment by the back-test (15) on $\Omega^{DA}$, with the same scenarios, objective and reliability target, and operates with it on the 26 operating days. All strategies except IR-P choose 7 MW for every $\rho\in\{0,0.8,1\}$, and IR-P chooses 5 MW for $\rho\ge0.8$. Out of sample, only JR-D realises the reliability promised by the back-test: it delivers in full on 100 % of the days, against 85 % for IR-O\*, 92 % for JR-M and 58 % for IR-P, and it yields the largest benefit (44.8 k CNY/day against 40.3, 37.3 and 28.5). The back-test of IR-O\* is optimistic because its split is tuned on the same five days, whereas the feedback of JR-D compensates the day-to-day deviations. Commitments derived from physical capability are not deliverable. The perfect-recourse MILP (16) commits the single-event capabilities of 8.18/7.98 MW, which JR-D delivers in full on only 85 % of the days. Operated by independent recovery at the single-event capability, the conventional practice, the share falls to 27 % (IR-O\*) and 0 % (IR-P), and the benefit of IR-P vanishes (1.8 k CNY/day). Fig. 5b places all commitment methods in the reliability–benefit plane: the back-tested JR-D commitment is the only one that is fully reliable and attains the largest benefit.
-
-**Table 4.** Endogenous commitment in S1: commitment chosen on the day-ahead scenarios and out-of-sample performance on the 26 operating days.
-
-| Commitment method | Operated by | $C^*$ (MW) | Back-test cost (k CNY) / full share | Days with full delivery (%) | Fulfilment (%) | Benefit vs no DR (k CNY/day) |
-|---|---|---|---|---|---|---|
-| Back-test (15), $\rho$ = 1 | IR-O\* | 7 | 199.1 / 1.0 | 85 | 98.7 | 40.3 |
-| | IR-P | 5 | 209.0 / 1.0 | 58 | 95.1 | 28.5 |
-| | JR-M | 7 | 202.5 / 1.0 | 92 | 99.7 | 37.3 |
-| | **JR-D** | **7** | **197.7 / 1.0** | **100** | **100.0** | **44.8** |
-| Perfect-recourse MILP (16) | JR-D | 8.18 / 7.98 | – | 85 | 99.6 | 44.7 |
-| Single-event capability | IR-O\* | 8.18 / 7.98 | – | 27 | 95.8 | 37.2 |
-| | IR-P | 8.18 / 7.98 | – | 0 | 75.2 | 1.8 |
-
-With $\rho$ = 0 the back-test selects the same commitments except 6.5 MW for IR-P (27 % full delivery, 23.8 k CNY/day).
-
 ## 6. Conclusions
 
 This paper examined how the recovery debts left by one demand-response event limit the next one in an AI data-center integrated energy system, and how much consecutive DR capacity such a data center can firmly commit. A cross-event heterogeneous recovery model, the firm consecutive DR capacity with its distributionally robust commitment, and a recovery-aware coordinated scheduling framework were developed and tested on a 16 000-GPU data center under the Jiangsu rules, with 26 operating days built from public computing traces. The main conclusions are as follows.
@@ -353,7 +355,7 @@ This paper examined how the recovery debts left by one demand-response event lim
 2. **Firm capacity requires joint recovery.** Cross-event joint recovery firmly delivers 7.5 MW in the two-event scenarios, 94 % of the physical capability of the second event⟨, and … MW with three events⟩. Independent recovery, with a day-ahead tuned split or with price coordination, is not firm at any commitment down to 1 MW, because baseline deviations of up to 3.3 MW fall on storage that serves a fixed share of the reduction.
 3. **Foresight pays off at short intervals; coordination pays off always.** Cross-event foresight adds 3.0 MW at a 30-min and 1.0 MW at a 1-h interval and vanishes ⟨beyond about 2 h⟩, as Proposition 2 predicts. ⟨Coordination adds at least … MW at every interval.⟩
 4. **Joint recovery substitutes hardware.** ⟨Cross-event foresight saves 9.3 MWh of battery (about 5.6 million CNY) …; connection equivalent …⟩ No battery size makes independent recovery firm, and batteries beyond 12 MWh erode the baseline and lower the firm capacity.
-5. **Commit what the controller can deliver.** ⟨The Wasserstein-robust commitment computed from closed-loop capabilities …⟩ A perfect-recourse two-stage model commits the single-event capabilities (8.18/7.98 MW), which are delivered in full on only 85 % of the days.
+5. **Commit what the controller can deliver.** A closed-loop back-test on 14 historical days refuses to commit independent recovery, which fails at 1 MW on 4 of them, and its Wasserstein-robust version corrects the over-confident commitment of event-by-event recovery (7.5 → 6.0 MW, full delivery out of sample 77 → 100 %). The cost-optimal commitment of cross-event joint recovery, 7 MW, is delivered on every operating day, whereas a perfect-recourse two-stage model commits the single-event capabilities (8.18/7.98 MW), which are delivered in full on only 85 % of the days. The radius covers the sampling error of the capability; a systematic shift of the operating conditions is absorbed by the margin that the cost-optimal commitment keeps below the capability limit.
 6. **The integrated energy system provides the channel.** The gas engine and the absorption chiller supply 85 % of the energy drawn through the recovery channel ⟨; without the gas engine the firm capacity falls by … MW⟩, and computing flexibility and storage are complements: 3.0 MW and below 1 MW alone, 7.5 MW together.
 
 For DR practice, these results suggest that consecutive-event contracts for AI data centers should be sized by the firm capacity of the controller that will operate them, not by physical capability, and that grid operators can accept larger firm commitments from data centers that coordinate computing and storage recovery across events. The study considers a single site in summer, two or three events per day and the Jiangsu settlement rules; the deferrable share and the lag bounds are assumptions informed by industrial programs. Future work will extend the framework to geographically distributed data centers that shift work between sites, to the thermal inertia of the server halls as a further recovery debt, and to the co-planning of batteries, connection capacity and DR contracts over the life of the data center.
