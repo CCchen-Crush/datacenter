@@ -598,64 +598,65 @@ def _inv(xs, ys, target):
 
 def substitution_table():
     from paper_style import exp20
-    b = exp20("bess"); g = exp20("gamma")
+    b = exp20("bess"); bm = exp20("bessM"); g = exp20("gamma")
     if b is None: return None
+    if bm is not None: b = pd.concat([b, bm], ignore_index=True)
     E = {}
-    for n in ["JR-D", "IR-O*", "JR-M"]:
+    for n in ["JR-D", "JR-M", "IR-O*"]:
         q = b[b.strategy == n].copy()
         if q.empty: continue
         q["E"] = q.cfg.str.replace("bess", "").astype(float) * 2; E[n] = q.sort_values("E")[["E", "C_rho"]].values
     G = {}
     if g is not None:
-        for n in ["JR-D", "IR-O*"]:
+        for n in ["JR-D", "IR-O*", "JR-M"]:
             q = g[g.strategy == n].copy(); q["gamma"] = q.cfg.str.replace("g", "").astype(float)
             base = b[(b.cfg == "bess6") & (b.strategy == n)]
             if not base.empty: q = pd.concat([q, pd.DataFrame({"gamma": [1.10], "C_rho": [float(base.C_rho.iloc[0])]})])
-            G[n] = q.sort_values("gamma")[["gamma", "C_rho"]].values
+            if len(q): G[n] = q.sort_values("gamma")[["gamma", "C_rho"]].values
     return E, G
+
+
+def _equiv(v_ref, v_new, x_base):
+    """Resource the reference curve needs at x_base and the (smaller) resource at which the new curve reaches the same
+    firm capacity: returns (C_ref(x_base), x_new) along the rising part of the new curve."""
+    xr, yr = v_ref[:, 0], np.nan_to_num(v_ref[:, 1], nan=0.0); xn, yn = v_new[:, 0], np.nan_to_num(v_new[:, 1], nan=0.0)
+    c = float(np.interp(x_base, xr, yr))
+    k = int(np.argmax(yn)); return c, _inv(xn[:k + 1], yn[:k + 1], c)
 
 
 def fig9_substitution(lo=1.0):
     T = substitution_table()
     if T is None: return
-    E, G = T
-    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(width_ratios=[1, 1, 0.8], wspace=0.38))
-    res = {}
-    for k, (D, xl, base, conv, unit) in enumerate([(E, "BESS energy (MWh, 2-h rating)", 12.0, lambda x: x, "MWh"),
-                                                   (G, "Connection limit $P^{cap}$ (MW)", 1.10, lambda x: x * P_TYP, "MW")]):
-        ax = axs[k]
-        if not D: ax.axis("off"); continue
+    E, G = T; res = {}
+    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.95), gridspec_kw=dict(width_ratios=[1.15, 1, 0.75], wspace=0.4))
+    for k, (D, xl, base, conv, unit, title) in enumerate([(E, "BESS energy (MWh, 2-h rating)", 12.0, lambda x: x, "MWh", "S2, BESS swept (connection fixed)"),
+                                                         (G, "Connection limit $P^{cap}$ (MW)", 1.10, lambda x: x * P_TYP, "MW", "S2, connection margin swept")]):
+        ax = axs[k]; ax.set_title(title, fontsize=7.6)
+        if not D: ax.text(0.5, 0.5, "pending", transform=ax.transAxes, ha="center"); panel(ax, "ab"[k], x=-0.18); continue
         for n, v in D.items():
-            x = conv(v[:, 0]); y = np.where(np.isnan(v[:, 1]), lo - 0.25, v[:, 1])
-            ax.plot(x, y, color=COL[n], ls=LS.get(n, "-"), marker=MK[n], ms=4, mfc="white", lw=1.4, label=n)
-        if "JR-D" in D and "IR-O*" in D:
-            vj, vi = D["JR-D"], D["IR-O*"]
-            cj = np.interp(base, vj[:, 0], np.nan_to_num(vj[:, 1], nan=lo - 0.25))
-            ci = np.interp(base, vi[:, 0], np.nan_to_num(vi[:, 1], nan=lo - 0.25))
-            xi = _inv(vi[:, 0], np.nan_to_num(vi[:, 1], nan=0), cj)       # benchmark needs this much to reach JR-D
-            xj = _inv(vj[:, 0], np.nan_to_num(vj[:, 1], nan=0), ci)       # JR-D needs only this much to reach the benchmark
-            res[unit] = (conv(base), cj, ci, conv(xi) if not np.isnan(xi) else np.nan, conv(xj) if not np.isnan(xj) else np.nan)
-            ax.axvline(conv(base), color="#888888", lw=0.6, ls=":")
-            ax.annotate("", xy=(conv(base), cj), xytext=(conv(base), max(ci, lo - 0.25)), arrowprops=dict(arrowstyle="<|-|>", color=COL["JR-D"], lw=0.9, mutation_scale=7))
-            if not np.isnan(xj):
-                ax.annotate("", xy=(conv(xj), ci), xytext=(conv(base), ci), arrowprops=dict(arrowstyle="-|>", color="#555555", lw=0.8, mutation_scale=7, ls="--"))
+            x = conv(v[:, 0]); y = np.where(np.isnan(v[:, 1]), lo - 0.35, v[:, 1])
+            ax.plot(x, y, color=COL[n], ls=LS.get(n, "-"), marker=MK[n], ms=4, mfc="white", lw=1.4, label=n + (" (< 1 MW)" if np.all(np.isnan(v[:, 1])) else ""))
         ax.axhline(lo, color="#bbbbbb", lw=0.5, ls=":")
-        ax.set_xlabel(xl); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)" if k == 0 else ""); ax.set_ylim(0, None)
-        ax.legend(loc="upper left", fontsize=6.4); panel(ax, "ab"[k], x=-0.16)
-        ax.set_title("S2, BESS swept (connection fixed)" if k == 0 else "S2, connection margin swept", fontsize=7.8)
-    # (c) mirrored bars: equivalent battery energy (up) and connection capacity (down) of joint recovery
-    ax = axs[2]
-    up = res.get("MWh"); dn = res.get("MW")
-    items = []
-    if up: items.append(("Battery saved by\nJR-D at equal $C^{firm}$", up[0] - up[4] if not np.isnan(up[4]) else np.nan, "MWh", COL["JR-D"]))
-    if dn: items.append(("Connection saved by\nJR-D at equal $C^{firm}$", -(dn[0] - dn[4]) if not np.isnan(dn[4]) else np.nan, "MW", "#e07b2a"))
-    for i, (lab, v, u, c) in enumerate(items):
-        if np.isnan(v): continue
+        ax.axvline(conv(base), color="#888888", lw=0.6, ls=":")
+        if "JR-D" in D and "JR-M" in D:
+            c, xn = _equiv(D["JR-M"], D["JR-D"], base)
+            if not np.isnan(xn):
+                ax.annotate("", xy=(conv(xn), c), xytext=(conv(base), c), arrowprops=dict(arrowstyle="-|>", color=COL["JR-D"], lw=1.0, mutation_scale=8))
+                ax.text((conv(xn) + conv(base)) / 2, c - 0.55, f"−{conv(base) - conv(xn):.1f} {unit}", ha="center", fontsize=6.6, color=COL["JR-D"])
+                res[unit] = (conv(base), c, conv(xn))
+        ax.set_xlabel(xl); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)" if k == 0 else ""); ax.set_ylim(0, 9)
+        ax.legend(loc="lower right", fontsize=6.0); panel(ax, "ab"[k], x=-0.18)
+    if "MWh" in res:
+        axs[0].text(19.5, 8.25, "baseline erosion:\nlarger BESS lowers\nthe evening baseline", fontsize=5.8, ha="center", color="#555555")
+    ax = axs[2]; items = []
+    if "MWh" in res: items.append(("Battery saved by\ncross-event foresight", res["MWh"][0] - res["MWh"][2], "MWh", COL["JR-D"]))
+    if "MW" in res: items.append(("Connection saved by\ncross-event foresight", -(res["MW"][0] - res["MW"][2]), "MW", "#e07b2a"))
+    for lab, v, u, c in items:
         ax.bar(0, v, 0.55, color=c, alpha=0.85)
         txt = f"{abs(v):.1f} {u}" + (f"\n≈ {abs(v) * BESS_COST:.1f} M CNY" if u == "MWh" else "")
-        ax.text(0.33, v / 2, f"{lab}\n{txt}", ha="left", va="center", fontsize=6.3)
-    ax.axhline(0, color="black", lw=0.6); ax.set_xlim(-0.5, 2.2); ax.set_xticks([])
-    ax.set_ylabel("Battery energy (MWh, +) / connection (MW, −)"); panel(ax, "c", x=-0.3)
+        ax.text(0.35, v / 2, f"{lab}\n{txt}", ha="left", va="center", fontsize=6.2)
+    ax.axhline(0, color="black", lw=0.6); ax.set_xlim(-0.5, 2.4); ax.set_xticks([])
+    ax.set_ylabel("Battery (MWh, +) / connection (MW, −)"); panel(ax, "c", x=-0.32)
     save(fig, "Fig9_substitution")
     return res
 
