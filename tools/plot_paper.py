@@ -578,11 +578,18 @@ def fig7_decomp():
     ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); ax.set_ylim(0, 9)
     ax.legend(loc="lower right", fontsize=6.4, ncol=2); panel(ax, "a", x=-0.12)
     ax = axs[1]; x = np.arange(len(T.index)); wb = 0.6
-    coord = (Tv["JR-M"] - Tv["IR-O*"]).values if "IR-O*" in T else np.zeros(len(x))
-    fore = (Tv["JR-D"] - Tv["JR-M"]).values
-    ax.bar(x, coord, wb, color="#c4508a", alpha=0.75, label="Coordination (JR-M − IR-O*)")
+    # IR-O* below the search bracket: the coordination value is at least JR-M - lo (hatched lower bound)
+    below = T["IR-O*"].isna().values if "IR-O*" in T else np.zeros(len(x), bool)
+    coord = (T["JR-M"] - T["IR-O*"].fillna(lo)).values if "IR-O*" in T else np.zeros(len(x))
+    fore = (T["JR-D"] - T["JR-M"]).values
+    for i in range(len(x)):
+        ax.bar(x[i], coord[i], wb, color="#c4508a", alpha=0.45 if below[i] else 0.75, hatch="///" if below[i] else None, edgecolor="#c4508a",
+               lw=0.4, label="Coordination (JR-M − IR-O*)" if i == 0 else None)
     ax.bar(x, fore, wb, bottom=np.maximum(coord, 0), color="#1f5fa8", alpha=0.85, label="Foresight (JR-D − JR-M)")
-    for i in range(len(x)): ax.text(x[i], max(coord[i], 0) + fore[i] + 0.12, f"+{fore[i]:.2f}", ha="center", fontsize=6.6, color="#1f5fa8")
+    for i in range(len(x)):
+        ax.text(x[i], max(coord[i], 0) + fore[i] + 0.12, f"+{fore[i]:.2f}", ha="center", fontsize=6.6, color="#1f5fa8")
+        ax.text(x[i], coord[i] / 2, ("≥" if below[i] else "") + f"{coord[i]:.1f}", ha="center", va="center", fontsize=6.0, color="#6d1f4b")
+    if below.any(): ax.text(0.02, 0.97, "hatched: IR-O* below 1 MW, lower bound", transform=ax.transAxes, fontsize=5.8, va="top", color="#6d1f4b")
     ax.axhline(0, color="black", lw=0.6); ax.set_xticks(x); ax.set_xticklabels([f"{v:g}" for v in T.index])
     ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Capacity gain (MW)"); ax.legend(loc="upper right", fontsize=6.4); panel(ax, "b", x=-0.14)
     save(fig, "Fig7_value_decomposition")
@@ -651,12 +658,13 @@ def fig9_substitution(lo=1.0):
             c, xn = _equiv(D["JR-M"], D["JR-D"], base)
             if not np.isnan(xn):
                 ax.annotate("", xy=(conv(xn), c), xytext=(conv(base), c), arrowprops=dict(arrowstyle="-|>", color=COL["JR-D"], lw=1.0, mutation_scale=8))
-                ax.text((conv(xn) + conv(base)) / 2, c - 0.55, f"−{conv(base) - conv(xn):.1f} {unit}", ha="center", fontsize=6.6, color=COL["JR-D"])
+                ax.text((conv(xn) + conv(base)) / 2, c + 0.18, f"−{conv(base) - conv(xn):.1f} {unit}", ha="center", va="bottom", fontsize=6.6,
+                        color=COL["JR-D"], bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85))
                 res[unit] = (conv(base), c, conv(xn))
         ax.set_xlabel(xl); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)" if k == 0 else ""); ax.set_ylim(0, 9)
-        ax.legend(loc="lower right", fontsize=6.0); panel(ax, "ab"[k], x=-0.18)
+        ax.legend(loc="upper left" if k == 0 else "lower right", fontsize=6.0); panel(ax, "ab"[k], x=-0.18)
     if "MWh" in res:
-        axs[0].text(19.5, 8.25, "baseline erosion:\nlarger BESS lowers\nthe evening baseline", fontsize=5.8, ha="center", color="#555555")
+        axs[0].text(20.5, 8.05, "baseline erosion:\nlarger BESS lowers\nthe evening baseline", fontsize=5.8, ha="center", va="bottom", color="#555555")
     ax = axs[2]; items = []
     if "MWh" in res: items.append(("Battery saved by\ncross-event foresight", res["MWh"][0] - res["MWh"][2], "MWh", COL["JR-D"]))
     if "MW" in res: items.append(("Connection saved by\ncross-event foresight", -(res["MW"][0] - res["MW"][2]), "MW", "#e07b2a"))

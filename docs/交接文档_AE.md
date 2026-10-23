@@ -4,6 +4,11 @@
 > 主线以 [`研究方案_AE重构.md`](研究方案_AE重构.md) 为准，写法与图表规范以 [`论文蓝图_AE.md`](论文蓝图_AE.md) 为准（对标 Zhang 等 2026，Applied Energy 128499）。
 > 用户要求：保持主线，不再扩展实验种类；论文要“创新点明确、结果好、图表精美、问题真实紧迫”，不追求工程级认证；写作要主动自信，数据来源只在算例设置里交代一次，不反复自我否定结论量级。
 
+> **2026-10-23 12:30 更新（容器重启后）：** 11:42 UTC 容器重启，正在跑的作业全部丢失。现已改为“每个承诺水平 / 每个策略跑完即写 CSV”（exp12/14/18/19/20），重启只丢当前那一段；exp18 按承诺从小到大扫，某天第一次失败后不再跑该天（能力 ξ 只需要到第一次失败）；exp12/18/19 可用 `E*_ALPHA` 复用同场景已整定的 IR-O* 分摊比例（`src/bench_prepare.m`，tune_alpha 是确定性的，已核对一致）；exp20 新增 `E20_SET='region'`（第一事件固定 C1、二分法求第二事件可靠承诺，取代 exp14 区域网格）。
+> 全部剩余作业在 `tools/jobs/batch7.txt`（25 个，4 核约 4 小时），在开发副本 `/home/user/dev` 中运行：`cd /home/user/dev && nohup setsid bash tools/run_queue.sh 4 tools/jobs/batch7.txt > matlab/results/queue_batch7.log 2>&1 &`。
+> 结果汇总：`PY=<python> tools/refresh.sh`（= `collect_results.py` 把开发副本中的分段合并进 `matlab/results/`，不删分段、可重复执行 + `paper_numbers.py` + `plot_paper.py`）。旧的 S1/S2 合并文件已作为分段 `exp12_capacity_S1_ab.csv`、`S2_ab` 复制进开发副本。
+> 论文第 5.3、5.4、5.5、5.7、5.8 节已按 S1/S2 定稿结果写好，待补处用 ⟨…⟩ 标出（`grep -n "⟨" paper/manuscript.md`）。
+
 > **2026-10-23 07:40 更新：方向已调整为 v2，先读 [`方向调整_v2.md`](方向调整_v2.md)。** 新增四块（替代曲线、分布鲁棒承诺 + 命题 3、综合能源进入恢复故事、帕累托与 14 张图）及 IR-O 事后上界、暂停/恢复开销稳健性。
 > 新实验 exp17–exp20 的代码已在仓库（`matlab/experiments/exp17_nodr.m`、`exp18_history.m`、`exp19_hindsight.m`、`exp20_capacity_configs.m`；`src/capacity_search.m`、`history_ctx.m`、`test_days.m`）。
 > 作业清单：`tools/jobs/batch5.txt`（exp18/19/20）、`batch5b.txt`（电池替代曲线，固定接网上限重跑）、`batch6.txt`（资源消融、L_c、JR-S、补充实验、反弹）。

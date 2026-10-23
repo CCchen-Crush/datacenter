@@ -167,7 +167,7 @@ Confidence intervals of $\hat C^{firm}_\rho$ and of the capacity gain $\Delta C_
 $$\tau^*_{IR}-\tau^*_{JR}=\frac{\min\{X,\ p_f(L-D_B)\}}{h}. \tag{14}$$
 Joint recovery has no value when the deadline is not longer than the next event ($L\le D_B$), when storage does not need recharging, or when the channel is either too narrow or wide enough to repay both debts within the interval.
 
-The proofs are given in Appendix B. Proposition 2 explains the mechanism examined in Section 5.3: long-deadline work need not be caught up immediately, which frees the recovery channel for recharging the storage that the next event needs.
+The proofs are given in Appendix B. Proposition 2 explains the mechanism examined in Section 5.2: long-deadline work need not be caught up immediately, which frees the recovery channel for recharging the storage that the next event needs.
 
 ## 4. Recovery-aware coordinated scheduling
 
@@ -187,7 +187,7 @@ The radius is set to the expected 1-Wasserstein estimation error of the empirica
 $$\varepsilon_N=\frac{1}{\sqrt N}\int\sqrt{\hat F_N(\xi)\big(1-\hat F_N(\xi)\big)}\,d\xi, \tag{18a}$$
 which is small for a concentrated capability distribution and large for a dispersed one; a leave-one-out validation on $\Omega^{DA}$ serves as a check (Section 5.6). Among the robustly deliverable commitments, the operator chooses the one with the lowest back-tested cost,
 $$C^*=\arg\min\big\{\bar J(C)=\tfrac1N\textstyle\sum_dJ_d(C):\ C\in\mathcal G,\ C\le C^{DRO}_\rho(\varepsilon)\big\}. \tag{18}$$
-Every strategy can be paired with this procedure, which makes the endogenous-commitment comparison of Section 5.4 fair: all strategies use the same days, the same objective and the same reliability target.
+Every strategy can be paired with this procedure, which makes the endogenous-commitment comparison of Section 5.6 fair: all strategies use the same days, the same objective and the same reliability target.
 
 For comparison, the commitments can also be obtained from a two-stage stochastic MILP with perfect recourse, in which $\mathbf C$ is the first-stage decision and the joint recovery model (2)–(11) of every scenario is the second stage,
 $$\min_{\mathbf C}\ -\epsilon^{C}\textstyle\sum_kC_k+\sum_{\omega}p_\omega J_\omega(\mathbf C),\qquad \bar r_{k,\omega}\ge(1-\epsilon_f)C_k-M(1-u_\omega)\ \forall k,\quad \sum_\omega p_\omega u_\omega\ge\rho. \tag{19}$$
@@ -263,7 +263,7 @@ The event scenarios are listed in Table 3. The commitment is uniform across even
 | Scenario | Events (h) | Notice | Price coefficient | Purpose |
 |---|---|---|---|---|
 | S1 | 17–18, 19–20 | day-ahead | 1.0 | base case (Jiangsu: ≤ 2 agreed events, ≤ 2 h per day) |
-| S2 | 17–18, 18.5–19.5 | day-ahead | 1.0 | short interval τ = 30 min (15 min–3 h in Section 5.5) |
+| S2 | 17–18, 18.5–19.5 | day-ahead | 1.0 | short interval τ = 30 min (15 min–3 h in Section 5.4) |
 | S3 | 17–18, 19–20, 21–22 | day-ahead, day-ahead, 3 h | 1.0, 1.0, 1.4 | high stress: additional rapid peak-shaving call |
 | S4 | S1–S3 on the 26 operating days; in S4-U the third event of S3 is called with probability 0.6 and confirmed 1 h ahead (coefficient 1.6) | | | statistics, economics, event-call uncertainty |
 
@@ -297,7 +297,11 @@ Fig. 6 extends the uniform commitment to the two-event region of S2. ⟨PENDING 
 
 ### 5.4 Where the gain comes from: coordination, foresight and their conditions
 
-[Fig. 7 (firm capacity vs interval: coordination value JR-M − IR-O\*, foresight value JR-D − JR-M), Fig. 8 (interval × connection margin, lag bounds). Link to Proposition 2.]
+Fig. 7 decomposes the firm capacity over the event interval τ, from 15 min to 3 h (two one-hour events, base system). The coordination value, the gain of JR-M over IR-O\*, ⟨PENDING exp20 tau⟩. The foresight value, the gain of JR-D over JR-M, ⟨…⟩ MW at 15 min, ⟨3.0⟩ MW at 30 min, ⟨…⟩ MW at 1 h and ⟨…⟩ MW at 2 h and 3 h.
+
+At a fixed commitment of 7 MW, the interval–margin map (Fig. 8a–c) confirms the conditions of Proposition 2. JR-D delivers in full on 96–100 % of the days in all 20 combinations of τ and γ. JR-M delivers in full on 0–31 % of the days when the interval is 15 or 30 min and on 88–100 % from 1 h on, whatever the connection margin, so the foresight gain is 69–100 percentage points for τ ≤ 0.5 h, 0–12 points at 1 h and 0–4 points for τ ≥ 2 h (Fig. 8c). A wider connection does not rescue JR-M at short intervals: it catches up backlog that would fall due only after the next event, which has no value for that event, before it recharges the storage that the event needs. Once the interval is long enough to repay both debts, the order of repayment no longer matters, and joint recovery loses its edge, exactly as Proposition 2 predicts. The gain of JR-D over the best independent benchmark (12–54 points, Fig. 8b) shows no trend in τ, consistent with independent recovery failing on baseline deviations rather than on the channel.
+
+⟨PENDING exp14 single: lag bounds scaled by 0.5, 0.75, 1.25, 1.5 (Fig. 8d).⟩ Partial logs: with halved lag bounds JR-D still delivers on 96 % of the days and JR-M on 19 %.
 
 ### 5.5 System-level value: equivalent battery and connection capacity
 
@@ -313,7 +317,7 @@ Fig. 9 translates the capacity gain into the battery energy and the connection c
 
 The integrated energy system provides the recovery channel. In the evening the gas engine and the absorption chiller supply 85 % of the energy that recovery draws through the channel (Figs. 11 and 12b): the gas engine runs at full output from 14:00 to 21:30 with and without DR, so it lowers the baseline import by 3 MW and widens the headroom $P^{cap}-P^{base}$, and the absorption chiller moves part of the cooling load off the electric chillers. The cold storage is pre-charged before the events, covers part of the cooling load during both events and is recharged at night, so its debt never enters the channel.
 
-Fig. 12a quantifies these roles as firm capacities of JR-D in S2 with the connection limit of the base case. ⟨PENDING exp20 ies: without the gas engine, without the absorption chiller, without the cold storage, without all three.⟩ The resource ablation shows that computing flexibility and storage are complements rather than substitutes. With the BESS alone (no computing flexibility, no cold storage), no commitment of 1 MW or more is firm; with computing flexibility alone the firm capacity is 3.00 MW; with both, still without the cold storage, it is 7.50 MW, more than twice the sum of the two. Joint recovery is what turns the two resources into firm capacity: the battery covers the events while the deferred work waits, and the deferred work frees the channel to recharge the battery.
+Fig. 12a quantifies these roles as firm capacities of JR-D in S2 with the connection limit of the base case. ⟨PENDING exp20 ies: without the gas engine, without the absorption chiller, without the cold storage, without all three.⟩ The resource ablation shows that computing flexibility and storage are complements rather than substitutes. With the BESS alone (no computing flexibility, no cold storage), no commitment of 1 MW or more is firm; with computing flexibility alone the firm capacity is 3.00 MW; with both, still without the cold storage, it is 7.50 MW, nearly twice what the two resources achieve separately (less than 4 MW together). Joint recovery is what turns the two resources into firm capacity: the battery covers the events while the deferred work waits, and the deferred work frees the channel to recharge the battery.
 
 ### 5.8 Service quality, economics and robustness
 
