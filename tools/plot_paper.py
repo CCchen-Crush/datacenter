@@ -360,7 +360,7 @@ def fig2_framework():
     for y0, h, lab in [(0.53, 0.44, "Day-ahead layer (once per day)"), (0.03, 0.46, "Intraday layer (every 15 min)")]:
         ax.add_patch(FancyBboxPatch((0.005, y0), 0.99, h, boxstyle="round,pad=0.004,rounding_size=0.01", fc="#fafafa", ec="#bbbbbb", lw=0.6, ls="--"))
         ax.text(0.015, y0 + h - 0.03, lab, fontsize=7.2, fontweight="bold", va="top", color="#444444")
-    _box(ax, 0.02, 0.6, 0.15, 0.22, "Historical days\n$\\Omega^{DA}$ (20 weekdays):\nloads, weather,\ninference", "#f2f2f2", fs=6.0)
+    _box(ax, 0.02, 0.6, 0.15, 0.22, "Historical days\n$\\Omega^{DA}$ (14 weekdays):\nloads, weather,\ninference", "#f2f2f2", fs=6.0)
     _box(ax, 0.21, 0.6, 0.17, 0.22, "Closed-loop back-test\nof the intraday controller\nfor every $C\\in\\mathcal{G}$", B, fs=6.0)
     _box(ax, 0.42, 0.6, 0.15, 0.22, "Capability per day\n$\\xi_d$ = largest $C$\nfully delivered\n(empirical $\\hat P_N$)", B, fs=6.0)
     _box(ax, 0.61, 0.6, 0.17, 0.22, "Wasserstein ball\n$\\mathcal{B}_\\varepsilon(\\hat P_N)$:\n$\\inf_Q Q(\\xi\\geq C)\\geq\\rho$\n(Proposition 3)", P, fs=6.0)
