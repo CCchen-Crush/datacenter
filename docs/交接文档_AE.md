@@ -186,8 +186,8 @@ cd tools && /tmp/venv/bin/python plot_paper.py       # 全部图；也可只画�
 ## 6 下一步清单（按顺序）
 
 1. **通读全文**（英文润色、术语统一：IR-O\*/IR-P/JR-M/JR-D/JR-S、“firm capacity”“recovery channel”“debt”）；检查正文引用的图表编号与图题。
-2. **参考文献**：把 [1]–[37]（目前指向 `docs/修订稿草稿/3_第8节_参考文献_附录A.md`）合并进 `paper/manuscript.md`，核对 [38]–[46] 的作者、卷期、页码。
-3. **图题（captions）**：为 Fig. 1–14、Fig. S1–S7 写图题（正文目前只引用图号）。
+2. **参考文献**：已合并为 38 条、按首次引用顺序编号（未引用的旧条目已删去；中文文献已译为英文并注明 in Chinese）。投稿前仍需逐条核对作者全名、卷期页码和 DOI，特别是 [14]、[15]、[21]（只有标题与 DOI）和 [20]（作者待补全）。
+3. **图题**：Fig. 1–14、S1–S7 的图题已写在 `paper/manuscript.md` 的 “Figure captions” 一节；表格已按首次引用顺序编号（Table 1 场景、2 算法、3 场景矩阵、4 可靠容量、5 日前承诺）。
 4. **投稿格式**：转 Elsevier LaTeX（elsarticle）或 Word；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 6 拼成）；Highlights 每条 ≤ 85 字符（已满足）。
 5. **可选补充**：S2 的完美追索两阶段承诺（exp16 目前只有 S1）；若审稿人追问半径选取，可在补充材料给出留一交叉验证半径的对照（`paper/numbers.md` 中 “eps LOO” 列已算好：S1 JR-M 0、S2 JR-M 0.015 MW → 4.5 MW）。
 6. **复现**：换容器后若需重跑，用 `tools/jobs/batch7.txt`（约 4 小时，4 核）以及 checkpoint、batch2/3/5b/5c 中已完成的部分；结果用 `PY=python3 tools/refresh.sh` 汇总。
