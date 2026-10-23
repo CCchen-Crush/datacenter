@@ -310,6 +310,13 @@ def fig_capacity():
         q = g[g.name == nm]
         kw = dict(color=C[nm], lw=2, marker=MK[nm], ms=5, mec="#fcfcfb", mew=0.8, label=NAME[nm])
         ax[0].plot(q.C, 100 * q.full, **kw); ax[1].plot(q.C, 100 * q.av, **kw); ax[2].plot(q.C, q.f, **kw); ax[3].plot(q.C, q.net / 1e4, **kw)
+    # cost axis: a strategy whose mean is driven by a few SLA-violation days would hide the others; clip and mark it
+    top = 1.25 * g[g.net < 3 * g.net.median()].net.max() / 1e4
+    ax[3].set_ylim(0.8 * g.net.min() / 1e4, top)
+    off = g[g.net / 1e4 > top]
+    for _, r in off.iterrows():
+        ax[3].annotate(f"{r.net / 1e4:.0f}", (r.C, top), xytext=(0, -9), textcoords="offset points", ha="center", fontsize=6.5, color=C[r["name"]])
+    if len(off): ax[3].text(0.02, 0.03, "顶部数字：超出范围的均值 / 万元（个别日 SLA 违约罚金）", transform=ax[3].transAxes, fontsize=6.5, color=INK2, va="bottom")
     for a in ax[:2]:
         a.axhline(95, color=MUTED, lw=1, ls="--"); a.axhline(90, color=MUTED, lw=0.8, ls=":")
         a.set_ylim(-3, 103)
@@ -317,7 +324,7 @@ def fig_capacity():
     ax[2].set_ylabel("平均兑现率 / %"); ax[3].set_ylabel("平均综合成本 / 万元")
     for a, t in zip(ax, ["(a) 足额可靠性（虚线 95%，点线 90%）", "(b) 有效性（江苏 80% 口径）", "(c) 兑现率", "(d) 综合成本（越低越好）"]):
         a.set_xlabel("每次事件的统一承诺 C / MW"); a.set_title(t)
-    ax[0].legend(fontsize=7, loc="lower left")
+    ax[2].legend(fontsize=7, loc="lower left")
     save(fig, "fig11_capacity.png")
 
 
@@ -326,23 +333,26 @@ def fig_region():
     import glob
     fs = sorted(glob.glob(os.path.join(RES, "exp13_region*.csv")))
     if not fs: return
-    lab = {"": "A 1 h，B 1 h", "_DB2": "A 1 h，B 2 h", "_DA2": "A 2 h，B 1 h"}
+    lab = {"": "A 1 h，B 1 h", "_DB2": "A 1 h，B 2 h", "_DA2": "A 2 h，B 1 h", "_K3": "三事件 17/19/21 h：E1=E2=C₁，纵轴为 E3"}
     panels = []
     for f in fs:
         tag = os.path.basename(f)[len("exp13_region"):-4]
         d = pd.read_csv(f)
         for tau, q in d.groupby("tau_h"): panels.append((f"{lab.get(tag, tag)}，间隔 {tau:g} h", q.sort_values("C1")))
-    fig, ax = plt.subplots(1, len(panels), figsize=(3.6 * len(panels), 3.6), squeeze=False, sharey=True); fig.subplots_adjust(wspace=0.08)
+    ncol = min(4, len(panels)); nrow = int(np.ceil(len(panels) / ncol))
+    fig, ax = plt.subplots(nrow, ncol, figsize=(3.7 * ncol, 3.4 * nrow), squeeze=False, sharey=True); fig.subplots_adjust(wspace=0.08, hspace=0.45)
+    for k in range(len(panels), nrow * ncol): ax.flat[k].set_visible(False)
     curves = [("C2_JR", "JR-D", "-", "联合响应+跨事件联合恢复 JR"), ("C2_IRJ", "IR-P", "--", "IR后状态+联合恢复"),
               ("C2_JRM", "JR-M", "-.", "逐事件联合 JR-M"), ("C2_IRO", "IR-O*", ":", "独立恢复 IR-O*（事后最优分摊）")]
     for j, (t, q) in enumerate(panels):
-        a = ax[0, j]
+        a = ax.flat[j]
         a.fill_between(q.C1, 0, q.C2_JR, color=C["JR-D"], alpha=0.08, lw=0)
         for col, key, ls, nm in curves:
             a.plot(q.C1, q[col], color=C[key], lw=2, ls=ls, label=nm)
         a.set_xlabel("事件 A 承诺 C₁ / MW"); a.set_title(f"({'abcdefgh'[j]}) {t}", fontsize=9)
-        a.set_xlim(0, None); a.set_ylim(0, None)
-    ax[0, 0].set_ylabel("事件 B 最大可交付 C₂ / MW"); ax[0, 0].legend(fontsize=6.5, loc="lower left")
+        a.set_xlim(0, None); a.set_ylim(0, 8.6)
+    for i in range(nrow): ax[i, 0].set_ylabel("事件 B 最大可交付 C₂ / MW")
+    ax[0, 0].legend(fontsize=6.5, loc="lower left")
     save(fig, "fig14_capacity_region.png")
 
 
