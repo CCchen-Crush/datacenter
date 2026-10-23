@@ -136,11 +136,12 @@ def fig6_region(lo=1.0):
         top[n] = q
     ax.plot([0, 9], [0, 9], color="#999999", lw=0.6, ls=":"); ax.text(8.55, 8.9, "$C_1=C_2$", fontsize=6.2, color="#777777", ha="right")
     ax.axhline(lo, color="#cccccc", lw=0.5, ls=":")
-    ax.text(0.25, lo - 0.45, r"×  no firm $C_2\geq$ 1 MW", fontsize=6.0, va="center", color="#666666")
-    ax.text(0.25, 0.25, "IR-O*, IR-P: no firm pair, not even (1, 1) MW", fontsize=6.0, color=COL["IR-O*"])
+    if any(q.C_rho.isna().any() for q in top.values()):
+        ax.text(0.25, lo - 0.45, r"×  no firm $C_2\geq$ 1 MW", fontsize=6.0, va="center", color="#666666")
+    ax.text(0.25, 0.3, "IR-O*, IR-P: no firm pair, not even (1, 1) MW", fontsize=6.0, color=COL["IR-O*"])
     ax.set_xlim(0, 9); ax.set_ylim(0, 9.4)
     ax.set_xlabel("Commitment of event 1, $C_1$ (MW)"); ax.set_ylabel("Firm commitment of event 2, $C_2$ (MW)")
-    ax.legend(loc="upper right", fontsize=6.0, bbox_to_anchor=(1.0, 0.86)); ax.set_title("S2, 30-min interval, reliability 95 %", fontsize=8)
+    ax.legend(loc="lower right", fontsize=6.0, bbox_to_anchor=(1.0, 0.1)); ax.set_title("S2, 30-min interval, reliability 95 %", fontsize=8)
     save(fig, "Fig6_two_event_region")
     return top
 
