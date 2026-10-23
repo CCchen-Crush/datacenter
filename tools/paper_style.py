@@ -33,9 +33,24 @@ SINGLE_COL, DOUBLE_COL = 3.54, 7.48          # Elsevier column widths (inch)
 rng = np.random.default_rng(2024)
 
 
+DEV_RES = os.environ.get("DEV_RES", "/home/user/dev/matlab/results")   # results of jobs run in a development copy
+
+
 def rd(name):
-    p = os.path.join(RES, name)
-    return pd.read_csv(p) if os.path.exists(p) else None
+    for r in (RES, DEV_RES):
+        p = os.path.join(r, name)
+        if os.path.exists(p): return pd.read_csv(p)
+    return None
+
+
+def exp20(name):
+    """Firm capacities of an Exp20 set (merged file or its parts): DataFrame with cfg, strategy, C_rho."""
+    parts = [rd(f"exp20_{name}.csv")] + [rd(f"exp20_{name}_{x}.csv") for x in "abc"]
+    parts = [p for p in parts if p is not None]
+    if not parts: return None
+    d = pd.concat(parts, ignore_index=True).drop_duplicates("label", keep="last")
+    d[["cfg", "strategy"]] = d.label.str.split("|", expand=True)
+    return d
 
 
 def save(fig, name):
@@ -145,21 +160,37 @@ def cv_radius(xi_mid, xi_lb, rho, grid, eps_grid=None):
 # ------------------------------------------------------------------ recovery energy sources and uses (Sankey, Fig. 11)
 PDYN = 8.4 / 8 / 1000 * 0.75          # MW per busy GPU (dynamic part), Table A1
 def recovery_flows(q, ref, windows, theta=1.0, ups=0.05):
-    """Energy (MWh) supplied to and used by recovery in the given hour windows, relative to the no-DR operation of the
-    same day. Electric and cooling balances combined: d(grid) + d(PV) + d(gas engine) + d(absorption cooling)/COP +
-    d(TES discharge)/COP = d(compute facility energy) + d(BESS net charge) + d(TES charge)/COP."""
+    """Energy (MWh) that recovery draws in the given hour windows, relative to the no-DR operation of the same day.
+    Uses: compute catch-up (facility energy of the extra IT power), BESS recharge, TES recharge (chiller electricity).
+    Sources: the grid import above the no-DR operation is split over the components of the recovery channel
+    P^cap - P^grid_noDR at that step (connection margin of a grid-only AIDC, gas engine, absorption chiller, PV, TES
+    discharge of the no-DR operation); extra on-site supply and BESS / TES discharge of the strategy are sources of
+    their own. The electric and cooling balances make sources and uses equal at every step."""
     h = q.hour.values; dt = h[1] - h[0]
     w = np.zeros(len(h), bool)
     for a, b in windows: w |= (h >= a - 1e-9) & (h < b - 1e-9)
-    d = lambda c: (q[c].values - ref[c].values)[w]
-    cop = q.cop.values[w]
-    src = {"Grid headroom": d("pg"), "PV": d("ppv"), "Gas engine": d("pgt"), "Absorption chiller": d("qac") / cop,
-           "TES discharge": d("qtd") / cop}
-    use = {"Compute catch-up": (1 + ups + theta / cop) * d("pit"), "BESS recharge": d("pch") - d("pdis"), "TES recharge": d("qtc") / cop}
-    S = {k: float(np.sum(v) * dt) for k, v in src.items()}; U = {k: float(np.sum(v) * dt) for k, v in use.items()}
-    # a negative source is a use and vice versa (e.g. less gas than without DR)
-    for k in list(S):
-        if S[k] < 0: U[k + " (reduced)"] = -S.pop(k)
-    for k in list(U):
-        if U[k] < 0 and not k.endswith("(reduced)"): S[k.replace("recharge", "discharge").replace("catch-up", "carried over")] = -U.pop(k)
+    Q, R = q[w], ref[w]; cop = Q.cop.values; Pcap = Q.Pcap.values
+    comp = {"Connection margin": Pcap - R.pg.values - R.pgt.values - R.ppv.values - (R.qac.values + R.qtd.values - R.qtc.values) / cop - (R.pdis.values - R.pch.values),
+            "Gas engine": R.pgt.values, "Absorption chiller": R.qac.values / cop, "PV": R.ppv.values,
+            "TES (no-DR discharge)": (R.qtd.values - R.qtc.values) / cop}
+    C = np.vstack([np.maximum(v, 0) for v in comp.values()]); share = C / np.maximum(C.sum(axis=0), 1e-9)
+    grid = np.maximum(Q.pg.values - R.pg.values, 0)
+    S = {k: float(np.sum(share[i] * grid) * dt) for i, k in enumerate(comp)}
+    dd = lambda c: Q[c].values - R[c].values
+    extra = {"Gas engine": dd("pgt"), "Absorption chiller": dd("qac") / cop, "PV": dd("ppv"),
+             "BESS discharge": dd("pdis") - dd("pch"), "TES discharge": (dd("qtd") - dd("qtc")) / cop,
+             "Grid import below no-DR": -np.minimum(Q.pg.values - R.pg.values, 0)}
+    uses = {"Compute catch-up": (1 + ups + theta / cop) * dd("pit")}
+    U = {}
+    for k, v in extra.items():
+        pos = float(np.sum(np.maximum(v, 0)) * dt); neg = float(np.sum(np.maximum(-v, 0)) * dt)
+        if k in ("BESS discharge", "TES discharge"):
+            S[k] = S.get(k, 0) + pos; U[k.replace("discharge", "recharge")] = U.get(k.replace("discharge", "recharge"), 0) + neg
+        elif k == "Grid import below no-DR":
+            U["Import reduction"] = pos
+        else:
+            S[k] = S.get(k, 0) + pos; U[k + " (reduced)"] = neg
+    for k, v in uses.items():
+        U[k] = float(np.sum(np.maximum(v, 0)) * dt); S["Compute deferred"] = float(np.sum(np.maximum(-v, 0)) * dt)
+    S = {k: v for k, v in S.items() if v > 1e-6}; U = {k: v for k, v in U.items() if v > 1e-6}
     return S, U

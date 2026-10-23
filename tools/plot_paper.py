@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
-from paper_style import (rd, save, shade, panel, load_capacity, capacity_table, share_band, c_rho, COL, MK, LS,
+from paper_style import (rd, save, shade, panel, load_capacity, capacity_table, share_band, c_rho, recovery_flows, COL, MK, LS,
                          ORDER, SCEN, EVENTS, SINGLE_COL, DOUBLE_COL)
 
 CAP_TAGS = [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]
@@ -578,6 +578,428 @@ def fig2_framework():
 
 
 FIGS["2f"] = fig2_framework
+
+
+# ------------------------------------------------------------------ Fig. 11 recovery energy Sankey
+def _sankey(ax, S, U, scol, ucol, total_h=0.86, gap=0.025, x0=0.27, x1=0.69, w=0.035):
+    from matplotlib.path import Path
+    from matplotlib.patches import PathPatch, Rectangle
+    tot = sum(S.values()); hs = (total_h - gap * (len(S) - 1)) / tot; hu = (total_h - gap * (len(U) - 1)) / tot
+    def stack(D, h):
+        y = 0.07 + total_h; pos = {}
+        for k, v in D.items():
+            pos[k] = (y - v * h, y); y -= v * h + gap
+        return pos
+    ps, pu = stack(S, hs), stack(U, hu)
+    cs = {k: ps[k][1] for k in S}; cu = {k: pu[k][1] for k in U}
+    for i, (ks, vs) in enumerate(S.items()):
+        for ku, vu in U.items():
+            f = vs * vu / tot
+            if f <= 1e-9: continue
+            a1, a0 = cs[ks], cs[ks] - f * hs; b1, b0 = cu[ku], cu[ku] - f * hu
+            cs[ks] = a0; cu[ku] = b0
+            xm = (x0 + w + x1) / 2
+            verts = [(x0 + w, a1), (xm, a1), (xm, b1), (x1, b1), (x1, b0), (xm, b0), (xm, a0), (x0 + w, a0), (x0 + w, a1)]
+            codes = [Path.MOVETO, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.LINETO, Path.CURVE4, Path.CURVE4, Path.CURVE4, Path.CLOSEPOLY]
+            ax.add_patch(PathPatch(Path(verts, codes), fc=scol[ks], ec="none", alpha=0.42))
+    def labels(pos, D, x, ha, col):
+        ys = {k: (y0 + y1) / 2 for k, (y0, y1) in pos.items()}; keys = sorted(ys, key=lambda k: -ys[k]); last = None
+        for k in keys:                                        # keep labels at least 0.075 apart (top to bottom)
+            if last is not None and last - ys[k] < 0.085: ys[k] = last - 0.085
+            last = ys[k]
+        for k in keys:
+            ax.add_patch(Rectangle((x if ha == "left" else x - w, pos[k][0]), w, pos[k][1] - pos[k][0], fc=col[k], ec="none"))
+            ax.text(x + (w + 0.01 if ha == "left" else -w - 0.01), ys[k], f"{k}\n{D[k]:.1f} MWh", ha=ha, va="center", fontsize=5.9, linespacing=1.0)
+    labels(ps, S, x0 + w, "right", scol); labels(pu, U, x1, "left", ucol)
+    ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+
+
+def fig11(case="short_r21", gap=(18.0, 18.5), after=(19.5, 21.5)):
+    import os
+    case = os.environ.get("FIG11_CASE", case)
+    ref = rd(f"ts15_{case}_NoDR.csv")
+    if ref is None: return
+    scol = {"Connection margin": "#9a9a9a", "Gas engine": "#e07b2a", "Absorption chiller": "#f2b880", "PV": "#e8c84a",
+            "Cold storage": "#2aa7c9", "BESS discharge": "#1f5fa8", "Compute deferred": "#c4508a"}
+    ucol = {"Catch-up in the interval": "#c0392b", "Recharge in the interval": "#1f5fa8", "Catch-up after the events": "#e8a093",
+            "Recharge after the events": "#8fb3d9", "TES recharge": "#2aa7c9"}
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 3.3)); fig.subplots_adjust(wspace=0.12)
+    for j, (f, n) in enumerate([("IROs", "IR-O*"), ("JRD", "JR-D")]):
+        q = rd(f"ts15_{case}_{f}.csv")
+        S1, U1 = recovery_flows(q, ref, [gap]); S2, U2 = recovery_flows(q, ref, [after])
+        S = {}
+        for D in (S1, S2):
+            for k, v in D.items(): S[k] = S.get(k, 0) + v
+        U = {"Catch-up in the interval": U1.get("Compute catch-up", 0), "Recharge in the interval": U1.get("BESS recharge", 0),
+             "Catch-up after the events": U2.get("Compute catch-up", 0), "Recharge after the events": U2.get("BESS recharge", 0),
+             "TES recharge": U1.get("TES recharge", 0) + U2.get("TES recharge", 0)}
+        # balance the small remainder (reduced on-site supply, import reduction) into the uses it belongs to
+        rest = sum(S.values()) - sum(U.values())
+        if abs(rest) > 1e-6: U["TES recharge"] += rest
+        U = {k: v for k, v in U.items() if v > 1e-6}
+        S["Cold storage"] = S.pop("TES (no-DR discharge)", 0) + S.pop("TES discharge", 0)
+        order = ["Gas engine", "Absorption chiller", "Connection margin", "Cold storage", "PV", "BESS discharge", "Compute deferred"]
+        S = {k: S[k] for k in order if k in S and S[k] > 0.05}
+        ax = axs[j]; _sankey(ax, S, U, scol, ucol)
+        g = U.get("Catch-up in the interval", 0) + U.get("Recharge in the interval", 0)
+        share = 100 * U.get("Recharge in the interval", 0) / max(g, 1e-9)
+        ax.set_title(f"{n}: BESS recharge takes {share:.0f} % of the interval channel", fontsize=7.8)
+        panel(ax, "ab"[j], x=0.0, y=0.98)
+    save(fig, "Fig11_recovery_sankey")
+
+
+FIGS["11"] = fig11
+
+
+# ------------------------------------------------------------------ Fig. 3 typical-day power balance and recovery channel
+PDYN_GPU, A_AUX = 0.00105 * 0.75, 0.05            # MW per busy GPU (dynamic), UPS/distribution share
+
+
+def fig3_typical(case="short_r21"):
+    import os
+    case = os.environ.get("FIG3_CASE", case)
+    S = [("IROs", "IR-O*"), ("JRD", "JR-D")]
+    D = {n: rd(f"ts15_{case}_{f}.csv") for f, n in S}
+    if any(v is None for v in D.values()): return
+    ev = EVENTS["short"] if case.startswith("short") else EVENTS["long"]
+    fig, axs = plt.subplots(2, 2, figsize=(DOUBLE_COL, 5.0), sharex=True, sharey="row", gridspec_kw=dict(height_ratios=[1.7, 1], hspace=0.08, wspace=0.06))
+    for j, (f, n) in enumerate(S):
+        q = D[n]; h = q.hour.values; m = (h >= 15) & (h < 24); x = h[m] + 0.125; wd = 0.23
+        defer = (1 + A_AUX) * PDYN_GPU * (q.y1 + q.y2 + q.y3).values
+        itn = (1 + A_AUX) * q.pit.values - defer
+        chill = (q.qec / q.cop).values
+        aux = (q.pg + q.ppv + q.pgt + q.pdis - q.pch).values - (1 + A_AUX) * q.pit.values - chill
+        sup = [("Grid import", q.pg.values, "#8c8c8c"), ("PV", q.ppv.values, "#e8c84a"), ("Gas engine", q.pgt.values, "#e07b2a"),
+               ("BESS discharge", q.pdis.values, "#1f5fa8")]
+        dem = [("Non-deferrable IT", itn, "#c9c9c9"), ("Deferrable compute", defer, "#c4508a"), ("Electric chiller", chill, "#2aa7c9"),
+               ("BESS charge", q.pch.values, "#8fb3d9"), ("Auxiliaries", aux, "#e6e6e6")]
+        ax = axs[0, j]; shade(ax, ev); b = np.zeros(m.sum())
+        for lab, v, c in sup:
+            ax.bar(x, v[m], wd, bottom=b, color=c, lw=0, label=lab if j == 0 else None); b += v[m]
+        b = np.zeros(m.sum())
+        for lab, v, c in dem:
+            ax.bar(x, -v[m], wd, bottom=-b, color=c, lw=0, label=lab if j == 0 else None); b += v[m]
+        ax.step(h[m], q.base.values[m], where="post", color="black", ls="--", lw=0.9, label="DR baseline" if j == 0 else None)
+        ax.axhline(q.Pcap.iloc[0], color="#b22222", lw=0.8, label="Connection limit" if j == 0 else None)
+        ax.axhline(0, color="black", lw=0.5)
+        ax.set_title(f"{n}", fontsize=9); panel(ax, "ab"[j], x=-0.1 if j == 0 else -0.04)
+        if j == 0: ax.set_ylabel("Supply (+) / demand (−) (MW)")
+        # recovery channel: width P^cap - baseline and its use by compute catch-up and storage recharge
+        ax = axs[1, j]; shade(ax, ev)
+        arr = (q.a1 + q.a2 + q.a3).values; yy = (q.y1 + q.y2 + q.y3).values
+        catch = np.maximum(yy - arr, 0) * PDYN_GPU * (1 + A_AUX + 1.0 / q.cop.values)
+        rech = q.pch.values + (q.qtc / q.cop).values
+        out = np.ones(len(h), bool)
+        for s0, e0 in ev: out &= ~((h >= s0) & (h < e0))
+        ax.bar(x, (catch * out)[m], wd, color="#c0392b", lw=0, label="Compute catch-up" if j == 0 else None)
+        ax.bar(x, (rech * out)[m], wd, bottom=(catch * out)[m], color="#1f5fa8", lw=0, label="Storage recharge" if j == 0 else None)
+        ax.step(h[m], (q.Pcap.iloc[0] - q.base.values)[m], where="post", color="black", lw=0.9, label="Channel width $P^{cap}-P^{base}$" if j == 0 else None)
+        g = (h >= ev[0][1]) & (h < ev[1][0]); cg, rg = catch[g].sum() * 0.25, rech[g].sum() * 0.25
+        ax.text(0.98, 0.93, f"interval: catch-up {cg:.1f} MWh, recharge {rg:.1f} MWh", transform=ax.transAxes, ha="right", va="top", fontsize=6.6,
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="#999999", lw=0.4))
+        ax.set_xlabel("Hour of day"); ax.set_xlim(15, 24)
+        if j == 0: ax.set_ylabel("Recovery power (MW)")
+        panel(ax, "cd"[j], x=-0.1 if j == 0 else -0.04)
+    h1, l1 = axs[0, 0].get_legend_handles_labels(); h2, l2 = axs[1, 0].get_legend_handles_labels()
+    fig.legend(h1 + h2, l1 + l2, loc="lower center", bbox_to_anchor=(0.5, -0.02), ncol=7, fontsize=6.4, handlelength=1.4, columnspacing=0.8)
+    fig.subplots_adjust(bottom=0.14)
+    save(fig, "Fig3_power_balance")
+
+
+# ------------------------------------------------------------------ Fig. 4 class backlogs and storage states (short vs long interval)
+def fig4_states(suf="_r21"):
+    import os
+    suf = os.environ.get("FIG4_CASE", suf)
+    cases = [("short" + suf, "Short interval (30 min)", EVENTS["short"]), ("long" + suf, "Long interval (3 h)", EVENTS["long"])]
+    S = [("IROs", "IR-O*"), ("JRM", "JR-M"), ("JRD", "JR-D")]
+    D = {c: {n: rd(f"ts15_{c}_{f}.csv") for f, n in S} for c, _, _ in cases}
+    if any(v is None for c in D for v in D[c].values()): return
+    fig, axs = plt.subplots(2, 2, figsize=(DOUBLE_COL, 4.6), sharex=True, sharey="row", gridspec_kw=dict(hspace=0.16, wspace=0.06))
+    for j, (c, title, ev) in enumerate(cases):
+        J = D[c]["JR-D"]; h = J.hour.values
+        ax = axs[0, j]; shade(ax, ev)
+        ax.stackplot(h, J.B1 / 1e3, J.B2 / 1e3, J.B3 / 1e3, colors=["#c6dbef", "#6baed6", "#08519c"],
+                     labels=["C1 (L = 0.5 h), JR-D", "C2 (L = 1.5 h), JR-D", "C3 (L = 3 h), JR-D"], lw=0, alpha=0.95)
+        for n in ["IR-O*", "JR-M"]:
+            q = D[c][n]; ax.plot(h, (q.B1 + q.B2 + q.B3) / 1e3, color=COL[n], ls=LS[n], lw=1.3, label=f"Total backlog, {n}")
+        ax.set_title(title, fontsize=9); panel(ax, "ab"[j], x=-0.1 if j == 0 else -0.04)
+        if j == 0: ax.set_ylabel("Backlog (10$^3$ GPU·h)"); ax.legend(loc="upper right", fontsize=6.3)
+        ax = axs[1, j]; shade(ax, ev)
+        for n in ["IR-O*", "JR-M", "JR-D"]:
+            q = D[c][n]; ax.plot(h, q.E, color=COL[n], ls=LS[n], lw=1.4, label=f"BESS, {n}")
+        ax.plot(h, J.S, color="#2aa7c9", lw=1.1, ls=(0, (5, 2)), label="Cold storage, JR-D")
+        ax.plot(h, D[c]["IR-O*"].S, color="#7fd0e3", lw=1.0, ls=(0, (1, 1.5)), label="Cold storage, IR-O*")
+        ax.set_xlabel("Hour of day"); ax.set_xlim(15, 26)
+        if j == 0: ax.set_ylabel("Stored energy (MWh, MWh$_{th}$)"); ax.legend(loc="upper right", fontsize=6.3, ncol=1)
+        panel(ax, "cd"[j], x=-0.1 if j == 0 else -0.04)
+    save(fig, "Fig4_backlog_storage")
+
+
+FIGS["3t"] = fig3_typical
+FIGS["4s"] = fig4_states
+
+
+# ------------------------------------------------------------------ Fig. 7 value of coordination and of cross-event foresight vs interval
+def fig7_decomp():
+    from paper_style import exp20
+    t = exp20("tau"); b = exp20("bess")
+    if t is None and b is None: return
+    rows = []
+    for d, cfgmap in [(t, {"tau15": 0.25, "tau60": 1.0, "tau120": 2.0, "tau180": 3.0}), (b, {"bess6": 0.5})]:
+        if d is None: continue
+        for cfg, tau in cfgmap.items():
+            for n in ["IR-O*", "JR-M", "JR-D"]:
+                q = d[(d.cfg == cfg) & (d.strategy == n)]
+                if not q.empty: rows.append((tau, n, float(q.C_rho.iloc[0])))
+    if not rows: return
+    T = pd.DataFrame(rows, columns=["tau", "name", "C"]).pivot(index="tau", columns="name", values="C").sort_index()
+    lo = 1.0                                              # lower end of the search bracket
+    Tv = T.fillna(lo - 0.25)                              # below the bracket: plotted just under it
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(width_ratios=[1.25, 1], wspace=0.3))
+    ax = axs[0]
+    if {"IR-O*", "JR-M"} <= set(T.columns): ax.fill_between(T.index, Tv["IR-O*"], Tv["JR-M"], color="#c4508a", alpha=0.12, lw=0, label="Coordination value")
+    if {"JR-M", "JR-D"} <= set(T.columns): ax.fill_between(T.index, Tv["JR-M"], Tv["JR-D"], color="#1f5fa8", alpha=0.15, lw=0, label="Cross-event foresight value")
+    for n in ["IR-O*", "JR-M", "JR-D"]:
+        if n in T: ax.plot(T.index, Tv[n], color=COL[n], ls=LS[n], marker=MK[n], ms=4, mfc="white", lw=1.4, label=n)
+    ax.axhline(7.98, color="#555555", lw=0.7, ls=(0, (4, 3))); ax.text(T.index.max(), 8.05, "single-event capability of event 2", ha="right", fontsize=6.4, color="#555555")
+    ax.axhline(lo, color="#aaaaaa", lw=0.5, ls=":"); ax.text(T.index.min(), lo - 0.5, "below search range", fontsize=6.2, color="#888888")
+    ax.set_xscale("log", base=2); ax.set_xticks(T.index); ax.set_xticklabels([f"{x:g}" for x in T.index])
+    ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); ax.set_ylim(0, 9)
+    ax.legend(loc="lower right", fontsize=6.4, ncol=2); panel(ax, "a", x=-0.12)
+    ax = axs[1]; x = np.arange(len(T.index)); wb = 0.6
+    coord = (Tv["JR-M"] - Tv["IR-O*"]).values if "IR-O*" in T else np.zeros(len(x))
+    fore = (Tv["JR-D"] - Tv["JR-M"]).values
+    ax.bar(x, coord, wb, color="#c4508a", alpha=0.75, label="Coordination (JR-M − IR-O*)")
+    ax.bar(x, fore, wb, bottom=np.maximum(coord, 0), color="#1f5fa8", alpha=0.85, label="Foresight (JR-D − JR-M)")
+    for i in range(len(x)): ax.text(x[i], max(coord[i], 0) + fore[i] + 0.12, f"+{fore[i]:.2f}", ha="center", fontsize=6.6, color="#1f5fa8")
+    ax.axhline(0, color="black", lw=0.6); ax.set_xticks(x); ax.set_xticklabels([f"{v:g}" for v in T.index])
+    ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Capacity gain (MW)"); ax.legend(loc="upper right", fontsize=6.4); panel(ax, "b", x=-0.14)
+    save(fig, "Fig7_value_decomposition")
+
+
+FIGS["7d"] = fig7_decomp
+
+
+# ------------------------------------------------------------------ Fig. 9 substitution curves: battery energy and connection capacity
+BESS_COST = 0.6          # million CNY per MWh (0.6 CNY/Wh system cost, Table A1)
+P_TYP = 14.573           # typical-day peak import (MW); P^cap = gamma * P_TYP
+
+
+def _inv(xs, ys, target):
+    """Smallest x of a piecewise-linear, non-decreasing curve (xs, ys) with y >= target (NaN if never reached)."""
+    xs, ys = np.asarray(xs, float), np.asarray(ys, float)
+    for i in range(len(xs)):
+        if ys[i] >= target - 1e-9:
+            if i == 0: return xs[0]
+            return xs[i - 1] + (target - ys[i - 1]) * (xs[i] - xs[i - 1]) / max(ys[i] - ys[i - 1], 1e-9)
+    return np.nan
+
+
+def substitution_table():
+    from paper_style import exp20
+    b = exp20("bess"); g = exp20("gamma")
+    if b is None: return None
+    E = {}
+    for n in ["JR-D", "IR-O*", "JR-M"]:
+        q = b[b.strategy == n].copy()
+        if q.empty: continue
+        q["E"] = q.cfg.str.replace("bess", "").astype(float) * 2; E[n] = q.sort_values("E")[["E", "C_rho"]].values
+    G = {}
+    if g is not None:
+        for n in ["JR-D", "IR-O*"]:
+            q = g[g.strategy == n].copy(); q["gamma"] = q.cfg.str.replace("g", "").astype(float)
+            base = b[(b.cfg == "bess6") & (b.strategy == n)]
+            if not base.empty: q = pd.concat([q, pd.DataFrame({"gamma": [1.10], "C_rho": [float(base.C_rho.iloc[0])]})])
+            G[n] = q.sort_values("gamma")[["gamma", "C_rho"]].values
+    return E, G
+
+
+def fig9_substitution(lo=1.0):
+    T = substitution_table()
+    if T is None: return
+    E, G = T
+    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(width_ratios=[1, 1, 0.8], wspace=0.38))
+    res = {}
+    for k, (D, xl, base, conv, unit) in enumerate([(E, "BESS energy (MWh, 2-h rating)", 12.0, lambda x: x, "MWh"),
+                                                   (G, "Connection limit $P^{cap}$ (MW)", 1.10, lambda x: x * P_TYP, "MW")]):
+        ax = axs[k]
+        if not D: ax.axis("off"); continue
+        for n, v in D.items():
+            x = conv(v[:, 0]); y = np.where(np.isnan(v[:, 1]), lo - 0.25, v[:, 1])
+            ax.plot(x, y, color=COL[n], ls=LS.get(n, "-"), marker=MK[n], ms=4, mfc="white", lw=1.4, label=n)
+        if "JR-D" in D and "IR-O*" in D:
+            vj, vi = D["JR-D"], D["IR-O*"]
+            cj = np.interp(base, vj[:, 0], np.nan_to_num(vj[:, 1], nan=lo - 0.25))
+            ci = np.interp(base, vi[:, 0], np.nan_to_num(vi[:, 1], nan=lo - 0.25))
+            xi = _inv(vi[:, 0], np.nan_to_num(vi[:, 1], nan=0), cj)       # benchmark needs this much to reach JR-D
+            xj = _inv(vj[:, 0], np.nan_to_num(vj[:, 1], nan=0), ci)       # JR-D needs only this much to reach the benchmark
+            res[unit] = (conv(base), cj, ci, conv(xi) if not np.isnan(xi) else np.nan, conv(xj) if not np.isnan(xj) else np.nan)
+            ax.axvline(conv(base), color="#888888", lw=0.6, ls=":")
+            ax.annotate("", xy=(conv(base), cj), xytext=(conv(base), max(ci, lo - 0.25)), arrowprops=dict(arrowstyle="<|-|>", color=COL["JR-D"], lw=0.9, mutation_scale=7))
+            if not np.isnan(xj):
+                ax.annotate("", xy=(conv(xj), ci), xytext=(conv(base), ci), arrowprops=dict(arrowstyle="-|>", color="#555555", lw=0.8, mutation_scale=7, ls="--"))
+        ax.axhline(lo, color="#bbbbbb", lw=0.5, ls=":")
+        ax.set_xlabel(xl); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)" if k == 0 else ""); ax.set_ylim(0, None)
+        ax.legend(loc="upper left", fontsize=6.4); panel(ax, "ab"[k], x=-0.16)
+        ax.set_title("S2, BESS swept (connection fixed)" if k == 0 else "S2, connection margin swept", fontsize=7.8)
+    # (c) mirrored bars: equivalent battery energy (up) and connection capacity (down) of joint recovery
+    ax = axs[2]
+    up = res.get("MWh"); dn = res.get("MW")
+    items = []
+    if up: items.append(("Battery saved by\nJR-D at equal $C^{firm}$", up[0] - up[4] if not np.isnan(up[4]) else np.nan, "MWh", COL["JR-D"]))
+    if dn: items.append(("Connection saved by\nJR-D at equal $C^{firm}$", -(dn[0] - dn[4]) if not np.isnan(dn[4]) else np.nan, "MW", "#e07b2a"))
+    for i, (lab, v, u, c) in enumerate(items):
+        if np.isnan(v): continue
+        ax.bar(0, v, 0.55, color=c, alpha=0.85)
+        txt = f"{abs(v):.1f} {u}" + (f"\n≈ {abs(v) * BESS_COST:.1f} M CNY" if u == "MWh" else "")
+        ax.text(0.33, v / 2, f"{lab}\n{txt}", ha="left", va="center", fontsize=6.3)
+    ax.axhline(0, color="black", lw=0.6); ax.set_xlim(-0.5, 2.2); ax.set_xticks([])
+    ax.set_ylabel("Battery energy (MWh, +) / connection (MW, −)"); panel(ax, "c", x=-0.3)
+    save(fig, "Fig9_substitution")
+    return res
+
+
+# ------------------------------------------------------------------ Fig. 10 distributionally robust commitment: calibration
+def fig10_calibration(rho=0.95):
+    from paper_style import capability, worst_case_prob, dro_capacity, cv_radius
+    h = rd("exp18_history_S1.csv"); hs = rd("exp18_strategies_S1.csv")
+    if h is None:
+        parts = [rd("exp18_history_S1_a.csv"), rd("exp18_history_S1_b.csv")]
+        if any(p is None for p in parts): return
+        h = pd.concat(parts, ignore_index=True); hs = rd("exp18_strategies_S1_a.csv")
+    h["name"] = h.strategy.map(dict(zip(hs["index"], hs["label"])))
+    t = load_capacity("_S1")
+    grid = np.sort(h.C.unique())
+    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(wspace=0.36))
+    ax = axs[0]
+    for k, n in enumerate(ORDER):
+        lb, step = capability(h, n); xh = lb.values + step / 2
+        tl, st2 = capability(t[t.C.isin(grid)], n); xt = tl.values + st2 / 2
+        ax.scatter(xh, k + 0.12 + 0.18 * (np.random.default_rng(1).random(len(xh)) - 0.5), s=9, color=COL[n], alpha=0.8, label="historical days" if k == 0 else None)
+        ax.scatter(xt, k - 0.22 + 0.18 * (np.random.default_rng(2).random(len(xt)) - 0.5), s=9, facecolor="white", edgecolor=COL[n], lw=0.7, label="test days" if k == 0 else None)
+    ax.set_yticks(range(len(ORDER))); ax.set_yticklabels(ORDER); ax.set_xlabel("Capability $\\xi$ (MW)"); ax.legend(loc="lower left", fontsize=6.2)
+    panel(ax, "a", x=-0.28)
+    ax = axs[1]; eps = np.round(np.arange(0, 0.201, 0.005), 3)
+    sel = {}
+    for n in ORDER:
+        lb, step = capability(h, n); x = lb.values + step / 2
+        Cd = [dro_capacity(x, rho, e, grid) for e in eps]
+        ax.plot(eps, np.nan_to_num(Cd, nan=grid.min() - 0.5), color=COL[n], ls=LS[n], lw=1.3, label=n)
+        e_cv = cv_radius(x, lb.values, rho, grid); c_cv = dro_capacity(x, rho, e_cv, grid); sel[n] = (e_cv, c_cv, dro_capacity(x, rho, 0, grid))
+        ax.plot(e_cv, np.nan_to_num(c_cv, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
+    ax.set_xlabel("Wasserstein radius ε (MW)"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)"); ax.legend(loc="upper right", fontsize=6.2)
+    panel(ax, "b", x=-0.2)
+    ax = axs[2]
+    for n in ORDER:
+        lb, step = capability(h, n); x = lb.values + step / 2
+        real = t[t.name == n].groupby("C").all_full.mean()
+        e_cv = sel[n][0]
+        for C in grid:
+            if C not in real.index: continue
+            ax.scatter(worst_case_prob(x, C, 0), real[C], s=12, marker="o", facecolor="white", edgecolor=COL[n], lw=0.7)
+            ax.scatter(worst_case_prob(x, C, e_cv), real[C], s=12, marker=MK[n], color=COL[n])
+    ax.plot([0, 1], [0, 1], color="#555555", lw=0.6, ls="--"); ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
+    ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
+    ax.text(0.03, 0.95, "hollow: sample average (ε = 0)\nfilled: distributionally robust", transform=ax.transAxes, fontsize=6.0, va="top")
+    panel(ax, "c", x=-0.2)
+    save(fig, "Fig10_dro_calibration")
+    return sel
+
+
+# ------------------------------------------------------------------ Fig. 12 contribution of the IES devices and of the resources
+def fig12_ies(case="short_r21", lo=1.0):
+    from paper_style import exp20
+    b = exp20("bess"); ies = exp20("ies"); rs = exp20("resources")
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(width_ratios=[1.05, 1], wspace=0.3))
+    ax = axs[0]; bars = []
+    if b is not None:
+        q = b[(b.cfg == "bess6") & (b.strategy == "JR-D")]
+        if not q.empty: bars.append(("Full AIDC-IES", float(q.C_rho.iloc[0]), COL["JR-D"]))
+    lab = {"noGT": "w/o gas engine", "noTES": "w/o cold storage", "noAC": "w/o absorption chiller", "noIES": "w/o all three",
+           "compute_BESS": "compute + BESS only", "compute_only": "compute only", "BESS_only": "BESS only"}
+    for d in (ies, rs):
+        if d is None: continue
+        for _, r in d.iterrows(): bars.append((lab.get(r.cfg, r.cfg), r.C_rho, "#e07b2a" if r.cfg in ("noGT", "noAC", "noIES") else ("#2aa7c9" if r.cfg == "noTES" else "#8c8c8c")))
+    if bars:
+        y = np.arange(len(bars))[::-1]; base = bars[0][1]
+        for yy, (l, v, c) in zip(y, bars):
+            vv = lo - 0.25 if np.isnan(v) else v
+            ax.barh(yy, vv, 0.6, color=c, alpha=0.85)
+            ax.text(vv + 0.1, yy, ("< %g MW" % lo) if np.isnan(v) else (f"{v:.2f} MW" + ("" if l == "Full AIDC-IES" else f"  ({v - base:+.2f})")), va="center", fontsize=6.5)
+        ax.set_yticks(y); ax.set_yticklabels([l for l, _, _ in bars], fontsize=6.8); ax.set_xlim(0, base + 3)
+    ax.set_xlabel("Firm capacity of JR-D, $C^{firm}_{0.95}$ (MW), S2"); panel(ax, "a", x=-0.42)
+    # (b) composition of the evening recovery channel in the no-DR operation of the typical day
+    ax = axs[1]; R = rd(f"ts15_{case}_NoDR.csv")
+    if R is not None:
+        h = R.hour.values; m = (h >= 18) & (h < 22.5); cop = R.cop.values         # recovery windows (connection margin >= 0)
+        comp = [("Gas engine", R.pgt.values, "#e07b2a"), ("Absorption chiller", R.qac.values / cop, "#f2b880"), ("PV", R.ppv.values, "#e8c84a"),
+                ("Cold storage", (R.qtd.values - R.qtc.values) / cop, "#2aa7c9"),
+                ("Connection margin", R.Pcap.values - R.pg.values - R.pgt.values - R.ppv.values - (R.qac.values + R.qtd.values - R.qtc.values) / cop - (R.pdis.values - R.pch.values), "#9a9a9a")]
+        ax.stackplot(h[m], *[np.maximum(v[m], 0) for _, v, _ in comp], colors=[c for _, _, c in comp], labels=[l for l, _, _ in comp], lw=0, alpha=0.9)
+        ax.plot(h[m], (R.Pcap - R.pg).values[m], color="black", lw=0.9, label="Channel $P^{cap}-P^{grid}_{noDR}$")
+        shade(ax, EVENTS["short"]); ax.set_xlim(18, 22.5); ax.set_xlabel("Hour of day"); ax.set_ylabel("Recovery channel (MW)")
+        ax.legend(loc="upper left", fontsize=6.0, ncol=2)
+    panel(ax, "b", x=-0.14)
+    save(fig, "Fig12_ies_contribution")
+
+
+FIGS["9s"] = fig9_substitution
+FIGS["10c"] = fig10_calibration
+FIGS["12i"] = fig12_ies
+
+
+# ------------------------------------------------------------------ Fig. 8 sensitivity: interval x connection margin, lag bounds
+def _exp14(st, parts):
+    d = rd(f"exp14_{st}.csv")
+    if d is not None:
+        s = rd(f"exp14_{st}_strategies.csv"); c = rd(f"exp14_{st}_cfg.csv")
+        d["name"] = d.strategy.map(dict(zip(s["index"], s["label"]))); d["cfgname"] = d.cfg.map(dict(zip(c["cfg"], c["label"]))); return d
+    out = []
+    for p in parts:
+        d = rd(f"exp14_{st}{p}.csv")
+        if d is None: continue
+        s = rd(f"exp14_{st}{p}_strategies.csv"); c = rd(f"exp14_{st}{p}_cfg.csv")
+        d["name"] = d.strategy.map(dict(zip(s["index"], s["label"]))); d["cfgname"] = d.cfg.map(dict(zip(c["cfg"], c["label"]))); out.append(d)
+    return pd.concat(out, ignore_index=True) if out else None
+
+
+def fig8_sensitivity():
+    d = _exp14("tau_gamma", ["_g100", "_g105", "_g110", "_g120"])
+    if d is None: return
+    d["gap"] = d.cfgname.map(lambda x: float(x.split("_")[0][3:])); d["gamma"] = d.cfgname.map(lambda x: float(x.split("_")[1][1:]))
+    g = d.groupby(["gap", "gamma", "name"]).all_full.mean().unstack("name") * 100
+    Z = [(g["JR-D"], "Full delivery, JR-D (%)", "Blues", 0, 100), (g["JR-D"] - g[["IR-O*", "IR-P"]].max(axis=1), "JR-D − best independent (pp)", "Oranges", 0, 100),
+         (g["JR-D"] - g["JR-M"], "JR-D − JR-M (pp)", "Purples", 0, 100)]
+    fig = plt.figure(figsize=(DOUBLE_COL, 2.75)); gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 1.05], wspace=0.42)
+    for k, (v, title, cm, vmin, vmax) in enumerate(Z):
+        ax = fig.add_subplot(gs[0, k]); M = v.unstack("gap"); ax.grid(False)
+        ax.imshow(M.values, origin="lower", aspect="auto", cmap=cm, vmin=vmin, vmax=vmax)
+        for i in range(M.shape[0]):
+            for jj in range(M.shape[1]):
+                val = M.values[i, jj]
+                if np.isnan(val): continue
+                ax.text(jj, i, f"{val:.0f}", ha="center", va="center", fontsize=6.6, color="white" if val > 0.6 * vmax else "black")
+        ax.set_xticks(range(M.shape[1])); ax.set_xticklabels([f"{x:g}" for x in M.columns]); ax.set_yticks(range(M.shape[0]))
+        ax.set_yticklabels([f"{x:.2f}" for x in M.index]); ax.set_xlabel("Event interval τ (h)")
+        if k == 0: ax.set_ylabel("Connection margin γ")
+        ax.set_title(title, fontsize=7.4); panel(ax, "abc"[k], x=-0.3 if k == 0 else -0.2)
+    sd = _exp14("single", ["_a"])
+    ax = fig.add_subplot(gs[0, 3])
+    if sd is not None:
+        q = sd[sd.cfgname.str.startswith("lag")].copy(); q["x"] = q.cfgname.map(lambda x: float(x[3:]))
+        gb = q.groupby(["x", "name"]).all_full.mean().unstack("name") * 100
+        s1 = load_capacity("_S1")
+        if s1 is not None: gb.loc[1.0] = s1[np.isclose(s1.C, 7.0)].groupby("name").all_full.mean() * 100
+        gb = gb.sort_index()
+        for n in ORDER:
+            if n in gb: ax.plot(gb.index, gb[n], color=COL[n], ls=LS[n], marker=MK[n], ms=3.5, mfc="white", lw=1.3, label=n)
+        ax.set_xlabel("Scale of lag bounds $L_c$"); ax.set_ylabel("Full delivery (%), S1, 7 MW"); ax.set_ylim(-3, 104)
+        ax.legend(loc="lower right", fontsize=6.2)
+    panel(ax, "d", x=-0.28)
+    save(fig, "Fig8_sensitivity")
+
+
+FIGS["8s"] = fig8_sensitivity
 
 
 if __name__ == "__main__":

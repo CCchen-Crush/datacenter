@@ -10,6 +10,7 @@ function c = ctx_with_par(ctx, mods)
 %     gt_on      false = no gas engine (and therefore no recovered heat for the absorption chiller)
 %     ac_on      false = no absorption chiller
 %     overhead   extra work per unit of deferred work (pause/resume overhead, plant only)
+%     keep_Pcap  true = keep the connection limit of ctx (equipment changes do not resize the connection)
 %     c_rb       rebound assessment (CNY/MW per event)
 par = ctx.par;
 if isfield(mods, 'gamma'), par.cap.gamma = mods.gamma; end
@@ -27,6 +28,7 @@ if isfield(mods, 'gt_on') && ~mods.gt_on, par.gt.Pmax = 0; end
 if isfield(mods, 'ac_on') && ~mods.ac_on, par.ac.Qmax = 0; end
 if isfield(mods, 'overhead'), par.it.overhead = mods.overhead; end
 if isfield(mods, 'c_rb'), par.dr.c_rb = mods.c_rb; end
+if isfield(mods, 'keep_Pcap') && mods.keep_Pcap, par.cap.Pcap_fix = ctx.d.Pcap; end
 c = setup_case(par, ctx.inp);
 K = numel(ctx.ev); E = ctx.par.ev;                 % event definition (start, end, notice) of ctx
 c = set_events(c, [E.t0], [E.t1] - [E.t0], [ctx.ev.C], [E.notice], [ctx.ev.prob]);

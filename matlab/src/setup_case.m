@@ -4,7 +4,11 @@ if nargin < 2, inp = load_inputs(par); end
 par.cap.Pcap_abs = [];
 [base, ~] = compute_baseline(par, inp);            % typical days, connection limit not binding
 par.cap.Pbase_peak = max(base(1:par.Tday));
-par.cap.Pcap_abs = par.cap.gamma * par.cap.Pbase_peak;
+if isfield(par.cap, 'Pcap_fix') && ~isempty(par.cap.Pcap_fix)        % connection limit kept fixed (equipment sweeps)
+    par.cap.Pcap_abs = par.cap.Pcap_fix;
+else
+    par.cap.Pcap_abs = par.cap.gamma * par.cap.Pbase_peak;
+end
 ref = run_nodr(par, inp, base);
 d = sys_derived(par);
 ev = inp.ev;

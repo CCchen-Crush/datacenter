@@ -1,0 +1,7 @@
+# batch 6 (direction v2, run in the dev copy): resource ablation as firm capacities with the connection kept,
+# lag-bound sensitivity (connection kept), event-call uncertainty with JR-S, supplementary experiments
+res|RUN=20; E20_SET='resources';
+sg1|RUN=14; E14_SET='single'; E14_C=7; E14_TAG='_a';
+jrs|RUN=4; MC_PART='uncertain'; NMC=26;
+supp|RUN=[1 5 11 13];
+rb|RUN=8;

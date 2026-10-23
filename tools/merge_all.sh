@@ -24,7 +24,14 @@ m14() {
     python3 merge_exp14.py "$st" "$@"
 }
 m14 tau_gamma _g100 _g105 _g110 _g120
-m14 single _a _b
-m14 ablation _1 _2 _3
+m14 single _a
 m14 region_S2-30 _p1 _p2 _p3 _p4
+# Exp18 (historical back-test) and Exp20 (firm capacity by bisection): parts are concatenated
+mc() { out=$1; shift; python3 merge_concat.py "$out" "$@"; }
+[ -f $R/exp18_history_S1_a.csv ] && [ -f $R/exp18_history_S1_b.csv ] && { mc exp18_history_S1.csv exp18_history_S1_a.csv exp18_history_S1_b.csv; \
+    cp $R/exp18_strategies_S1_a.csv $R/exp18_strategies_S1.csv; rm -f $R/exp18_strategies_S1_a.csv $R/exp18_strategies_S1_b.csv; }
+for st in bess tau gamma; do
+    mc exp20_$st.csv exp20_${st}_a.csv exp20_${st}_b.csv exp20_${st}_c.csv
+    mc exp20_${st}_evals.csv exp20_${st}_a_evals.csv exp20_${st}_b_evals.csv exp20_${st}_c_evals.csv
+done
 echo "merge done"

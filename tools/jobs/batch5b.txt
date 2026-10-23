@@ -1,0 +1,3 @@
+# batch 5b: BESS substitution configurations rerun with the connection limit kept at the base value (keep_Pcap)
+bessA|RUN=20; E20_SET='bess'; E20_SUB=1:2; E20_TAG='_a';
+bessC|RUN=20; E20_SET='bess'; E20_SUB=4:5; E20_TAG='_c';

@@ -135,7 +135,7 @@ end
 if any(RUN == 14)
     % closed-loop sweeps on the PAI test days (exp14_sweep). E14_SET selects the study:
     %   'tau_gamma'  sensitivity map: two one-hour events, interval x connection margin, uniform C = E14_C
-    %   'single'     single-factor sensitivity at S1: lag bounds L_c x 0.5-1.5, BESS power 0-4 MW
+    %   'single'     single-factor sensitivity at S1: lag bounds L_c x 0.5-1.5 (connection limit kept)
     %   'ablation'   resource / coordination ablation (JR-D controller), commitment sweep
     %   'region'     two-event reliability region: (C1, C2) grid, scenario E14_SCEN
     if ~exist('E14_SET', 'var'), E14_SET = 'tau_gamma'; end
@@ -153,12 +153,9 @@ if any(RUN == 14)
                                        'mods', struct('gamma', g), 'C', E14_C, 'S', []); %#ok<SAGROW>
                 end
             end
-        case 'single'
+        case 'single'        % lag bounds (the BESS size is swept by Exp20 'bess'); connection limit kept
             for ls = [0.5 0.75 1.25 1.5]
-                cf(end+1) = struct('name', sprintf('lag%.2f', ls), 'scen', 'S1', 'gap', [], 'mods', struct('lag_scale', ls), 'C', E14_C, 'S', []); %#ok<SAGROW>
-            end
-            for P = [0 2 4]
-                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', 'S1', 'gap', [], 'mods', struct('bess_P', P), 'C', E14_C, 'S', []); %#ok<SAGROW>
+                cf(end+1) = struct('name', sprintf('lag%.2f', ls), 'scen', 'S1', 'gap', [], 'mods', struct('lag_scale', ls, 'keep_Pcap', true), 'C', E14_C, 'S', []); %#ok<SAGROW>
             end
         case 'ablation'
             if ~exist('E14_CS', 'var'), E14_CS = 1:0.5:8; end
@@ -213,7 +210,7 @@ if any(RUN == 19)
     E19 = exp19_hindsight(set_scenario(ctx, E19_SCEN), root, E19_CS, [], E19_TAG);
 end
 if any(RUN == 20)
-    % firm capacity by bisection for system configurations: E20_SET = 'bess' | 'gamma' | 'ies' | 'tau' | 'overhead'
+    % firm capacity by bisection for system configurations: E20_SET = 'bess' | 'gamma' | 'ies' | 'resources' | 'tau' | 'overhead'
     if ~exist('E20_SET', 'var'), E20_SET = 'bess'; end
     if ~exist('E20_SCEN', 'var'), E20_SCEN = 'S2-30'; end
     if ~exist('E20_TAG', 'var'), E20_TAG = ''; end
@@ -224,18 +221,22 @@ if any(RUN == 20)
         case 'bess'          % BESS power (energy at the 2-h ratio): substitution curve
             for P = [0 3 6 9 12]
                 S = [SD; SI]; if P == 6, S = [SD; SM; SI]; end
-                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', E20_SCEN, 'mods', struct('bess_P', P), 'S', {S}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
+                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', E20_SCEN, 'mods', struct('bess_P', P, 'keep_Pcap', true), 'S', {S}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
             end
         case 'gamma'         % connection margin: substitution curve (gamma 1.10 = base, in 'bess')
             for g = [1.00 1.05 1.20 1.30]
                 cf(end+1) = struct('name', sprintf('g%.2f', g), 'scen', E20_SCEN, 'mods', struct('gamma', g), 'S', {[SD; SI]}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
             end
         case 'ies'           % contribution of the IES devices to the firm capacity of JR-D
-            cf(1) = struct('name', 'noGT', 'scen', E20_SCEN, 'mods', struct('gt_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
-            cf(2) = struct('name', 'noTES', 'scen', E20_SCEN, 'mods', struct('tes_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
-            cf(3) = struct('name', 'noAC', 'scen', E20_SCEN, 'mods', struct('ac_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
-            cf(4) = struct('name', 'noIES', 'scen', E20_SCEN, 'mods', struct('gt_on', false, 'tes_on', false, 'ac_on', false), ...
+            cf(1) = struct('name', 'noGT', 'scen', E20_SCEN, 'mods', struct('gt_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(2) = struct('name', 'noTES', 'scen', E20_SCEN, 'mods', struct('tes_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(3) = struct('name', 'noAC', 'scen', E20_SCEN, 'mods', struct('ac_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(4) = struct('name', 'noIES', 'scen', E20_SCEN, 'mods', struct('gt_on', false, 'tes_on', false, 'ac_on', false, 'keep_Pcap', true), ...
                            'S', {SD}, 'lo', 1, 'hi', 12);
+        case 'resources'     % resource ablation (JR-D controller, connection kept): BESS only, compute only, compute + BESS
+            cf(1) = struct('name', 'BESS_only', 'scen', E20_SCEN, 'mods', struct('lag_scale', 0, 'tes_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(2) = struct('name', 'compute_only', 'scen', E20_SCEN, 'mods', struct('bess_P', 0, 'tes_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(3) = struct('name', 'compute_BESS', 'scen', E20_SCEN, 'mods', struct('tes_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
         case 'tau'           % firm capacity vs event interval (30 min is the bess6 configuration of 'bess')
             for mins = [15 60 120 180]
                 cf(end+1) = struct('name', sprintf('tau%d', mins), 'scen', sprintf('S2-%d', mins), 'mods', [], ...
@@ -243,7 +244,7 @@ if any(RUN == 20)
             end
         case 'overhead'      % robustness: pause/resume overhead of deferred work
             for ov = [0.02 0.05]
-                cf(end+1) = struct('name', sprintf('ovh%.2f', ov), 'scen', E20_SCEN, 'mods', struct('overhead', ov), ...
+                cf(end+1) = struct('name', sprintf('ovh%.2f', ov), 'scen', E20_SCEN, 'mods', struct('overhead', ov, 'keep_Pcap', true), ...
                                    'S', {[SD; SM; SI]}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
             end
     end
