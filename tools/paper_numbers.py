@@ -153,49 +153,55 @@ def sweep_section():
             print(f"- {k}: C_0.90 = {c_rho(sh, 0.90)} MW, C_0.95 = {c_rho(sh, 0.95)} MW")
 
 
-def history():
-    h = rd("exp18_history_S1.csv"); hs = rd("exp18_strategies_S1.csv")
-    if h is None:
-        parts = [rd("exp18_history_S1_a.csv"), rd("exp18_history_S1_b.csv")]
-        if any(x is None for x in parts): return None
-        h = pd.concat(parts, ignore_index=True); hs = rd("exp18_strategies_S1_a.csv")
+def history(scen="S1"):
+    """Exp18 back-test on the 14 historical days (strategy names attached); None if not available."""
+    h = rd(f"exp18_history_{scen}.csv"); hs = rd(f"exp18_strategies_{scen}.csv")
+    if h is None or hs is None: return None
     h["name"] = h.strategy.map(dict(zip(hs["index"], hs["label"])))
     return h
 
 
 def dro_section(rhos=(0.90, 0.95)):
-    h = history(); t = load_capacity("_S1"); nd = rd("exp17_nodr.csv")
-    if h is None or t is None: return
-    h_("Distributionally robust commitment (Section 4.1, Proposition 3), S1: 20 historical days -> 26 test days")
-    grid = np.sort(h.C.unique()); nodr = nd.set_index("realisation").net_cost_adj if nd is not None else None
-    print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | "
-          "margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
-    print("|---" * 13 + "|")
-    for rho in rhos:
-        for n in ORDER:
-            lb, step = capability(h, n); x = lb.values + step / 2
-            c_saa = dro_capacity(x, rho, 0, grid); e = eps_sampling(x); c_dro = dro_capacity(x, rho, e, grid)
-            e_cv = cv_radius(x, lb.values, rho, grid); c_cv = dro_capacity(x, rho, e_cv, grid)
-            phi = np.nan
-            if not np.isnan(c_dro):
-                m = np.sort(x[x >= c_dro - 1e-12] - c_dro); r = len(m) - rho * len(x); k = int(np.floor(r + 1e-12))
-                phi = (m[:k].sum() + (r - k) * (m[k] if k < len(m) else 0)) / len(x)
-            J = h[h.name == n].groupby("C").net_cost_adj.mean()
-            cand = J[J.index <= (c_dro + 1e-9 if not np.isnan(c_dro) else -1)]
-            cs = cand.idxmin() if len(cand) else np.nan
-            real = t[t.name == n].groupby("C").all_full.mean()
-            f = lambda c: f"{100 * real.get(c, np.nan):.0f}" if not np.isnan(c) else "–"
-            ben = "–"
-            if not np.isnan(cs) and nodr is not None:
-                q = t[(t.name == n) & np.isclose(t.C, cs)].set_index("realisation"); ben = f"{(nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3:.1f}"
-            g = lambda c: "<%g" % grid.min() if np.isnan(c) else f"{c:g}"
-            print(f"| {rho:.2f} | {n} | {x.mean():.2f} / {x.min():.2f} | {g(c_saa)} | {e:.3f} | {g(c_dro)} | {e_cv:.3f} | {g(c_cv)} | {phi:.3f} | {g(cs)} | {f(cs)} | {f(c_saa)} | {ben} |")
+    nd = rd("exp17_nodr.csv"); nodr = nd.set_index("realisation").net_cost_adj if nd is not None else None
+    for scen, tag in [("S1", "_S1"), ("S2", "_S2")]:
+        h = history(scen); t = load_capacity(tag)
+        if h is None or t is None: continue
+        N = h.day.nunique()
+        h_(f"Distributionally robust commitment (Section 4.1, Proposition 3), {scen}: {N} historical days -> 26 test days")
+        print("Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest "
+              "capability); C* is chosen among commitments with all days available.\n")
+        grid = np.sort(h.C.unique())
+        print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | "
+              "margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
+        print("|---" * 13 + "|")
+        for rho in rhos:
+            for n in ORDER:
+                if n not in set(h.name): continue
+                lb, step = capability(h, n); x = lb.values + step / 2
+                c_saa = dro_capacity(x, rho, 0, grid); e = eps_sampling(x); c_dro = dro_capacity(x, rho, e, grid)
+                e_cv = cv_radius(x, lb.values, rho, grid); c_cv = dro_capacity(x, rho, e_cv, grid)
+                phi = np.nan
+                if not np.isnan(c_dro):
+                    m = np.sort(x[x >= c_dro - 1e-12] - c_dro); r = len(m) - rho * len(x); k = int(np.floor(r + 1e-12))
+                    phi = (m[:k].sum() + (r - k) * (m[k] if k < len(m) else 0)) / len(x)
+                hn = h[h.name == n]; cnt = hn.groupby("C").day.nunique(); J = hn.groupby("C").net_cost_adj.mean()[cnt == N]
+                cand = J[J.index <= (c_dro + 1e-9 if not np.isnan(c_dro) else -1)]
+                cs = cand.idxmin() if len(cand) else np.nan
+                real = t[t.name == n].groupby("C").all_full.mean()
+                f = lambda c: f"{100 * real.get(c, np.nan):.0f}" if not np.isnan(c) else "–"
+                ben = "–"
+                if not np.isnan(cs) and nodr is not None:
+                    q = t[(t.name == n) & np.isclose(t.C, cs)].set_index("realisation"); ben = f"{(nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3:.1f}"
+                g = lambda c: "<%g" % grid.min() if np.isnan(c) else f"{c:g}"
+                print(f"| {rho:.2f} | {n} | {x.mean():.2f} / {x.min():.2f} | {g(c_saa)} | {e:.3f} | {g(c_dro)} | {e_cv:.3f} | {g(c_cv)} | {phi:.3f} | {g(cs)} | {f(cs)} | {f(c_saa)} | {ben} |")
 
 
 def exp20_section():
-    for name, title in [("bess", "BESS size (S2, connection fixed)"), ("gamma", "Connection margin (S2)"), ("tau", "Event interval"),
+    for name, title in [("bess", "BESS size (S2, connection fixed)"), ("bessM", "BESS size, JR-M (S2, connection fixed)"),
+                        ("gamma", "Connection margin (S2)"), ("tau", "Event interval"),
                         ("ies", "IES devices (S2, JR-D, connection fixed)"), ("resources", "Resource ablation (S2, JR-D, connection fixed)"),
-                        ("overhead", "Pause/resume overhead (S2, connection fixed)")]:
+                        ("overhead", "Pause/resume overhead (S2, connection fixed)"),
+                        ("region", "Two-event firm region (S2): firm C2 for a fixed first-event commitment C1")]:
         d = exp20(name)
         if d is None: continue
         h_(f"Firm capacity C_0.95 by bisection (tolerance 0.25 MW): {title}")

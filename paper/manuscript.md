@@ -175,7 +175,7 @@ The proofs are given in Appendix B. Proposition 2 explains the mechanism examine
 
 The commitment of every event must anticipate the recovery state that the preceding events will leave behind, as delivered by the controller that will actually operate the AIDC. The day-ahead layer therefore measures the capability of that controller in closed loop. For every historical day $d$ of $\Omega^{DA}$ and every candidate commitment $C$ of the grid $\mathcal G$, the intraday controller of Section 4.2 is simulated with the realised data of day $d$, which yields the comprehensive cost $J_d(C)$ and the capability
 $$\xi_d=\max\big\{C\in\mathcal G:\ \bar r_{k,d}(C')\ge(1-\epsilon_f)C'\ \ \forall k,\ \forall C'\le C,\ C'\in\mathcal G\big\}+\tfrac12\Delta_{\mathcal G}, \tag{15}$$
-the midpoint between the largest uniform commitment that the controller delivers in full on day $d$ and the next commitment of the grid (step $\Delta_{\mathcal G}$), at which delivery first fails. The empirical distribution $\hat P_N=\frac1N\sum_d\delta_{\xi_d}$ summarises the deliverability of the controller, but the operating day can differ from the historical days (Section 5.1). The commitment is therefore protected against all distributions within the 1-Wasserstein ball $\mathcal B_\varepsilon(\hat P_N)=\{Q:\ W_1(Q,\hat P_N)\le\varepsilon\}$:
+the midpoint between the largest uniform commitment that the controller delivers in full on day $d$ and the next commitment of the grid (step $\Delta_{\mathcal G}$), at which delivery first fails. The back-test visits the commitments in increasing order and stops simulating a day after its first failure; this yields every $\xi_d$, and every $J_d(C)$ for $C\le\min_d\xi_d$, with about half of the closed-loop runs of the full grid. The empirical distribution $\hat P_N=\frac1N\sum_d\delta_{\xi_d}$ summarises the deliverability of the controller, but the operating day can differ from the historical days (Section 5.1). The commitment is therefore protected against all distributions within the 1-Wasserstein ball $\mathcal B_\varepsilon(\hat P_N)=\{Q:\ W_1(Q,\hat P_N)\le\varepsilon\}$:
 $$C^{DRO}_\rho(\varepsilon)=\max\Big\{C\in\mathcal G:\ \inf_{Q\in\mathcal B_\varepsilon(\hat P_N)}Q(\xi\ge C)\ge\rho\Big\}, \tag{16}$$
 the distributionally robust counterpart of (12). The radius $\varepsilon$ (MW) is the largest average shift of the capability that the commitment must withstand.
 
@@ -205,7 +205,8 @@ Input : historical days Ω_DA, test realisations Ω, commitment grid G, reliabil
         event set K, horizon H, plant parameters
 Output: commitment C*, firm capacity Ĉ_ρ, closed-loop trajectories
  1  Day-ahead recovery-aware commitment (Eqs. (15)-(18))
- 2    for every C ∈ G and day d ∈ Ω_DA: run the closed loop (steps 7-12) → cost J_d(C); capability ξ_d (15)
+ 2    for C ∈ G in increasing order and every day d ∈ Ω_DA that delivered all smaller C:
+        run the closed loop (steps 7-12) → cost J_d(C), full delivery; capability ξ_d (15)
  3    ε ← ε_N (18a); C_DRO ← max{C: Φ_ρ(C) ≥ ε} (17); C* ← argmin J̄(C), C ≤ C_DRO (18)
  4  Firm capacity on the operating days (SAA, Eq. (13))
  5    for every C ∈ G and ω ∈ Ω: run the closed loop (steps 7-12) with commitment C

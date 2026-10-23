@@ -109,31 +109,40 @@ def figS7():
 
 
 # ------------------------------------------------------------------ Fig. 4 two-event reliability region
-def fig4(rho=0.9):
-    sets = []
-    for tag, lab in [("_S2-30", "S2: 30-min interval"), ("_S1", "S1: 1-h interval")]:
-        d = rd(f"exp14_region{tag}.csv"); s = rd(f"exp14_region{tag}_strategies.csv")
-        if d is not None: d["name"] = d.strategy.map(dict(zip(s["index"], s["label"]))); sets.append((d, lab))
-    if not sets: return
-    fig, axs = plt.subplots(1, len(sets), figsize=(SINGLE_COL * len(sets), 3.2), squeeze=False); fig.subplots_adjust(wspace=0.25)
-    for j, (d, lab) in enumerate(sets):
-        ax = axs[0, j]; g = d.groupby(["name", "C1", "C2"]).all_full.mean().reset_index()
-        Cg = np.sort(g.C1.unique())
-        for n in [x for x in ORDER if x in g.name.unique()]:
-            q = g[g.name == n]
-            bd = []
-            for c1 in Cg:
-                ok = q[(q.C1 == c1)].sort_values("C2"); v = ok.all_full.values >= rho - 1e-9
-                k = len(v) if v.all() else int(np.argmin(v)); bd.append(ok.C2.values[k - 1] if k > 0 else np.nan)
-            bd = np.array(bd)
-            ax.step(Cg, bd, where="mid", color=COL[n], ls=LS[n], lw=1.6, label=n)
-            if n == "JR-D": ax.fill_between(Cg, 0, np.nan_to_num(bd), step="mid", color=COL[n], alpha=0.08)
-        ax.plot([Cg.min(), Cg.max()], [Cg.min(), Cg.max()], color="#888888", lw=0.6, ls=":")
-        ax.set_xlabel("Commitment of event 1, $C_1$ (MW)"); ax.set_ylabel("Commitment of event 2, $C_2$ (MW)")
-        ax.set_xlim(Cg.min() - 0.5, Cg.max() + 0.5); ax.set_ylim(Cg.min() - 0.5, Cg.max() + 0.5)
-        ax.set_title(f"{lab}, reliability ≥ {100 * rho:.0f} %", fontsize=8.5); panel(ax, "ab"[j])
-    axs[0, 0].legend(loc="lower left")
+def fig6_region(lo=1.0):
+    """Two-event firm region in S2 (30-min interval): largest C2 delivered in full on >= 95 % of the test days for a fixed
+    first-event commitment C1 (Exp20 'region', bisection), uniform firm capacities on the diagonal (Exp20 bess6) and the
+    physical capability boundary with perfect information on the DR day (Exp13, tau = 0.5 h)."""
+    from paper_style import exp20
+    r = exp20("region"); b = exp20("bess"); p = rd("exp13_region.csv")
+    if r is None: return
+    r["C1"] = r.cfg.str.replace("C1_", "").astype(float)
+    fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.05))
+    if p is not None:
+        q = p[np.isclose(p.tau_h, 0.5) & np.isclose(p.DA_h, 1) & np.isclose(p.DB_h, 1)].sort_values("C1")
+        if not q.empty:
+            ax.plot(q.C1, q.C2_JR, color="black", lw=1.1, ls=(0, (5, 2)), label="Physical capability (perfect information)")
+    top = {}
+    for n in ["JR-D", "JR-M"]:
+        q = r[r.strategy == n][["C1", "C_rho"]].copy()
+        if b is not None:
+            u = b[(b.cfg == "bess6") & (b.strategy == n)]
+            if not u.empty and not np.isnan(u.C_rho.iloc[0]): q = pd.concat([q, pd.DataFrame({"C1": [u.C_rho.iloc[0]], "C_rho": [u.C_rho.iloc[0]]})])
+        q = q.sort_values("C1"); ok = ~q.C_rho.isna()
+        ax.plot(q.C1[ok], q.C_rho[ok], color=COL[n], ls=LS[n], marker=MK[n], ms=4.2, mfc="white", mew=1.0, lw=1.5, label=f"{n}: firm region boundary")
+        if n == "JR-D": ax.fill_between(q.C1[ok], 0, q.C_rho[ok], color=COL[n], alpha=0.09, lw=0)
+        for c1 in q.C1[~ok]:
+            ax.plot(c1, lo - 0.45, marker="x", ms=5, color=COL[n], mew=1.2)
+        top[n] = q
+    ax.plot([0, 9], [0, 9], color="#999999", lw=0.6, ls=":"); ax.text(8.55, 8.9, "$C_1=C_2$", fontsize=6.2, color="#777777", ha="right")
+    ax.axhline(lo, color="#cccccc", lw=0.5, ls=":")
+    ax.text(0.25, lo - 0.45, r"×  no firm $C_2\geq$ 1 MW", fontsize=6.0, va="center", color="#666666")
+    ax.text(0.25, 0.25, "IR-O*, IR-P: no firm pair, not even (1, 1) MW", fontsize=6.0, color=COL["IR-O*"])
+    ax.set_xlim(0, 9); ax.set_ylim(0, 9.4)
+    ax.set_xlabel("Commitment of event 1, $C_1$ (MW)"); ax.set_ylabel("Firm commitment of event 2, $C_2$ (MW)")
+    ax.legend(loc="upper right", fontsize=6.0, bbox_to_anchor=(1.0, 0.86)); ax.set_title("S2, 30-min interval, reliability 95 %", fontsize=8)
     save(fig, "Fig6_two_event_region")
+    return top
 
 
 # ------------------------------------------------------------------ Fig. 1 system and recovery channel
@@ -723,7 +732,7 @@ def fig12_ies(case="short_r21", lo=1.0):
         if d is None: continue
         for _, r in d.iterrows(): bars.append((lab.get(r.cfg, r.cfg), r.C_rho, "#e07b2a" if r.cfg in ("noGT", "noAC", "noIES") else ("#2aa7c9" if r.cfg == "noTES" else "#8c8c8c")))
     if bars:
-        y = np.arange(len(bars))[::-1]; base = bars[0][1]
+        y = np.arange(len(bars))[::-1]; base = bars[0][1] if bars[0][0] == "Full AIDC-IES" else np.nanmax([v for _, v, _ in bars])
         for yy, (l, v, c) in zip(y, bars):
             vv = lo - 0.25 if np.isnan(v) else v
             ax.barh(yy, vv, 0.6, color=c, alpha=0.85)
@@ -870,7 +879,7 @@ def fig14_economics(C0=7.0):
 
 
 
-FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig3, "6": fig4, "7": fig7_decomp, "8": fig8_sensitivity,
+FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig3, "6": fig6_region, "7": fig7_decomp, "8": fig8_sensitivity,
              "9": fig9_substitution, "10": fig10_calibration, "11": fig11, "12": fig12_ies, "13": fig13, "14": fig14_economics})
 
 
