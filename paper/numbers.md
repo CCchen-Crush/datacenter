@@ -269,7 +269,7 @@ Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-d
 | 8.5 |   202.1 |  234.1 |  205.3 |  200.3 |          0   |         0   |         0   |           0 |
 | 9   |   205.1 |  249.7 |  208.4 |  203.3 |          0   |         0   |         0   |           0 |
 
-Reliability-constrained back-test commitment (Eq. 15) and out-of-sample operation on the 26 test days:
+Reliability-constrained back-test commitment (Eq. 19) and out-of-sample operation on the 26 test days:
 
 | rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|---|---|---|
@@ -286,7 +286,7 @@ Reliability-constrained back-test commitment (Eq. 15) and out-of-sample operatio
 | 1 | JR-M | 7 | 202.5 | 1.0 | 92 | 99.7 | 218.1 | 37.3 |
 | 1 | JR-D | 7 | 197.7 | 1.0 | 100 | 100.0 | 210.6 | 44.8 |
 
-Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 16; SE: single-event capability) and back-test packages as run in exp16:
+Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 20; SE: single-event capability) and back-test packages as run in exp16:
 
 | package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|
@@ -302,7 +302,7 @@ Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 16; SE: single
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 19) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.04 / 0.75 | <1 | 0.911 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 4.93 / 0.75 | <1 | 0.899 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
@@ -317,7 +317,7 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 19) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.145 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
