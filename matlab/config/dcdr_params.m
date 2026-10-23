@@ -119,9 +119,11 @@ par.case.pai_day      = 27;                    % PAI trace weekday used as DR da
 par.case.azure_date   = '2024-05-14';          % Azure LLM weekday used as DR day
 par.case.lat = 31.16; par.case.lon = 120.64;
 
-%% ---------------- DR events (base case) ----------------
-% start/end in hours of day D, notice (h before start), commitment (MW)
-par.ev = struct('t0', {17, 19, 21}, 't1', {18, 20, 22}, 'notice', {24, 24, 3}, 'C', {6, 6, 6}, 'prob', {1, 1, 1});
+%% ---------------- DR events (base case S1; see set_scenario for S2 / S3) ----------------
+% start/end in hours of day D, notice (h before start), commitment (MW). Jiangsu rules (2024): at most two
+% agreed DR events and two hours per day -> base case = two one-hour agreed events (S1). The three-event
+% case (S3: + a rapid peak-shaving call at 21-22 h, 3 h notice) is a high-stress extension.
+par.ev = struct('t0', {17, 19}, 't1', {18, 20}, 'notice', {24, 24}, 'C', {6, 6}, 'prob', {1, 1});
 % prob = probability that a pre-announced event is actually called (confirmed at its notice time)
 
 %% ---------------- MPC ----------------

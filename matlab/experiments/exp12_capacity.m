@@ -7,8 +7,8 @@ function out = exp12_capacity(ctx, root, Cs, N, tag, S)
 %   fulfilment and the mean net cost; the reliable capacity C_rho is the largest C whose share >= rho.
 %   Strategies: IR-O*, IR-P (strongest independent benchmarks), JR-M (joint, event by event) and
 %   JR-D (joint, cross-event, deterministic MPC).
-if nargin < 3 || isempty(Cs), Cs = 4:0.5:9; end
-if nargin < 4 || isempty(N), N = 20; end
+if nargin < 3 || isempty(Cs), Cs = 3:0.5:9; end
+if nargin < 4 || isempty(N), N = 26; end
 if nargin < 5, tag = ''; end
 if nargin < 6 || isempty(S)
     S = {'IR-O*', 'expected', 'IR-O*'; 'IR-P', 'expected', 'IR-P'; 'JR-M', 'expected', 'JR-M'; 'JR', 'expected', 'JR-D'};
@@ -16,7 +16,7 @@ end
 rs = distinct_pai(ctx.inp.mc.label, N);
 rows = []; hdr = {}; t0 = tic;
 for C = Cs
-    c0 = apply_commit(ctx, C * [1 1 1]);
+    c0 = apply_commit(ctx, C * ones(1, numel(ctx.ev)));
     c0 = prepare_benchmarks(c0, struct('verbose', false));
     v = zeros(numel(rs), 4, size(S, 1));
     for j = 1:numel(rs)

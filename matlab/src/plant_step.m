@@ -32,13 +32,6 @@ end
 z = zeros(1, 3);
 if isfield(u, 'z') && isfield(it, 'cap_on') && it.cap_on, z = min(max(u.z(:)', 0), y); end
 rho = 0; bet = 0; if isfield(it, 'cap_on') && it.cap_on, rho = it.cap_rho; bet = it.cap_beta; end
-for c = 1:3
-    x = (y(c) - bet * rho * z(c)) * dt;
-    r = st.rem(:, c);
-    cs = cumsum(r);
-    take = min(r, max(0, x - (cs - r)));
-    st.rem(:, c) = r - take;
-end
 %% IT power and cooling
 pit = d.Pfix + d.pdyn * (it.k_inf * data.inf + data.fix + sum(y) - rho * sum(z));
 qload = fac.theta * pit + fac.Q0;
@@ -70,6 +63,28 @@ if over > 1e-9
     if over > 1e-9 && qtc > 0
         r = min(qtc, over * data.cop); qtc = qtc - r; qec = qec - r; over = over - r / data.cop;
     end
+    % last resort: throttle deferrable compute (work that is not yet due first, then due work, which
+    % then becomes overdue), so that the replay never exceeds the physical connection limit
+    if over > 1e-9 && sum(y) > 0
+        due = min(sum(st.rem(1:t, :), 1) / dt, y);
+        phi_f = (1 + fac.a_aux) + fac.theta / data.cop;          % grid MW per IT MW (chiller follows the load)
+        for pass = 1:2
+            if pass == 1, cut_from = max(y - due, 0); else, cut_from = y; end
+            dy = min(sum(cut_from), over / (phi_f * d.pdyn));
+            if dy <= 0, continue; end
+            y = y - cut_from / sum(cut_from) * dy; z = min(z, y);
+            pit = d.Pfix + d.pdyn * (it.k_inf * data.inf + data.fix + sum(y) - rho * sum(z));
+            grid = @(pch_, pdis_, qec_) (1 + fac.a_aux) * pit + fac.P_aux0 + qec_ / data.cop + pch_ - pdis_ - pgt - ppv;
+            qload = fac.theta * pit + fac.Q0;
+            qec = qload - qac - qtd + qtc;
+            if qec < 0
+                r1 = min(qtd, -qec); qtd = qtd - r1; qec = qec + r1;
+                if qec < 0, qac = qac + qec; qec = 0; end
+            end
+            over = grid(pch, pdis, qec) - d.Pcap;
+            if over <= 1e-9, break; end
+        end
+    end
     pg = grid(pch, pdis, qec);
 end
 if pg < par.cap.Pmin            % keep the minimum import: curtail PV, then reduce storage discharge
@@ -79,6 +94,14 @@ if pg < par.cap.Pmin            % keep the minimum import: curtail PV, then redu
     r = min(qtd, lack * data.cop); qtd = qtd - r; qec = qec + r; lack = lack - r / data.cop;
     pg = grid(pch, pdis, qec);
     if pg < 0, ppv = ppv + pg; pg = 0; end
+end
+%% execute the work (EDF within class) with the final schedule
+for c = 1:3
+    x = (y(c) - bet * rho * z(c)) * dt;
+    r = st.rem(:, c);
+    cs = cumsum(r);
+    take = min(r, max(0, x - (cs - r)));
+    st.rem(:, c) = r - take;
 end
 %% state update
 st.E = st.E + (par.bess.eta_c * pch - pdis / par.bess.eta_d) * dt;

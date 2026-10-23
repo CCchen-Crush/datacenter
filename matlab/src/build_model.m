@@ -194,6 +194,9 @@ for k = 1:numel(ev)
         rhs0 = (st.ev_r(k) + sum(sc.Pb(hk))) / nk;
         nh = numel(hk);
         vmar = 0; if isfield(par.dr, 'valid_margin'), vmar = par.dr.valid_margin; end   % planning margin above 80 %
+        Mb = 100;   % big-M (MW): "paid reduction R <= realised reduction" and "reduction >= 80 % of C" only bind
+                    % for a valid event (Z = 1); without it an invalid event would still force the average load
+                    % below the baseline (infeasible on days whose load is far above the baseline)
         switch e.mode
             case 'settle'
                 [m, R]  = addb(m, 1, S, 0, par.dr.pay_hi * e.C, -e.price * Dh * pr);
@@ -204,9 +207,9 @@ for k = 1:numel(ev)
                 for s = 1:S
                     if ~act(k, s), m.ub([R(s); Z(s); SF(s); MX(s)]) = 0; continue; end
                     pgk = PG(hk, s);
-                    m = lpb_addle(m, ones(nh+1,1), [R(s); pgk], [1; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+2,1), [R(s); Z(s); pgk], [1; Mb; ones(nh,1)/nk], rhs0 + Mb);
                     m = lpb_addle(m, [1; 1], [R(s); Z(s)], [1; -par.dr.pay_hi * e.C], 0);
-                    m = lpb_addle(m, ones(nh+1,1), [Z(s); pgk], [par.dr.valid_lo * e.C + vmar; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+1,1), [Z(s); pgk], [par.dr.valid_lo * e.C + vmar + Mb; ones(nh,1)/nk], rhs0 + Mb);
                     m = lpb_addle(m, ones(nh+1,1), [SF(s); pgk], [-1; ones(nh,1)/nk], rhs0 - e.C);
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [pgk; repmat(MX(s), nh, 1)], [ones(nh,1); -ones(nh,1)], e.Pbmax * ones(nh,1));
                 end
@@ -225,9 +228,9 @@ for k = 1:numel(ev)
                     m = lpb_addle(m, [1;1], [Wv(s); Z(s)], [1; -Cm], 0);
                     m = lpb_addle(m, [1;1], [Wv(s); Cv], [1; -1], 0);
                     m = lpb_addle(m, [1;1;1], [Cv; Wv(s); Z(s)], [1; -1; Cm], Cm);
-                    m = lpb_addle(m, ones(nh+1,1), [R(s); pgk], [1; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+2,1), [R(s); Z(s); pgk], [1; Mb; ones(nh,1)/nk], rhs0 + Mb);
                     m = lpb_addle(m, [1;1], [R(s); Wv(s)], [1; -par.dr.pay_hi], 0);
-                    m = lpb_addle(m, ones(nh+2,1), [Wv(s); Z(s); pgk], [par.dr.valid_lo; vmar; ones(nh,1)/nk], rhs0);
+                    m = lpb_addle(m, ones(nh+2,1), [Wv(s); Z(s); pgk], [par.dr.valid_lo; vmar + Mb; ones(nh,1)/nk], rhs0 + Mb);
                     m = lpb_addle(m, ones(nh+2,1), [Cv; SF(s); pgk], [1; -1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [pgk; repmat(MX(s), nh, 1)], [ones(nh,1); -ones(nh,1)], e.Pbmax * ones(nh,1));
                 end
