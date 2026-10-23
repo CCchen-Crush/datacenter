@@ -1,0 +1,9 @@
+# firm-capacity sweeps (Exp12): scenarios S1, S2-30, S3; uniform commitment 3-9 MW; 26 PAI test days (tag|settings)
+S1_a|RUN=12; E12_SCEN='S1'; E12_CS=[3 3.5 4 4.5 5 5.5 6]; E12_TAG='_S1_a';
+S1_b|RUN=12; E12_SCEN='S1'; E12_CS=[6.5 7 7.5 8 8.5 9]; E12_TAG='_S1_b';
+S2_a|RUN=12; E12_SCEN='S2-30'; E12_CS=[3 3.5 4 4.5 5 5.5 6]; E12_TAG='_S2_a';
+S2_b|RUN=12; E12_SCEN='S2-30'; E12_CS=[6.5 7 7.5 8 8.5 9]; E12_TAG='_S2_b';
+S3_a|RUN=12; E12_SCEN='S3'; E12_CS=[3 3.5 4]; E12_TAG='_S3_a';
+S3_b|RUN=12; E12_SCEN='S3'; E12_CS=[4.5 5 5.5 6]; E12_TAG='_S3_b';
+S3_c|RUN=12; E12_SCEN='S3'; E12_CS=[6.5 7 7.5]; E12_TAG='_S3_c';
+S3_d|RUN=12; E12_SCEN='S3'; E12_CS=[8 8.5 9]; E12_TAG='_S3_d';
