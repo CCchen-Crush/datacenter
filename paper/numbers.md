@@ -319,10 +319,14 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 | rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 0.90 | IR-O* | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
-| 0.90 | IR-P | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
-| 0.95 | IR-O* | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
-| 0.95 | IR-P | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.90 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.145 | <1 | nan | <1 | – | – | – |
+| 0.90 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
+| 0.90 | JR-M | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.025 | 2.5 | 100 | 100 | 18.1 |
+| 0.90 | JR-D | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.025 | 2.5 | 100 | 100 | 19.7 |
+| 0.95 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.95 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.95 | JR-M | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.013 | 2.5 | 100 | 100 | 18.1 |
+| 0.95 | JR-D | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.013 | 2.5 | 100 | 100 | 19.7 |
 
 ## Sensitivity: interval x connection margin (share of days with full delivery, %)
 
@@ -383,7 +387,7 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 |:-------|--------:|-------:|-------:|
 | tau120 |     nan |   8    |   7.75 |
 | tau15  |     nan |   7.5  |   3.5  |
-| tau180 |     nan |   7.75 | nan    |
+| tau180 |     nan |   7.75 |   7.75 |
 | tau60  |     nan |   7.75 |   6.75 |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): IES devices (S2, JR-D, connection fixed)
@@ -407,9 +411,10 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 | cfg   |   JR-D |   JR-M |
 |:------|-------:|-------:|
-| C1_2  |   8    |    5.5 |
-| C1_4  |   8    |    5   |
-| C1_7  |   7.75 |    4   |
-| C1_8  |   7.75 |  nan   |
+| C1_2  |   8    |   5.5  |
+| C1_4  |   8    |   5    |
+| C1_6  |   7.75 | nan    |
+| C1_7  |   7.75 |   4    |
+| C1_8  |   7.75 |   3.75 |
 
 Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the gamma, ies, resources and overhead sets.
