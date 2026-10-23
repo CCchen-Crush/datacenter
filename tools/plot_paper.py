@@ -827,7 +827,7 @@ def fig8_sensitivity():
          (g["JR-D"] - g["JR-M"], "JR-D − JR-M (pp)", "Purples", 0, 100)]
     fig = plt.figure(figsize=(DOUBLE_COL, 2.75)); gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 1.05], wspace=0.42)
     for k, (v, title, cm, vmin, vmax) in enumerate(Z):
-        ax = fig.add_subplot(gs[0, k]); M = v.unstack("gap"); ax.grid(False)
+        ax = fig.add_subplot(gs[0, k]); M = v.unstack("gap"); ax.grid(False); ax.tick_params(length=0)
         ax.imshow(M.values, origin="lower", aspect="auto", cmap=cm, vmin=vmin, vmax=vmax)
         for i in range(M.shape[0]):
             for jj in range(M.shape[1]):
@@ -849,7 +849,7 @@ def fig8_sensitivity():
         for n in ORDER:
             if n in gb: ax.plot(gb.index, gb[n], color=COL[n], ls=LS[n], marker=MK[n], ms=3.5, mfc="white", lw=1.3, label=n)
         ax.set_xlabel("Scale of lag bounds $L_c$"); ax.set_ylabel("Full delivery (%), S1, 7 MW"); ax.set_ylim(-3, 104)
-        ax.legend(loc="lower right", fontsize=6.2)
+        ax.legend(loc="center right", bbox_to_anchor=(1.0, 0.45), fontsize=6.2)
     panel(ax, "d", x=-0.28)
     save(fig, "Fig8_sensitivity")
 

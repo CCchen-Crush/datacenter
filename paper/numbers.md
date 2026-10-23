@@ -360,6 +360,7 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | lag0.50   |      85 |     12 |     96 |     19 |
 | lag0.75   |      85 |     12 |    100 |     46 |
 | lag1.25   |      85 |     12 |    100 |    100 |
+| lag1.50   |      85 |     12 |    100 |    100 |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size (S2, connection fixed)
 
