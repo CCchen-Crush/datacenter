@@ -5,10 +5,10 @@
 ## Highlights
 
 - Computing backlog and storage deficit compete for one grid recovery channel.
-- Firm consecutive demand-response capacity is defined as a chance-constrained metric.
-- Recovery-aware day-ahead commitment is coupled with intraday joint recovery MPC.
-- Cross-event joint recovery raises firm capacity by [ΔC] MW at 95 % reliability.
-- The gain is largest at short event intervals and tight grid connection margins.
+- Firm consecutive DR capacity is certified with a Wasserstein ambiguity set.
+- Cross-event joint recovery firmly delivers 7.5 MW, 94 % of the physical capability.
+- Foresight is worth up to 3 MW at 30-min intervals and vanishes beyond 2 h.
+- Joint recovery substitutes [X] MWh of battery or [Y] MW of grid connection.
 
 ## Abstract
 
