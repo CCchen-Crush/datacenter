@@ -1,0 +1,4 @@
+# batch 4: firm-capacity sweeps extended below 3 MW (the independent benchmarks miss the 90 % level already at 3 MW)
+S1_c|RUN=12; E12_SCEN='S1'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S1_c';
+S2_c|RUN=12; E12_SCEN='S2-30'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S2_c';
+S3_e|RUN=12; E12_SCEN='S3'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S3_e';

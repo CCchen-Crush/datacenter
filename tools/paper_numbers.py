@@ -25,26 +25,37 @@ def h(t): print(f"\n## {t}\n")
 
 def capacity_section():
     h("Firm consecutive DR capacity (module 2)")
+    print("C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x' = below the lowest commitment "
+          "of the grid; CIs: block bootstrap over the 26 test days.\n")
     print("| Scenario | rule | rho | IR-O* | IR-P | JR-M | JR-D | dC vs best IR [95% CI] | I_rho | dC vs JR-M [95% CI] |")
     print("|---|---|---|---|---|---|---|---|---|---|")
     for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
         d = load_capacity(tag)
         if d is None: continue
         cmin = d.C.min()
+        f = lambda x: "<%g" % cmin if np.isnan(x) else f"{x:g}"
         for col, rule in [("all_full", "full"), ("all_valid", "80 %")]:
             tab, _ = capacity_table(d, col, rhos=(0.90, 0.95), B=B)
             for rho in (0.90, 0.95):
                 v = {n: tab[n][0][rho] for n in ORDER}
                 ir = np.nanmax([v["IR-O*"], v["IR-P"]]) if not np.all(np.isnan([v["IR-O*"], v["IR-P"]])) else np.nan
-                low = np.isnan(ir); irv = cmin - 0.5 if low else ir
-                dC = v["JR-D"] - irv
-                bj = tab["JR-D"][1][rho]; bi = np.fmax(np.nan_to_num(tab["IR-O*"][1][rho], nan=cmin - 0.5), np.nan_to_num(tab["IR-P"][1][rho], nan=cmin - 0.5))
-                bm = np.nan_to_num(tab["JR-M"][1][rho], nan=cmin - 0.5)
-                lo, hi = np.nanpercentile(bj - bi, [2.5, 97.5]); lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5])
-                I = 100 * dC / irv if irv > 0 else np.nan
-                f = lambda x: "<%g" % cmin if np.isnan(x) else f"{x:g}"
-                print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | "
-                      f"{'≥' if low else ''}{dC:+.1f} [{lo:+.1f}, {hi:+.1f}] | {'≥' if low else ''}{I:.0f} % | {v['JR-D'] - (cmin - 0.5 if np.isnan(v['JR-M']) else v['JR-M']):+.1f} [{lo2:+.1f}, {hi2:+.1f}] |")
+                bj = tab["JR-D"][1][rho]; bi = np.fmax(tab["IR-O*"][1][rho], tab["IR-P"][1][rho]); bm = tab["JR-M"][1][rho]
+                if np.isnan(ir):
+                    dC = f"> {v['JR-D'] - cmin:+.1f}"; I = f"> {100 * (v['JR-D'] - cmin) / cmin:.0f} %"
+                else:
+                    lo, hi = np.nanpercentile(bj - bi, [2.5, 97.5])
+                    dC = f"{v['JR-D'] - ir:+.1f} [{lo:+.1f}, {hi:+.1f}]"; I = f"{100 * (v['JR-D'] - ir) / ir:.0f} %"
+                if np.isnan(v["JR-M"]):
+                    dM = f"> {v['JR-D'] - cmin:+.1f}"
+                else:
+                    lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5]); dM = f"{v['JR-D'] - v['JR-M']:+.1f} [{lo2:+.1f}, {hi2:+.1f}]"
+                print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | {dC} | {I} | {dM} |")
+    h("Full-delivery share by commitment (%, 26 test days)")
+    for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
+        d = load_capacity(tag)
+        if d is None: continue
+        g = (100 * d.groupby(["name", "C"]).all_full.mean()).unstack("C").reindex(ORDER).round(0)
+        print(f"\n**{SCEN[s]}**\n"); print(g.to_markdown())
 
 
 def fixed_section(Cs=(6.0, 7.0, 7.5)):
@@ -70,14 +81,34 @@ def fixed_section(Cs=(6.0, 7.0, 7.5)):
                 print(f"- JR-D − {n}: cost {dd.mean():+.1f} k CNY/day [95% CI {lo:+.1f}, {hi:+.1f}], median {md:+.1f}; cheaper on {int((dd < 0).sum())}/{len(dd)} days")
 
 
-def endogenous_section():
-    for s in ["S1", "S2-30", "S3"]:
-        d = rd(f"exp16_endogenous_{s}.csv"); p = rd(f"exp16_packages_{s}.csv")
-        if d is None: continue
+def endogenous_section(rhos=(0.0, 0.8, 1.0)):
+    for s, tag in [("S1", "_S1"), ("S2-30", "_S2"), ("S3", "_S3")]:
+        d = rd(f"exp16_endogenous_{s}.csv"); p = rd(f"exp16_packages_{s}.csv"); da = rd(f"exp16_dayahead_{s}.csv")
+        cap = load_capacity(tag)
+        if d is None or da is None: continue
         h(f"Endogenous commitment (module 1, protocol 2), {s}")
         names = dict(zip(p["index"], p["label"])); d["pkg"] = d.package.map(names)
-        da = rd(f"exp16_dayahead_{s}.csv")
-        if da is not None: print("Day-ahead expected cost (k CNY) by uniform commitment:\n\n" + (da.set_index("C") / 1e3).round(1).to_markdown() + "\n")
+        nodr = d.groupby("realisation").nodr_net_cost_adj.first()
+        t = da.set_index("C"); show = t[ORDER] / 1e3
+        show = pd.concat([show.round(1), t[["full_" + n for n in ORDER]]], axis=1)
+        print("Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-delivery share by uniform commitment:\n")
+        print(show.to_markdown() + "\n")
+        print("Reliability-constrained back-test commitment (Eq. 15) and out-of-sample operation on the 26 test days:\n")
+        print("| rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |")
+        print("|---|---|---|---|---|---|---|---|---|")
+        for rho in rhos:
+            for n in ORDER:
+                ok = (t["full_" + n] >= rho - 1e-9).cummin()
+                if not ok.any(): print(f"| {rho:g} | {n} | – | | | | | | |"); continue
+                Cs = t[n][ok.astype(bool)].idxmin()
+                if cap is None: continue
+                q = cap[(cap.name == n) & np.isclose(cap.C, Cs)].set_index("realisation")
+                if q.empty: continue
+                ben = (nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3
+                print(f"| {rho:g} | {n} | {Cs:g} | {t.loc[Cs, n] / 1e3:.1f} | {t.loc[Cs, 'full_' + n]:.1f} | {100 * q.all_full.mean():.0f} | "
+                      f"{q.fulfil_rate_pct.mean():.1f} | {q.net_cost_adj.mean() / 1e3:.1f} | {ben:.1f} |")
+        print("\nModel-based commitments (RA: perfect-recourse two-stage MILP, Eq. 16; SE: single-event capability) and back-test "
+              "packages as run in exp16:\n")
         print("| package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |"); print("|---|---|---|---|---|---|")
         for k, g in d.groupby("pkg", sort=False):
             Cv = "/".join(f"{x:.2f}" for x in g[["C1", "C2", "C3"]].iloc[0].dropna())

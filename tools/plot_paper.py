@@ -51,49 +51,83 @@ def fig3():
 
 
 # ------------------------------------------------------------------ Fig. 5 strategy comparison
-COST = [("cost_energy", "Electricity", "#8fb3d9"), ("cost_gas", "Natural gas", "#e8c48a"), ("cost_deg", "Storage degradation", "#b9b9b9"),
-        ("cost_delay", "Task delay", "#c9a3c9"), ("pen_dev", "Shortfall penalty", "#e39a8f")]
+DCOST = [("cost_energy", "Electricity", "#8fb3d9"), ("cost_gas", "Natural gas", "#e8c48a"), ("cost_deg", "Storage degradation", "#b9b9b9"),
+         ("cost_delay", "Task delay", "#c9a3c9"), ("term_adj", "End-of-day state", "#a6d4c8"), ("pen_dev", "Shortfall assessment", "#e39a8f"),
+         ("dr_pay", "DR revenue", "#7fbf7f")]
 
 
-def fig5():
-    tabs = []
-    for t, s in CAP_TAGS[:2]:
-        d = load_capacity(t)
-        if d is not None: tabs.append((d, s))
-    if not tabs: return
-    Cfix = [6.5, 7.5]
-    fig, axs = plt.subplots(1, len(tabs), figsize=(DOUBLE_COL, 3.1), squeeze=False); fig.subplots_adjust(wspace=0.38)
-    for j, (d, s) in enumerate(tabs):
-        ax = axs[0, j]; ax2 = ax.twinx(); ax2.grid(False)
-        x0 = 0; ticks = []; tl = []
-        for C in Cfix:
-            for n in ORDER:
-                q = d[(d.name == n) & (np.isclose(d.C, C))]
-                if q.empty: continue
-                bottom = 0
-                for k, (c, lab, colr) in enumerate(COST):
-                    v = q[c].mean() / 1e4
-                    ax.bar(x0, v, 0.72, bottom=bottom, color=colr, edgecolor="white", lw=0.4, label=lab if (x0 == 0) else None)
-                    bottom += v
-                pay = q.dr_pay.mean() / 1e4
-                ax.bar(x0, -pay, 0.72, color="#7fbf7f", edgecolor="white", lw=0.4, label="DR revenue (−)" if x0 == 0 else None)
-                ax.plot(x0, q.net_cost_adj.mean() / 1e4, marker="_", ms=13, mew=2, color="black", label="Net cost" if x0 == 0 else None)
-                ax2.plot(x0, 100 * q.all_full.mean(), marker=MK[n], color=COL[n], ms=5, mec="black", mew=0.5, ls="none")
-                ticks.append(x0); tl.append(n); x0 += 1
-            x0 += 0.8
-        ax.set_xticks(ticks); ax.set_xticklabels(tl, rotation=0, fontsize=6.8)
-        for k, C in enumerate(Cfix):
-            ax.text(k * 4.8 + 1.5, 1.02, f"C = {C:g} MW", transform=ax.get_xaxis_transform(), ha="center", fontsize=7.5)
-        ax.axhline(0, color="black", lw=0.6)
-        tops = [sum(d[(d.name == n) & np.isclose(d.C, C)][c].mean() for c, _, _ in COST) / 1e4 for C in Cfix for n in ORDER]
-        cap = 1.25 * np.median(tops)
-        for x, t in zip(ticks, tops):
-            if t > cap: ax.text(x, cap * 0.97, f"{t:.0f}↑", ha="center", va="top", fontsize=6.5, color="#5b2a6b")
-        ax.set_ylim(top=cap)
-        ax.set_ylabel("Mean daily cost (10$^4$ CNY)"); ax2.set_ylabel("Days with full delivery (%)"); ax2.set_ylim(0, 105)
-        ax.set_title(SCEN[s], fontsize=8.5, pad=14); panel(ax, "ab"[j], y=1.08)
-    h, l = axs[0, 0].get_legend_handles_labels()
-    fig.legend(h, l, loc="lower center", ncol=7, bbox_to_anchor=(0.5, -0.06), fontsize=7)
+def endogenous_points(scen="S1", tag="_S1", rho=1.0):
+    """(label, strategy, commitment text, full-delivery share %, benefit vs no DR in 10^3 CNY/day) of the endogenous protocol."""
+    da = rd(f"exp16_dayahead_{scen}.csv"); en = rd(f"exp16_endogenous_{scen}.csv"); pk = rd(f"exp16_packages_{scen}.csv")
+    cap = load_capacity(tag); nd = rd("exp17_nodr.csv")
+    if da is None or en is None or cap is None: return []
+    nodr = (nd.set_index("realisation").net_cost_adj if nd is not None else en.groupby("realisation").nodr_net_cost_adj.first())
+    t = da.set_index("C"); pts = []
+    for n in ORDER:
+        ok = (t["full_" + n] >= rho - 1e-9).cummin().astype(bool)
+        Cs = t[n][ok].idxmin(); q = cap[(cap.name == n) & np.isclose(cap.C, Cs)].set_index("realisation")
+        pts.append((f"Back-test, {n}", n, f"{Cs:g}", 100 * q.all_full.mean(), (nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3, True))
+    en["pkg"] = en.package.map(dict(zip(pk["index"], pk["label"])))
+    for lab, n, txt in [("RA|JR-D", "JR-D", "Perfect-recourse MILP, JR-D"), ("SE|IR-O*", "IR-O*", "Single-event capability, IR-O*"),
+                        ("SE|IR-P", "IR-P", "Single-event capability, IR-P")]:
+        g = en[en.pkg == lab]
+        if g.empty: continue
+        Cv = "/".join(f"{x:.2f}" for x in g[["C1", "C2", "C3"]].iloc[0].dropna())
+        pts.append((txt, n, Cv, 100 * g.all_full.mean(), (g.nodr_net_cost_adj - g.net_cost_adj).mean() / 1e3, False))
+    return pts
+
+
+def fig5(C0=7.0):
+    nd = rd("exp17_nodr.csv")
+    tabs = [(load_capacity(t), s) for t, s in CAP_TAGS]; tabs = [(d, s) for d, s in tabs if d is not None]
+    if not tabs or nd is None: return
+    nd = nd.set_index("realisation")
+    fig = plt.figure(figsize=(DOUBLE_COL, 3.5)); gs = fig.add_gridspec(1, 2, width_ratios=[1.55, 1], wspace=0.3)
+    ax = fig.add_subplot(gs[0, 0])
+    x0 = 0; ticks = []; tl = []; groups = []
+    for d, s in tabs:
+        xs = x0
+        for n in ORDER:
+            q = d[(d.name == n) & np.isclose(d.C, C0)].set_index("realisation")
+            if q.empty: continue
+            ref = nd.reindex(q.index); up = 0; dn = 0
+            for c, lab, colr in DCOST:
+                v = (-q[c].mean() if c == "dr_pay" else (q[c] - ref[c]).mean()) / 1e3
+                if v >= 0: ax.bar(x0, v, 0.7, bottom=up, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); up += v
+                else: ax.bar(x0, v, 0.7, bottom=dn, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); dn += v
+            net = (q.net_cost_adj - ref.net_cost_adj).mean() / 1e3
+            ax.plot([x0 - 0.38, x0 + 0.38], [net, net], color="black", lw=1.8, solid_capstyle="butt", label="Net change (− benefit)" if x0 == 0 else None)
+            ax.text(x0, up + 0.8, f"{100 * q.all_full.mean():.0f}%", ha="center", va="bottom", fontsize=6.4, color=COL[n], fontweight="bold")
+            ticks.append(x0); tl.append(n); x0 += 1
+        groups.append(((xs + x0 - 1) / 2, s)); x0 += 0.7
+    ax.axhline(0, color="black", lw=0.6)
+    ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.5, rotation=90)
+    for xm, s in groups: ax.text(xm, 1.01, s, transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8)
+    ax.set_ylabel("Daily cost change vs no DR (10$^3$ CNY)")
+    ax.set_title(f"Fixed commitment, C = {C0:g} MW", fontsize=8, pad=13)
+    ax.set_ylim(top=ax.get_ylim()[1] + 3)
+    panel(ax, "a", x=-0.1, y=1.06)
+    hh, ll = ax.get_legend_handles_labels()
+    fig.legend(hh, ll, loc="lower center", ncol=8, bbox_to_anchor=(0.5, -0.1), fontsize=6.6, handlelength=1.4, columnspacing=0.9)
+    # (b) endogenous protocol: reliability-benefit plane
+    ax = fig.add_subplot(gs[0, 1]); pts = endogenous_points()
+    place = {"Back-test, JR-D": (99, 49.5, "right"), "Perfect-recourse MILP, JR-D": (64, 46.5, "right"),
+             "Back-test, IR-O*": (64, 41.0, "right"), "Back-test, JR-M": (97, 31.0, "center"),
+             "Single-event capability, IR-O*": (4, 26.0, "left"), "Back-test, IR-P": (62, 22.0, "left"),
+             "Single-event capability, IR-P": (5, 8.0, "left")}
+    for lab, n, Cv, sh, ben, bt in pts:
+        ax.scatter(sh, ben, s=46 if bt else 40, marker=MK[n], color=COL[n] if bt else "white", edgecolor=COL[n], lw=1.2, zorder=3)
+        name = lab.split(", ")[0].replace("Single-event capability", "single-event").replace("Perfect-recourse MILP", "perfect-recourse MILP")
+        txt = f"{n}, {name.lower() if name.startswith('Back') else name}\n({Cv} MW)"
+        x, y, ha = place.get(lab, (sh + 4, ben + 3, "left"))
+        ax.annotate(txt, (sh, ben), xytext=(x, y), textcoords="data", ha=ha, va="center", fontsize=5.9, color=COL[n],
+                    arrowprops=dict(arrowstyle="-", color=COL[n], lw=0.5, shrinkA=0, shrinkB=3.5))
+    ax.scatter([], [], marker="o", color="#555555", s=30, label="Back-test commitment, Eq. (15)")
+    ax.scatter([], [], marker="o", color="white", edgecolor="#555555", s=30, label="Capability-based commitment")
+    ax.legend(loc="lower right", fontsize=6.2, handletextpad=0.3, borderaxespad=0.3)
+    ax.set_xlim(-8, 108); ax.set_ylim(-3, 55)
+    ax.set_xlabel("Days with full delivery, out of sample (%)"); ax.set_ylabel("Daily benefit vs no DR (10$^3$ CNY)")
+    ax.set_title("Endogenous commitment, S1", fontsize=8, pad=13); panel(ax, "b", x=-0.2, y=1.06)
     save(fig, "Fig5_strategy_comparison")
 
 
@@ -124,7 +158,8 @@ def fig8():
             if nb: ax.text(pos, lo - pad * 0.6, f"{nb} day{'s' if nb > 1 else ''} ↓", ha="center", fontsize=6, color="#555555")
             ticks.append(pos); tl.append(f"{[s for _, s in data][int(pos // 3.6)]}\nvs {n}")
     ax.axhline(0, color="black", lw=0.6); ax.set_ylim(lo - pad, hi + pad)
-    ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.5); ax.set_ylabel(f"Daily cost difference JR-D − benchmark (10$^3$ CNY), C = {C0:g} MW")
+    ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.5); ax.set_ylabel("Daily cost, JR-D − benchmark (10$^3$ CNY)")
+    ax.set_title(f"Paired daily cost differences, C = {C0:g} MW", fontsize=8)
     panel(ax, "a", x=-0.1)
     # ridgeline: worst-event delivery ratio across test days
     ax = fig.add_subplot(gs[0, 1]); d, s = data[min(1, len(data) - 1)]

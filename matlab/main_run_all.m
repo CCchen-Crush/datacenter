@@ -192,5 +192,9 @@ if any(RUN == 16)
     fprintf('== Exp16: endogenous commitment protocol (%s)\n', E16_SCEN);
     E16 = exp16_endogenous(set_scenario(ctx, E16_SCEN), root, [], 26, ['_' E16_SCEN]);
 end
+if any(RUN == 17)
+    fprintf('== Exp17: no-DR reference on the test days\n');
+    E17 = exp17_nodr(ctx, root, 26);
+end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);
 diary off;
