@@ -20,7 +20,7 @@ root = fileparts(mfilename('fullpath'));
 addpath(fullfile(root, 'src')); addpath(fullfile(root, 'config')); addpath(fullfile(root, 'experiments'));
 dcdr_setup_paths();
 if ~exist('QUICK', 'var'), QUICK = false; end
-if ~exist('RUN', 'var'), RUN = 1:13; end
+if ~exist('RUN', 'var'), RUN = 1:16; end
 if ~exist('NMC', 'var'), NMC = []; end
 if ~exist('MC_PART', 'var'), MC_PART = 'all'; end
 if ~exist('LOGTAG', 'var'), LOGTAG = ''; end
@@ -131,6 +131,65 @@ if any(RUN == 13)
         E13c = exp13_region(ctx, root, struct('DA_h', 2, 'tag', '_DA2'));   % sensitivity: A lasts 2 h
         E13d = exp13_region(ctx, root, struct('t0s', [17 19 21], 'tag', '_K3'));   % main-case timing: E1 = E2 = C1, max E3
     end
+end
+if any(RUN == 14)
+    % closed-loop sweeps on the PAI test days (exp14_sweep). E14_SET selects the study:
+    %   'tau_gamma'  sensitivity map: two one-hour events, interval x connection margin, uniform C = E14_C
+    %   'single'     single-factor sensitivity at S1: lag bounds L_c x 0.5-1.5, BESS power 0-4 MW
+    %   'ablation'   resource / coordination ablation (JR-D controller), commitment sweep
+    %   'region'     two-event reliability region: (C1, C2) grid, scenario E14_SCEN
+    if ~exist('E14_SET', 'var'), E14_SET = 'tau_gamma'; end
+    if ~exist('E14_C', 'var'), E14_C = 7; end
+    if ~exist('E14_TAG', 'var'), E14_TAG = ''; end
+    o14 = struct('N', 26); if exist('E14_N', 'var'), o14.N = E14_N; end
+    cf = struct('name', {}, 'scen', {}, 'gap', {}, 'mods', {}, 'C', {}, 'S', {});
+    switch E14_SET
+        case 'tau_gamma'
+            if ~exist('E14_GAPS', 'var'), E14_GAPS = [0.25 0.5 1 2 3]; end
+            if ~exist('E14_GAMMAS', 'var'), E14_GAMMAS = [1.00 1.05 1.10 1.20]; end
+            for g = E14_GAMMAS
+                for gap = E14_GAPS
+                    cf(end+1) = struct('name', sprintf('gap%.2f_g%.2f', gap, g), 'scen', '', 'gap', gap, ...
+                                       'mods', struct('gamma', g), 'C', E14_C, 'S', []); %#ok<SAGROW>
+                end
+            end
+        case 'single'
+            for ls = [0.5 0.75 1.25 1.5]
+                cf(end+1) = struct('name', sprintf('lag%.2f', ls), 'scen', 'S1', 'gap', [], 'mods', struct('lag_scale', ls), 'C', E14_C, 'S', []); %#ok<SAGROW>
+            end
+            for P = [0 2 4]
+                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', 'S1', 'gap', [], 'mods', struct('bess_P', P), 'C', E14_C, 'S', []); %#ok<SAGROW>
+            end
+        case 'ablation'
+            if ~exist('E14_CS', 'var'), E14_CS = 1:0.5:9; end
+            Sj = {'JR', 'expected', 'JR-D'};
+            cf(1) = struct('name', 'BESS_only', 'scen', 'S1', 'gap', [], 'mods', struct('lag_scale', 0, 'tes_on', false), 'C', E14_CS(:), 'S', {Sj});
+            cf(2) = struct('name', 'compute_only', 'scen', 'S1', 'gap', [], 'mods', struct('bess_P', 0, 'tes_on', false), 'C', E14_CS(:), 'S', {Sj});
+            cf(3) = struct('name', 'compute_BESS', 'scen', 'S1', 'gap', [], 'mods', struct('tes_on', false), 'C', E14_CS(:), 'S', {Sj});
+            if exist('E14_ABL', 'var'), cf = cf(E14_ABL); end
+        case 'region'
+            if ~exist('E14_SCEN', 'var'), E14_SCEN = 'S2-30'; end
+            if ~exist('E14_CG', 'var'), E14_CG = 4:9; end
+            [a1, a2] = ndgrid(E14_CG, E14_CG);
+            cf(1) = struct('name', E14_SCEN, 'scen', E14_SCEN, 'gap', [], 'mods', [], 'C', [a1(:), a2(:)], ...
+                           'S', {{'IR-O*', 'expected', 'IR-O*'; 'JR-M', 'expected', 'JR-M'; 'JR', 'expected', 'JR-D'}});
+            if exist('E14_ALPHA', 'var')            % alpha* of IR-O* from the uniform sweep: [C, alpha*] rows
+                o14.alpha_fix = @(C) interp1(E14_ALPHA(:, 1), E14_ALPHA(:, 2), C, 'nearest', 'extrap');
+            end
+            if exist('E14_PAIRS', 'var'), cf(1).C = cf(1).C(E14_PAIRS, :); end
+    end
+    fprintf('== Exp14: closed-loop sweep %s (%d configurations)\n', E14_SET, numel(cf));
+    E14 = exp14_sweep(ctx, root, cf, [E14_SET E14_TAG], o14);
+end
+if any(RUN == 15)
+    fprintf('== Exp15: recovery mechanism on typical days\n');
+    if ~exist('E15_CASES', 'var'), E15_CASES = {'S2-30', 7, 0, 'short'; 'S2-180', 7, 0, 'long'}; end
+    E15 = exp15_mechanism(ctx, root, E15_CASES);
+end
+if any(RUN == 16)
+    if ~exist('E16_SCEN', 'var'), E16_SCEN = 'S1'; end
+    fprintf('== Exp16: endogenous commitment protocol (%s)\n', E16_SCEN);
+    E16 = exp16_endogenous(set_scenario(ctx, E16_SCEN), root, [], 26, ['_' E16_SCEN]);
 end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);
 diary off;
