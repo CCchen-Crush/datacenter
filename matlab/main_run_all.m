@@ -178,6 +178,7 @@ if any(RUN == 14)
             end
             if exist('E14_PAIRS', 'var'), cf(1).C = cf(1).C(E14_PAIRS, :); end
     end
+    if exist('E14_SUB', 'var'), cf = cf(E14_SUB); end      % subset of the configurations (parallel parts)
     fprintf('== Exp14: closed-loop sweep %s (%d configurations)\n', E14_SET, numel(cf));
     E14 = exp14_sweep(ctx, root, cf, [E14_SET E14_TAG], o14);
 end

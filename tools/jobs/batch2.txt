@@ -1,0 +1,14 @@
+# batch 2: experiments that do not depend on the capacity checkpoint (tag|settings)
+e16S1|RUN=16; E16_SCEN='S1';
+tg100|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.00; E14_TAG='_g100';
+tg105|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.05; E14_TAG='_g105';
+tg110|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.10; E14_TAG='_g110';
+tg120|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.20; E14_TAG='_g120';
+sg1|RUN=14; E14_SET='single'; E14_C=7; E14_SUB=1:4; E14_TAG='_a';
+sg2|RUN=14; E14_SET='single'; E14_C=7; E14_SUB=5:7; E14_TAG='_b';
+ab1|RUN=14; E14_SET='ablation'; E14_SUB=1; E14_TAG='_1';
+ab2|RUN=14; E14_SET='ablation'; E14_SUB=2; E14_TAG='_2';
+ab3|RUN=14; E14_SET='ablation'; E14_SUB=3; E14_TAG='_3';
+jrs|RUN=4; MC_PART='uncertain'; NMC=26;
+supp|RUN=[1 5 11 13];
+rb|RUN=8;

@@ -352,7 +352,119 @@ def fig1():
     save(fig, "Fig1_system_recovery_channel")
 
 
-FIGS = {"1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8}
+# ------------------------------------------------------------------ supplementary figures
+def figS1():
+    files = [("exp1_mechanism_CA6_DA2.csv", "Event A: 6 MW × 2 h, event B: 1 h"), ("exp1_mechanism_CA6_DA1_DB2.csv", "Event A: 6 MW × 1 h, event B: 2 h")]
+    data = [(rd(f), t) for f, t in files]
+    if any(x is None for x, _ in data): return
+    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.7), gridspec_kw=dict(width_ratios=[1, 1, 1.15])); fig.subplots_adjust(wspace=0.32)
+    for j, (d, t) in enumerate(data):
+        a = axs[j]; g = d[np.isclose(d.gamma, 1.10)]
+        a.plot(g.tau_h, g.G_JR / g.G0, color=COL["JR-D"], lw=1.4, marker="o", ms=3, label="Joint response + joint recovery")
+        a.plot(g.tau_h, g.G_IR / g.G0, color=COL["IR-O*"], lw=1.4, marker="s", ms=3, ls="--", label="Independent recovery (rule)")
+        a.plot(g.tau_h, g.G_IRJ / g.G0, color=COL["IR-P"], lw=1.4, marker="^", ms=3, ls="-.", label="IR post-event state + joint recovery")
+        a.plot(g.tau_h, g.G_bound / g.G0, color=COL["IR-P"], lw=0.9, ls=":", label="Proposition 1 bound (IR post-event state)")
+        a.fill_between(g.tau_h, g.G_IRJ / g.G0, g.G_bound / g.G0, color=COL["IR-P"], alpha=0.12, lw=0)
+        a.set_ylim(0, 1.08); a.set_xlabel("Event interval τ (h)"); a.set_ylabel("Deliverable capability $Γ_B/Γ_B^0$" if j == 0 else "")
+        a.set_title(t, fontsize=7.8); panel(a, "ab"[j], x=-0.18)
+    axs[0].legend(loc="lower right", fontsize=5.8)
+    d = data[0][0]; taus = sorted(d.tau_h.unique()); gams = sorted(d.gamma.unique())
+    Z = np.array([[float((d[(d.gamma == g) & (d.tau_h == t)].G_JR - d[(d.gamma == g) & (d.tau_h == t)].G_IR).iloc[0] / d[(d.gamma == g) & (d.tau_h == t)].G0.iloc[0]) for t in taus] for g in gams])
+    a = axs[2]; a.grid(False); im = a.imshow(100 * Z, origin="lower", aspect="auto", cmap="Blues", vmin=0)
+    for i in range(len(gams)):
+        for k in range(len(taus)): a.text(k, i, f"{100 * Z[i, k]:.0f}", ha="center", va="center", fontsize=6, color="white" if Z[i, k] > 0.35 else "black")
+    a.set_xticks(range(len(taus))); a.set_xticklabels([f"{x:g}" for x in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{x:.2f}" for x in gams])
+    a.set_xlabel("Event interval τ (h)"); a.set_ylabel("Connection margin γ"); a.set_title("Capability gain of joint recovery (% of $Γ_B^0$)", fontsize=7.8)
+    panel(a, "c", x=-0.22)
+    save(fig, "FigS1_mechanism_bound")
+
+
+def figS2():
+    d = rd("exp11_stylized.csv")
+    if d is None: return
+    Ls = sorted(d.L_h.unique())
+    fig, axs = plt.subplots(1, len(Ls), figsize=(DOUBLE_COL, 2.3), sharey=True); fig.subplots_adjust(wspace=0.08)
+    for a, L in zip(np.atleast_1d(axs), Ls):
+        q = d[d.L_h == L]
+        a.plot(q.tau_h, q.G_JR_closed, color=COL["JR-D"], lw=1.4, label="JR, closed form"); a.plot(q.tau_h, q.G_IR_closed, color=COL["IR-O*"], lw=1.4, ls="--", label="IR, closed form")
+        a.scatter(q.tau_h, q.G_JR_lp, s=10, color=COL["JR-D"], marker="o", facecolor="white", zorder=3, label="JR, LP"); a.scatter(q.tau_h, q.G_IR_lp, s=10, color=COL["IR-O*"], marker="s", facecolor="white", zorder=3, label="IR, LP")
+        a.set_title(f"Lag bound L = {L:g} h", fontsize=7.8); a.set_xlabel("Event interval τ (h)")
+    np.atleast_1d(axs)[0].set_ylabel("Deliverable reduction of event B (MW)"); np.atleast_1d(axs)[0].legend(fontsize=5.8, loc="lower right")
+    err = max((d.G_JR_closed - d.G_JR_lp).abs().max(), (d.G_IR_closed - d.G_IR_lp).abs().max())
+    fig.text(0.99, 0.01, f"max |closed form − LP| = {err:.1e} MW over {len(d)} cases", ha="right", fontsize=6.5)
+    save(fig, "FigS2_proposition2_check")
+
+
+def figS3():
+    files = [("", "A 1 h, B 1 h"), ("_DA2", "A 2 h, B 1 h"), ("_DB2", "A 1 h, B 2 h"), ("_K3", "Three events: E1 = E2 = $C_1$, max E3")]
+    panels = []
+    for tag, lab in files:
+        d = rd(f"exp13_region{tag}.csv")
+        if d is None: continue
+        for tau, q in d.groupby("tau_h"): panels.append((f"{lab}, τ = {tau:g} h", q.sort_values("C1")))
+    if not panels: return
+    n = len(panels); nc = 4; nr = int(np.ceil(n / nc))
+    fig, axs = plt.subplots(nr, nc, figsize=(DOUBLE_COL, 2.0 * nr), sharex=True, sharey=True, squeeze=False); fig.subplots_adjust(wspace=0.08, hspace=0.35)
+    for k in range(n, nr * nc): axs.flat[k].set_visible(False)
+    for k, (t, q) in enumerate(panels):
+        a = axs.flat[k]
+        for col, n_, ls in [("C2_JR", "JR-D", "-"), ("C2_JRM", "JR-M", ":"), ("C2_IRO", "IR-O*", "--")]:
+            a.plot(q.C1, q[col], color=COL[n_], ls=ls, lw=1.3, label={"JR-D": "JR", "JR-M": "JR-M", "IR-O*": "IR-O* (best split)"}[n_])
+        a.plot(q.C1, q.C2_IRJ, color=COL["IR-P"], ls="-.", lw=1.1, label="IR state + joint recovery")
+        a.set_title(t, fontsize=6.8); a.set_ylim(0, 8.8)
+    for a in axs[-1, :]: a.set_xlabel("$C_1$ (MW)")
+    for a in axs[:, 0]: a.set_ylabel("max $C_2$ (MW)")
+    axs.flat[0].legend(fontsize=5.6, loc="lower left")
+    save(fig, "FigS3_perfect_information_regions")
+
+
+def figS4():
+    d = rd("exp4_e3uncertain.csv"); s = rd("exp4_e3uncertain_strategies.csv")
+    if d is None or s is None: return
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    names = list(s["label"]); fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.7)); fig.subplots_adjust(wspace=0.3)
+    for j, (col, lab, sc) in enumerate([("net_cost_adj", "Mean daily cost (10$^3$ CNY)", 1e-3), ("fulfil_rate_pct", "Mean fulfilment (%)", 1)]):
+        a = axs[j]; w = 0.38
+        for k, called in enumerate([1, 0]):
+            v = [d[(d.name == n) & (d.called_E3 == called)][col].mean() * sc for n in names]
+            a.bar(np.arange(len(names)) + (k - 0.5) * w, v, w, color=["#1f5fa8", "#8fb3d9"][k], edgecolor="white", label=["E3 called", "E3 cancelled"][k])
+        a.set_xticks(range(len(names))); a.set_xticklabels(names, fontsize=6.8); a.set_ylabel(lab); panel(a, "ab"[j])
+        if j == 1: a.set_ylim(60, 102)
+    axs[0].legend(fontsize=6.5); fig.suptitle("S3 with call uncertainty of the rapid peak-shaving event E3 (p = 0.6, 1 h notice), C = 6 MW", fontsize=8, y=1.02)
+    save(fig, "FigS4_call_uncertainty")
+
+
+def figS5():
+    d = rd("exp8_rebound.csv"); s = rd("exp8_strategies.csv")
+    if d is None or s is None: return
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.6)); fig.subplots_adjust(wspace=0.3)
+    for n in ORDER:
+        q = d[d.name == n].sort_values("c_rb")
+        if q.empty: continue
+        axs[0].plot(q.max_rebound_MW, q.net_cost_excl_rb / 1e3, color=COL[n], ls=LS[n], marker=MK[n], ms=3.5, mfc="white", lw=1.2, label=n)
+        axs[1].plot(q.c_rb / 1e3, q.max_rebound_MW, color=COL[n], ls=LS[n], marker=MK[n], ms=3.5, mfc="white", lw=1.2, label=n)
+    axs[0].set_xlabel("Peak post-event rebound (MW)"); axs[0].set_ylabel("Cost under Jiangsu rules (10$^3$ CNY)"); panel(axs[0], "a")
+    axs[1].set_xlabel("Rebound assessment price $c^{rb}$ (CNY/kW per event)"); axs[1].set_ylabel("Peak post-event rebound (MW)"); panel(axs[1], "b")
+    axs[0].legend(fontsize=6.5)
+    save(fig, "FigS5_rebound_policy")
+
+
+def figS6():
+    d = rd("exp5_shadow.csv")
+    if d is None: return
+    fig, axs = plt.subplots(2, 1, figsize=(SINGLE_COL * 1.4, 3.6), sharex=True); fig.subplots_adjust(hspace=0.15)
+    a = axs[0]; shade(a, EVENTS["S1"]); a.step(d.hour, d.price, where="post", color="black", lw=0.8, ls="--", label="TOU price")
+    a.plot(d.hour, d.lambda_el, color=COL["JR-D"], lw=1.3, label="Recovery-channel price λ (electric balance dual)")
+    a.set_ylabel("CNY/MWh"); a.legend(fontsize=6.3, loc="upper left"); a.set_ylim(0, max(2500, float(np.nanpercentile(d.lambda_el, 97)) * 1.1)); panel(a, "a", x=-0.12)
+    a = axs[1]; shade(a, EVENTS["S1"])
+    for k, c in zip([1, 2, 3], ["#9ecae1", "#4292c6", "#08519c"]): a.plot(d.hour, d[f"cost_B{k}"], color=c, lw=1.3, label=f"Backlog value C{k}")
+    a.set_ylabel("CNY per GPU·h"); a.set_xlabel("Hour of day"); a.legend(fontsize=6.3); panel(a, "b", x=-0.12)
+    for a in axs: a.set_xlim(12, 30)
+    save(fig, "FigS6_shadow_prices")
+
+
+FIGS = {"1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8, "S1": figS1, "S2": figS2, "S3": figS3, "S4": figS4, "S5": figS5, "S6": figS6}
 
 if __name__ == "__main__":
     which = sys.argv[1:] or list(FIGS)
