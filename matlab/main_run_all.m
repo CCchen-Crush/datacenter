@@ -204,7 +204,7 @@ end
 if any(RUN == 19)
     % upper bound of static-split independent recovery (best split in hindsight on every test day)
     if ~exist('E19_SCEN', 'var'), E19_SCEN = 'S1'; end
-    if ~exist('E19_CS', 'var'), E19_CS = [1 2 3 4 5 6 7 7.5]; end
+    if ~exist('E19_CS', 'var'), E19_CS = [1 2 3 5 7]; end
     if ~exist('E19_TAG', 'var'), E19_TAG = ['_' E19_SCEN]; end
     fprintf('== Exp19: IR-O with the best split in hindsight (%s)\n', E19_SCEN);
     E19 = exp19_hindsight(set_scenario(ctx, E19_SCEN), root, E19_CS, [], E19_TAG);
