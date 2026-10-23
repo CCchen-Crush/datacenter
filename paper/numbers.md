@@ -321,12 +321,12 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.145 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
-| 0.90 | JR-M | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.025 | 2.5 | 100 | 100 | 18.1 |
-| 0.90 | JR-D | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.025 | 2.5 | 100 | 100 | 19.7 |
+| 0.90 | JR-M | 6.36 / 5.25 | 5.5 | 0.252 | 2.5 | 0.000 | 5.5 | 0.289 | 2.5 | 100 | 73 | 18.1 |
+| 0.90 | JR-D | 7.75 / 7.75 | 7.5 | 0.000 | 7.5 | 0.000 | 7.5 | 0.025 | 7 | 100 | 100 | 43.1 |
 | 0.95 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
 | 0.95 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
-| 0.95 | JR-M | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.013 | 2.5 | 100 | 100 | 18.1 |
-| 0.95 | JR-D | 2.75 / 2.75 | 2.5 | 0.000 | 2.5 | 0.000 | 2.5 | 0.013 | 2.5 | 100 | 100 | 19.7 |
+| 0.95 | JR-M | 6.36 / 5.25 | 5 | 0.252 | <1 | 0.015 | 4.5 | nan | <1 | – | 92 | – |
+| 0.95 | JR-D | 7.75 / 7.75 | 7.5 | 0.000 | 7.5 | 0.000 | 7.5 | 0.013 | 7 | 100 | 100 | 43.1 |
 
 ## Sensitivity: interval x connection margin (share of days with full delivery, %)
 
@@ -407,14 +407,40 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | compute_BESS |    7.5 |
 | compute_only |    3   |
 
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Pause/resume overhead (S2, connection fixed)
+
+| cfg     |   JR-D |
+|:--------|-------:|
+| ovh0.02 |   7.75 |
+
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Two-event firm region (S2): firm C2 for a fixed first-event commitment C1
 
 | cfg   |   JR-D |   JR-M |
 |:------|-------:|-------:|
 | C1_2  |   8    |   5.5  |
 | C1_4  |   8    |   5    |
-| C1_6  |   7.75 | nan    |
+| C1_6  |   7.75 |   4.25 |
 | C1_7  |   7.75 |   4    |
 | C1_8  |   7.75 |   3.75 |
 
 Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the gamma, ies, resources and overhead sets.
+
+## Static-split independent recovery with the best split in hindsight (upper bound), S1
+
+| C (MW) | best split in hindsight: full % | IR-O* (split tuned day-ahead): full % | JR-D: full % |
+|---|---|---|---|
+| 1 | 69 | 69 | 100 |
+| 2 | 77 | 77 | 100 |
+| 3 | 88 | 88 | 100 |
+| 5 | 92 | 85 | 100 |
+| 7 | 100 | 85 | 100 |
+
+## Static-split independent recovery with the best split in hindsight (upper bound), S2
+
+| C (MW) | best split in hindsight: full % | IR-O* (split tuned day-ahead): full % | JR-D: full % |
+|---|---|---|---|
+| 1 | 73 | 73 | 100 |
+| 2 | 81 | 73 | 100 |
+| 3 | 85 | 81 | 100 |
+| 5 | 88 | 65 | 100 |
+| 7 | 100 | 81 | 100 |
