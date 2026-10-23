@@ -1,0 +1,4 @@
+label,C_rho,rho,n_eval
+tau15|IR-O*,,0.95,1
+tau15|JR-D,7.5,0.95,8
+tau15|JR-M,3.5,0.95,7
