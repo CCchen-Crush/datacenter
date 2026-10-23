@@ -1,4 +1,5 @@
 label,C_rho,rho,n_eval
 noAC|JR-D,8,0.95,8
 noGT|JR-D,5.75,0.95,7
+noIES|JR-D,4.75,0.95,8
 noTES|JR-D,7.5,0.95,8

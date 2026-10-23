@@ -756,18 +756,23 @@ def fig12_ies(case="short_r21", lo=1.0):
     if b is not None:
         q = b[(b.cfg == "bess6") & (b.strategy == "JR-D")]
         if not q.empty: bars.append(("Full AIDC-IES", float(q.C_rho.iloc[0]), COL["JR-D"]))
-    lab = {"noGT": "w/o gas engine", "noTES": "w/o cold storage", "noAC": "w/o absorption chiller", "noIES": "w/o all three",
-           "compute_BESS": "compute + BESS only", "compute_only": "compute only", "BESS_only": "BESS only"}
-    for d in (ies, rs):
-        if d is None: continue
-        for _, r in d.iterrows(): bars.append((lab.get(r.cfg, r.cfg), r.C_rho, "#e07b2a" if r.cfg in ("noGT", "noAC", "noIES") else ("#2aa7c9" if r.cfg == "noTES" else "#8c8c8c")))
+    order = [("noGT", "w/o gas engine", "#e07b2a"), ("noAC", "w/o absorption chiller", "#f2b880"), ("noTES", "w/o cold storage", "#2aa7c9"),
+             ("noIES", "w/o all three", "#b5651d"), ("compute_BESS", "compute + BESS (no cold storage)", "#8c8c8c"),
+             ("compute_only", "compute flexibility only", "#8c8c8c"), ("BESS_only", "BESS only", "#8c8c8c")]
+    D = pd.concat([d for d in (ies, rs) if d is not None], ignore_index=True) if (ies is not None or rs is not None) else None
+    if D is not None:
+        for cfg, l, c in order:
+            q = D[D.cfg == cfg]
+            if not q.empty: bars.append((l, float(q.C_rho.iloc[0]), c))
     if bars:
-        y = np.arange(len(bars))[::-1]; base = bars[0][1] if bars[0][0] == "Full AIDC-IES" else np.nanmax([v for _, v, _ in bars])
+        y = np.arange(len(bars))[::-1].astype(float); base = bars[0][1] if bars[0][0] == "Full AIDC-IES" else np.nanmax([v for _, v, _ in bars])
+        y[[i for i, b_ in enumerate(bars) if b_[2] == "#8c8c8c"]] -= 0.5           # gap before the resource ablation
         for yy, (l, v, c) in zip(y, bars):
             vv = lo - 0.25 if np.isnan(v) else v
-            ax.barh(yy, vv, 0.6, color=c, alpha=0.85)
+            ax.barh(yy, vv, 0.6, color=c, alpha=0.9)
             ax.text(vv + 0.1, yy, ("< %g MW" % lo) if np.isnan(v) else (f"{v:.2f} MW" + ("" if l == "Full AIDC-IES" else f"  ({v - base:+.2f})")), va="center", fontsize=6.5)
         ax.set_yticks(y); ax.set_yticklabels([l for l, _, _ in bars], fontsize=6.8); ax.set_xlim(0, base + 3)
+        ax.axvline(base, color=COL["JR-D"], lw=0.6, ls=":")
     ax.set_xlabel("Firm capacity of JR-D, $C^{firm}_{0.95}$ (MW), S2"); panel(ax, "a", x=-0.42)
     # (b) composition of the evening recovery channel in the no-DR operation of the typical day
     ax = axs[1]; R = rd(f"ts15_{case}_NoDR.csv")
@@ -775,11 +780,13 @@ def fig12_ies(case="short_r21", lo=1.0):
         h = R.hour.values; m = (h >= 18) & (h < 22.5); cop = R.cop.values         # recovery windows (connection margin >= 0)
         comp = [("Gas engine", R.pgt.values, "#e07b2a"), ("Absorption chiller", R.qac.values / cop, "#f2b880"), ("PV", R.ppv.values, "#e8c84a"),
                 ("Cold storage", (R.qtd.values - R.qtc.values) / cop, "#2aa7c9"),
-                ("Connection margin", R.Pcap.values - R.pg.values - R.pgt.values - R.ppv.values - (R.qac.values + R.qtd.values - R.qtc.values) / cop - (R.pdis.values - R.pch.values), "#9a9a9a")]
+                ("BESS (no-DR peak shaving)", R.pdis.values - R.pch.values, "#7f9fbf"),
+                ("Connection margin", R.Pcap.values - R.pg.values - R.pgt.values - R.ppv.values - (R.qac.values + R.qtd.values - R.qtc.values) / cop - (R.pdis.values - R.pch.values), "#c4c4c4")]
         ax.stackplot(h[m], *[np.maximum(v[m], 0) for _, v, _ in comp], colors=[c for _, _, c in comp], labels=[l for l, _, _ in comp], lw=0, alpha=0.9)
         ax.plot(h[m], (R.Pcap - R.pg).values[m], color="black", lw=0.9, label="Channel $P^{cap}-P^{grid}_{noDR}$")
-        shade(ax, EVENTS["short"]); ax.set_xlim(18, 22.5); ax.set_xlabel("Hour of day"); ax.set_ylabel("Recovery channel (MW)")
-        ax.legend(loc="upper left", fontsize=6.0, ncol=2)
+        shade(ax, EVENTS["short"]); ax.set_xlim(18, 22.5); ax.set_ylim(0, 7.5); ax.set_xlabel("Hour of day"); ax.set_ylabel("Recovery channel (MW)")
+        ax.set_title("Who keeps the no-DR import below $P^{cap}$ (S2 typical day)", fontsize=7.4)
+        ax.legend(loc="upper center", fontsize=5.8, ncol=3, columnspacing=0.8, handlelength=1.4)
     panel(ax, "b", x=-0.14)
     save(fig, "Fig12_ies_contribution")
 

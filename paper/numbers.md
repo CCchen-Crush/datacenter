@@ -379,6 +379,7 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 |:------|-------:|
 | noAC  |   8    |
 | noGT  |   5.75 |
+| noIES |   4.75 |
 | noTES |   7.5  |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Resource ablation (S2, JR-D, connection fixed)
