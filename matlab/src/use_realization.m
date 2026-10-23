@@ -6,8 +6,7 @@ function ctx = use_realization(ctx, r)
 %   a fraction ~prob of the realisations calls them (reproducible without a random generator).
 mc = ctx.inp.mc;
 ctx.inp.real.flex = mc.flex(:, :, r); ctx.inp.real.fix = mc.fix(:, r); ctx.inp.real.inf = mc.inf(:, r);
-ctx.inp.real.pv = mc.pv(:, r); ctx.inp.real.cop = mc.cop(:, r);
-ctx.inp.fc.cop = mc.cop(:, r);
+ctx.inp.real.pv = mc.pv(:, r); ctx.inp.real.cop = mc.cop(:, r);   % the COP forecast stays the day-ahead one
 for k = 1:numel(ctx.ev)
     p = ctx.ev(k).prob;
     if p >= 1, ctx.ev(k).called = true; continue; end

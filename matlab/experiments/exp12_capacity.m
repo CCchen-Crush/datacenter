@@ -1,34 +1,46 @@
 function out = exp12_capacity(ctx, root, Cs, N, tag, S)
-%EXP12_CAPACITY  Reliably deliverable consecutive-DR capacity (review issues 1-2): uniform commitment C
-%   swept over Cs; for every C the benchmarks are re-tuned day-ahead and each strategy is run on the
-%   first N Monte-Carlo realisations. For each strategy this gives the share of days on which all
-%   events are valid, the mean fulfilment and the mean net cost, hence (i) the largest commitment that
-%   is delivered on >= 95 % of the days and (ii) the commitment that maximises the expected profit.
-if nargin < 3 || isempty(Cs), Cs = [4 5 6 7 8 9]; end
+%EXP12_CAPACITY  Reliably deliverable consecutive-DR capacity (decision experiment G1a): uniform
+%   commitment C swept over Cs; for every C the benchmarks are re-tuned day-ahead and each strategy is
+%   run in closed loop on N Monte-Carlo realisations that use N different PAI weekdays. For each
+%   strategy this gives the share of days on which (i) all called events are valid (Jiangsu 80 % rule)
+%   and (ii) every event is delivered in full (>= par.dr.full_lo of the commitment), the mean
+%   fulfilment and the mean net cost; the reliable capacity C_rho is the largest C whose share >= rho.
+%   Strategies: IR-O*, IR-P (strongest independent benchmarks), JR-M (joint, event by event) and
+%   JR-D (joint, cross-event, deterministic MPC).
+if nargin < 3 || isempty(Cs), Cs = 4:0.5:9; end
 if nargin < 4 || isempty(N), N = 20; end
 if nargin < 5, tag = ''; end
-if nargin < 6 || isempty(S), S = {'IR-O*', 'expected', 'IR-O*'; 'IR-P', 'expected', 'IR-P'; 'JR', 'expected', 'JR-D'}; end
-N = min(N, ctx.inp.mc.N);
+if nargin < 6 || isempty(S)
+    S = {'IR-O*', 'expected', 'IR-O*'; 'IR-P', 'expected', 'IR-P'; 'JR-M', 'expected', 'JR-M'; 'JR', 'expected', 'JR-D'};
+end
+rs = distinct_pai(ctx.inp.mc.label, N);
 rows = []; hdr = {}; t0 = tic;
 for C = Cs
     c0 = apply_commit(ctx, C * [1 1 1]);
     c0 = prepare_benchmarks(c0, struct('verbose', false));
-    q = zeros(size(S, 1), 3);
-    for i = 1:size(S, 1)
-        v = zeros(N, 3);
-        for r = 1:N
-            c = use_realization(c0, r);
+    v = zeros(numel(rs), 4, size(S, 1));
+    for j = 1:numel(rs)
+        c = use_realization(c0, rs(j));
+        for i = 1:size(S, 1)
             R = run_strategy(c, S{i, 1}, S{i, 2});
             [row, hdr] = metrics_row(R.M);
-            rows = [rows; C, r, i, c0.alpha_star, row]; %#ok<AGROW>
-            v(r, :) = [100 * R.M.fulfil_rate, R.M.all_valid, R.M.net_cost_adj];
+            rows = [rows; C, rs(j), i, c0.alpha_star, row]; %#ok<AGROW>
+            v(j, :, i) = [100 * R.M.fulfil_rate, R.M.all_valid, R.M.all_full, R.M.net_cost_adj];
         end
-        q(i, :) = mean(v, 1);
     end
-    fprintf('  exp12%s C=%g alpha*=%.1f | fulfil %s| all-valid %s| net_adj(k) %s (%.0f min)\n', tag, C, c0.alpha_star, ...
-        sprintf('%5.1f ', q(:, 1)), sprintf('%4.2f ', q(:, 2)), sprintf('%5.0f ', q(:, 3) / 1000), toc(t0) / 60);
+    q = squeeze(mean(v, 1));
+    fprintf('  exp12%s C=%4.1f alpha*=%.1f | fulfil %s| all-valid %s| all-full %s| net_adj(k) %s (%.0f min)\n', tag, C, c0.alpha_star, ...
+        sprintf('%5.1f ', q(1, :)), sprintf('%4.2f ', q(2, :)), sprintf('%4.2f ', q(3, :)), sprintf('%5.0f ', q(4, :) / 1000), toc(t0) / 60);
 end
 write_csv(fullfile(root, 'results', sprintf('exp12_capacity%s.csv', tag)), [{'C', 'realisation', 'strategy', 'alpha_star'}, hdr], rows);
 write_csv(fullfile(root, 'results', sprintf('exp12_strategies%s.csv', tag)), {'index'}, (1:size(S, 1))', S(:, 3));
 out.rows = rows; out.hdr = hdr;
+end
+
+function rs = distinct_pai(label, N)
+% first N realisations with pairwise different PAI weekdays (label 'pai<day>_<azure>_<weather>')
+key = cellfun(@(s) strtok(s, '_'), label, 'UniformOutput', false);
+[~, first] = unique(key, 'first');
+rs = sort(first(:))';
+rs = rs(1:min(N, numel(rs)));
 end

@@ -97,18 +97,20 @@ for i = 1:np
 end
 inp.pool.inf = zeros(T, numel(azpool));
 for i = 1:numel(azpool), inp.pool.inf(:,i) = [ginf(:,azpool(i)); ginf(nxt,azpool(i))]; end
-inp.pool.pv = zeros(T, numel(wP)); inp.pool.cop = zeros(T, numel(wP));
+inp.pool.pv = zeros(T, numel(wP)); inp.pool.cop = zeros(T, numel(wP)); inp.pool.T = zeros(T, numel(wP));
 for i = 1:numel(wP)
-    [p, c] = pv_cop(wP{i}, par);
-    inp.pool.pv(:,i) = [p; p(nxt)]; inp.pool.cop(:,i) = [c; c(nxt)];
+    [p, c, Tq] = pv_cop(wP{i}, par);
+    inp.pool.pv(:,i) = [p; p(nxt)]; inp.pool.cop(:,i) = [c; c(nxt)]; inp.pool.T(:,i) = [Tq; Tq(nxt)];
 end
-% expected forecasts: previous-5-weekday mean (compute), pool mean (inference),
-% previous-3-day mean (PV, persistence-type), the day's own temperature (COP; temperature forecasts are accurate)
+% expected forecasts: previous-5-weekday mean (compute), pool mean (inference), previous-3-day mean of
+% the weather (PV and the ambient temperature behind the chiller COP, persistence-type). The planners
+% never see the realised temperature of the coming hours (par.mpc.cop_fc = 'perfect' restores that).
 inp.fc.flex = mean(inp.pool.flex(:,:,end-4:end), 3);
 inp.fc.fix  = mean(inp.pool.fix(:,end-4:end), 2);
 inp.fc.inf  = mean(inp.pool.inf, 2);
 inp.fc.pv   = mean(inp.pool.pv(:,1:3), 2);
-inp.fc.cop  = inp.real.cop;
+inp.fc.T    = mean(inp.pool.T(:,1:3), 2);
+inp.fc.cop  = min(max(par.fac.cop_ref - par.fac.cop_k * (inp.fc.T - par.fac.T_ref), par.fac.cop_min), par.fac.cop_max);
 
 %% --- Monte-Carlo realisation library (other weekdays / other hot days) ---
 cand = wk(wk > iD & wk < nd);                         % later PAI weekdays with a following day

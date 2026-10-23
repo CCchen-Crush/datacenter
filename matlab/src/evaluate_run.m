@@ -1,8 +1,11 @@
-function M = evaluate_run(L, ev, base, par, inp, refL)
+function M = evaluate_run(L, ev, base, par, inp, refL, settle)
 %EVALUATE_RUN  Settlement (Jiangsu rules) and performance indicators of a simulated day.
 %   L    : log of the run;  ev : events (only ev(k).called events are settled)
 %   refL : log of the no-DR operation on the same realised data (optional). It gives the
 %          "true" reduction, the pre-event load-up and the window-independent payback metrics.
+%   settle: false for a run without any DR commitment (the no-DR reference): no DR payment, no
+%          shortfall / rebound / load-up assessment; the event windows are still used to report the
+%          physical indicators (reduction w.r.t. the baseline, rebound, payback). Default true.
 %   Indicators added in the revision (review issue 3):
 %     true_red      reduction w.r.t. the same day without DR (not w.r.t. the 5-day baseline)
 %     preload_*     load-up in the pre_win_h hours before the first called event
@@ -13,13 +16,24 @@ function M = evaluate_run(L, ev, base, par, inp, refL)
 %                   storage deficit at the valley price), added to the "_adj" costs
 %     co2           grid electricity (East China factor) + natural gas burnt (t CO2)
 %     cost_delay    service cost of deferred work c_jct * backlog-hours (+ lateness), part of net_cost
+%   Indicators added for the reliable-capacity study:
+%     full / all_full  event delivered in full: avg reduction >= par.dr.full_lo (98 %) of the commitment
+%     delay_GPUh_h     time integral of the deferrable backlog (GPU-h * h), absolute
+%     deferred_GPUh    work executed later than it arrived (sum over steps and classes of (arrival - executed)^+)
+%     mean_delay_h     additional backlog-hours w.r.t. no-DR per deferred GPU-h (mean extra completion time)
+%     sla_use          additional backlog-hours divided by the class lag L_c, per deferred GPU-h
+%                      (work-weighted share of the SLA slack that the DR operation used)
+%     c3_peak / c3_carry  largest C3 (long training) backlog between the first and the last event, and
+%                      the largest C3 backlog carried into a later event (at its start)
 dt = par.dt; d = sys_derived(par); T = numel(L.pg);
 K = numel(ev);
 if nargin < 6, refL = []; end
+if nargin < 7 || isempty(settle), settle = true; end
+M.settled = settle;
 called = true(K, 1);
 if isfield(ev, 'called'), for k = 1:K, called(k) = logical(ev(k).called); end, end
 M.called = called;
-M.avg_red = nan(K,1); M.true_red = nan(K,1); M.valid = false(K,1); M.pay = zeros(K,1); M.fulfil = nan(K,1);
+M.avg_red = nan(K,1); M.true_red = nan(K,1); M.valid = false(K,1); M.full = false(K,1); M.pay = zeros(K,1); M.fulfil = nan(K,1);
 M.short = zeros(K,1); M.rebound = zeros(K,1); M.rebound6 = zeros(K,1); M.E_start = nan(K,1); M.B_start = nan(K,3);
 for k = 1:K
     s = ev(k).s; e = ev(k).e;
@@ -29,10 +43,11 @@ for k = 1:K
     red = base(s:e) - L.pg(s:e);
     M.avg_red(k) = mean(red);
     if ~isempty(refL), M.true_red(k) = mean(refL.pg(s:e) - L.pg(s:e)); end
-    M.valid(k) = M.avg_red(k) >= par.dr.valid_lo * ev(k).C - 1e-6 && max(L.pg(s:e)) <= max(base(s:e)) + 1e-6;
+    M.valid(k) = settle && M.avg_red(k) >= par.dr.valid_lo * ev(k).C - 1e-6 && max(L.pg(s:e)) <= max(base(s:e)) + 1e-6;
+    M.full(k) = settle && M.avg_red(k) >= par.dr.full_lo * ev(k).C - 1e-6;
     M.pay(k) = M.valid(k) * ev(k).price * min(M.avg_red(k), par.dr.pay_hi * ev(k).C) * Dh;
     M.fulfil(k) = min(max(M.avg_red(k), 0) / ev(k).C, 1);
-    M.short(k) = max(ev(k).C - M.avg_red(k), 0);
+    M.short(k) = settle * max(ev(k).C - M.avg_red(k), 0);
     if ~isempty(ev(k).win), M.rebound(k) = max(0, max(L.pg(ev(k).win) - base(ev(k).win))); end
     % window-independent rebound: payback_h after the event, until the next called event starts
     nxt = find(called & [ev.s]' > e, 1);
@@ -42,14 +57,20 @@ for k = 1:K
 end
 kc = find(called);
 Dk = ([ev.e] - [ev.s] + 1)' * dt; C = [ev.C]';
-M.n_called = numel(kc);
-if isempty(kc)
+M.n_called = settle * numel(kc);                     % settled events (0 for the no-DR reference)
+if isempty(kc) || ~settle
     M.fulfil_rate = NaN;
 else
     M.fulfil_rate = sum(Dk(kc) .* min(max(M.avg_red(kc), 0), C(kc))) / sum(Dk(kc) .* C(kc));
 end
 M.n_valid = sum(M.valid);
-M.all_valid = M.n_valid == M.n_called;
+M.n_full = sum(M.full);
+if settle
+    M.all_valid = M.n_valid == M.n_called;
+    M.all_full = M.n_full == M.n_called;
+else
+    M.all_valid = NaN; M.all_full = NaN;
+end
 M.max_rebound = max([M.rebound; 0]);
 M.max_rebound6 = max([M.rebound6; 0]);
 %% costs (operating period of the run)
@@ -62,7 +83,7 @@ M.cost_op = M.cost_energy + M.cost_gas + M.cost_deg;
 M.cost_delay = par.qos.c_jct * dt * sum(L.backlog(:)) + par.qos.c_late * dt * sum(L.overdue);
 M.dr_pay = sum(M.pay);
 M.pen_dev = sum(par.dr.kappa_dev * [ev(kc).price]' .* M.short(kc) .* Dk(kc));
-M.pen_rb = par.dr.c_rb * sum(M.rebound);
+M.pen_rb = settle * par.dr.c_rb * sum(M.rebound);
 %% pre-event load-up, payback, ramps, evening peak
 if isempty(kc)
     pre = []; gaps = []; after = [];
@@ -73,7 +94,7 @@ else
     for j = 1:numel(kc) - 1, gaps = [gaps, (ev(kc(j)).e + 1):(ev(kc(j+1)).s - 1)]; end %#ok<AGROW>
     after = (eK + 1):min(T, eK + round(par.dr.payback_h / dt));
 end
-M.pen_pre = par.dr.c_pre * sum(max(L.pg(pre) - base(pre), 0)) * dt;   % optional load-up assessment (0 by default)
+M.pen_pre = settle * par.dr.c_pre * sum(max(L.pg(pre) - base(pre), 0)) * dt;   % optional load-up assessment (0 by default)
 M.net_cost = M.cost_op + M.cost_delay - M.dr_pay + M.pen_dev + M.pen_rb + M.pen_pre;
 M.preload_mean = mean_or_nan(L.pg(pre) - base(pre));
 M.preload_max = max_or_nan(L.pg(pre) - base(pre));
@@ -110,6 +131,24 @@ M.lateness = sum(L.overdue) * dt;                    % GPU-h * h
 M.cap_violation = max(L.over);
 M.bess_throughput = sum(L.pch + L.pdis) * dt;
 M.mean_backlog = mean(sum(L.backlog, 2));
+%% user side: delay of the deferrable work, use of the SLA slack, long-training backlog across events
+Dc = sum(L.backlog, 1) * dt;                                   % backlog-hours per class (GPU-h * h)
+Dc_ref = zeros(1, 3); if ~isempty(refL), Dc_ref = sum(refL.backlog, 1) * dt; end
+yeff = L.y; if isfield(L, 'z') && isfield(par.it, 'cap_on') && par.it.cap_on, yeff = L.y - par.it.cap_beta * par.it.cap_rho * L.z; end
+Vc = sum(max(inp.real.flex(1:T, :) - yeff, 0), 1) * dt;        % deferred work per class (GPU-h)
+M.delay_GPUh_h = sum(Dc);
+M.deferred_GPUh = sum(Vc);
+if M.deferred_GPUh > 1e-6
+    M.mean_delay_h = sum(Dc - Dc_ref) / M.deferred_GPUh;
+    M.sla_use = sum((Dc - Dc_ref) ./ par.it.lag_h(:)') / M.deferred_GPUh;
+else
+    M.mean_delay_h = 0; M.sla_use = 0;
+end
+M.c3_peak = 0; M.c3_carry = 0;
+if ~isempty(kc)
+    M.c3_peak = max(L.backlog(ev(kc(1)).s:ev(kc(end)).e, 3));
+    for j = 2:numel(kc), M.c3_carry = max(M.c3_carry, L.backlog(ev(kc(j)).s - 1, 3)); end
+end
 M.fallbacks = sum(L.fallback);
 M.solve_time = sum(L.solve_time);
 M.Pcap = d.Pcap;

@@ -82,10 +82,13 @@ par.dr.price_da   = 3000;        % [S] day-ahead peak-shaving cap 3 CNY/kWh (spe
 par.dr.coef_2to4h = 1.4;         % [S] intraday notice 2-4 h
 par.dr.coef_05to2h= 1.6;         % [S] intraday notice 0.5-2 h
 par.dr.valid_lo   = 0.80;        % [S] effective response if avg reduction >= 80 % of confirmed value
+par.dr.full_lo    = 0.98;        % [A] "delivered in full": avg reduction >= 98 % of the commitment (reliable-capacity metric)
 par.dr.valid_margin = 0.1;       % [A] planning margin above the 80 % threshold (MW), against metering / forecast error
 par.dr.pay_hi     = 1.20;        % [S] payment capped at 120 %
 par.dr.kappa_dev = 1.0;          % [A] shortfall assessed at kappa x the event's DR unit price (symmetric)
-par.dr.c_rb       = 3000;        % [A] rebound assessment (CNY/MW per event) = 3 CNY/kW, i.e. the pay of a 1-h event
+par.dr.c_rb       = 0;           % [A] gap-rebound assessment (CNY/MW per event). The Jiangsu rules have none, so the
+                                 %     base case uses 0; 3000 (= 3 CNY/kW, the pay of a 1-h event) and the sweep of exp8
+                                 %     are policy sensitivities (result files tagged '_crb3')
 par.dr.rb_win_h   = 2;           % [A] post-event window in which load must stay <= baseline
 par.dr.c_maxload  = 1e5;         % rule (1): load in event <= baseline max (soft, CNY/MW)
 par.dr.eps_commit = 100;         % [A] tie-breaker value of committed capacity in the day-ahead model (CNY/MW)
@@ -127,4 +130,5 @@ par.mpc.S        = 5;            % scenarios
 par.mpc.decay    = 0.9;          % persistence of observed forecast error per step
 par.mpc.seed     = 2024;
 par.mpc.ce_threshold = 0.5;     % deterministic planners treat an unconfirmed event as called if prob >= this
+par.mpc.cop_fc   = 'forecast';     % chiller COP in forecasts: 'forecast' (temperature forecast as for PV) | 'perfect'
 end

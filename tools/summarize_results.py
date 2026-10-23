@@ -45,7 +45,7 @@ def header(t):
 
 # ------------------------------------------------------------------ Exp2
 header("Exp2  main comparison on the case day")
-for tag, lab in [("", "c_rb = 3 CNY/kW"), ("_crb0", "c_rb = 0 (Jiangsu rules only)")]:
+for tag, lab in [("", "c_rb = 0 (Jiangsu rules only)"), ("_crb3", "c_rb = 3 CNY/kW (policy sensitivity)")]:
     for case in ["DAcommit", "uniform6"]:
         d = rd(f"exp2_{case}{tag}.csv")
         if d is None: continue
@@ -109,31 +109,33 @@ def mc_report(tag, title):
         print(d.groupby(["called_E3", "name"])[["fulfil_rate_pct", "net_cost_adj"]].mean().round(1).unstack(0).to_string())
 
 
-mc_report("_certain", "Monte-Carlo, all events certain, c_rb = 3 CNY/kW")
-mc_report("_certain_crb0", "Monte-Carlo, all events certain, c_rb = 0")
-mc_report("_e3uncertain", "Monte-Carlo, E3 called with p = 0.6 (1 h notice), c_rb = 3 CNY/kW")
+mc_report("_certain", "Monte-Carlo, all events certain, c_rb = 0")
+mc_report("_certain_crb3", "Monte-Carlo, all events certain, c_rb = 3 CNY/kW")
+mc_report("_e3uncertain", "Monte-Carlo, E3 called with p = 0.6 (1 h notice), c_rb = 0")
 
 # ------------------------------------------------------------------ Exp12 capacity
-header("Exp12  reliably deliverable capacity (Monte-Carlo commitment sweep, c_rb = 0)")
-d = rd("exp12_capacity_crb0.csv"); s = rd("exp12_strategies_crb0.csv")
+header("Exp12  reliably deliverable capacity (Monte-Carlo commitment sweep, c_rb = 0; details: tools/g1_decision.py)")
+d = rd("exp12_capacity.csv"); s = rd("exp12_strategies.csv")
 if d is not None and s is not None:
     names = dict(zip(s["index"], s["label"])); d["name"] = d.strategy.map(names)
     g = d.groupby(["C", "name"]).agg(fulfil=("fulfil_rate_pct", "mean"), all_valid=("all_valid", "mean"),
-                                     net_adj=("net_cost_adj", "mean"), dr_pay=("dr_pay", "mean"), maxRb=("max_rebound_MW", "mean"))
+                                     all_full=("all_full", "mean"), net_adj=("net_cost_adj", "mean"),
+                                     dr_pay=("dr_pay", "mean"), maxRb=("max_rebound_MW", "mean"))
     print(g.round(3).unstack(1).to_string())
     for nm in s["label"]:
         q = g.xs(nm, level=1)
         rel = q[q.all_valid >= 0.95].index.max() if (q.all_valid >= 0.95).any() else np.nan
+        relf = q[q.all_full >= 0.95].index.max() if (q.all_full >= 0.95).any() else np.nan
         cbest = q.net_adj.idxmin()
-        print(f"  {nm:6s}: largest C delivered on >=95% of days = {rel} MW per event; profit-maximising C = {cbest} MW "
+        print(f"  {nm:6s}: largest C valid on >=95% of days = {rel} MW, delivered in full on >=95% = {relf} MW; profit-maximising C = {cbest} MW "
               f"(mean net cost {q.net_adj.min():.0f} CNY)")
 
 # ------------------------------------------------------------------ Exp6 pairing
 header("Exp6  commitment-operation pairing (case day and Monte-Carlo means)")
-for tag in ["", "_crb0"]:
+for tag in ["", "_crb3"]:
     d = rd(f"exp6_commitment{tag}.csv")
     if d is None: continue
-    print(f"--- c_rb = {'0' if tag else '3 CNY/kW'}")
+    print(f"--- c_rb = {'3 CNY/kW' if tag else '0'}")
     cols = ["label", "C1", "C2", "C3", "C_total", "alpha_star", "fulfil_rate_pct", "net_cost_adj", "mc_fulfil_rate_pct", "mc_share_all_valid", "mc_net_cost_adj", "mc_net_cost_excl_rb"]
     print(d[[c for c in cols if c in d.columns]].round(2).to_string(index=False))
     th = rd(f"exp6_theta{tag}.csv")
@@ -161,7 +163,7 @@ if d is not None:
 
 # ------------------------------------------------------------------ Exp3
 header("Exp3  sensitivity (perfect information; 1 IR-R, 2 IR-O, 3 IR-O*(hindsight), 4 IR-P, 5 JR)")
-for tag in ["", "_crb0"]:
+for tag in ["", "_crb3"]:
     for f in ["duration", "interval", "gamma", "commitment"]:
         d = rd(f"exp3_{f}{tag}.csv")
         if d is None: continue
@@ -179,7 +181,7 @@ for tag in ["", "_crb0"]:
 
 # ------------------------------------------------------------------ Exp5
 header("Exp5  shadow prices and Proposition 2 check (perfect information, uniform 6 MW)")
-for tag in ["", "_crb0", "_gamma100", "_gamma100_crb0"]:
+for tag in ["", "_crb3", "_gamma100", "_gamma100_crb3"]:
     d = rd(f"exp5_shadow{tag}.csv"); k = rd(f"exp5_kkt{tag}.csv")
     if d is None: continue
     print(f"--- {tag or 'base'}")
@@ -201,7 +203,7 @@ for f in ["exp1_mechanism_CA6_DA2.csv", "exp1_mechanism_CA6_DA1_DB2.csv"]:
 
 # ------------------------------------------------------------------ Exp7 / Exp11
 header("Exp7  ablation  /  Exp11 stylised theorem")
-for f in ["exp7_ablation.csv", "exp7_alpha.csv"]:
+for f in ["exp7_ablation.csv", "exp7_alpha.csv", "exp7_ablation_crb3.csv", "exp7_alpha_crb3.csv"]:
     d = rd(f)
     if d is not None: print(d.round(2).to_string(index=False))
 d = rd("exp11_stylized.csv")

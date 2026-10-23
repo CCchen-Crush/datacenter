@@ -45,7 +45,7 @@ switch name
 end
 R.name = name; R.fmode = fmode; R.log = o.log;
 refL = []; if isfield(ctx, 'ref_eval'), refL = ctx.ref_eval.log; end
-R.M = evaluate_run(o.log, ctx.ev, ctx.base, par, inp, refL);
+R.M = evaluate_run(o.log, ctx.ev, ctx.base, par, inp, refL, ~strcmp(name, 'NoDR'));   % no-DR: no commitment, not settled
 end
 
 function plan = open_plan_jr(ctx)

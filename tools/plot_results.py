@@ -102,7 +102,10 @@ def fig_mechanism():
         a = ax[0, j]; g = d[np.isclose(d.gamma, 1.10)]
         for key, col, lab in [("G_JR", C["JR"], "联合响应+联合恢复 JR"), ("G_IR", C["IR"], "独立恢复 IR"), ("G_IRJ", C["IRJ"], "IR后状态+联合恢复")]:
             a.plot(g.tau_h, g[key] / g.G0, color=col, lw=2, marker="o", ms=4, label=lab)
-        a.plot(g.tau_h, g.G_bound / g.G0, color=C["bound"], lw=1.2, ls="--", label="命题1 上界")
+        # Proposition 1 is evaluated at the IR post-event state, so it bounds the IRJ curve (same state):
+        # drawn in the IRJ colour, dashed, with the gap to IRJ shaded
+        a.plot(g.tau_h, g.G_bound / g.G0, color=C["IRJ"], lw=1.2, ls="--", label="命题1 上界（IR后状态，对应绿线）")
+        a.fill_between(g.tau_h, g.G_IRJ / g.G0, g.G_bound / g.G0, color=C["IRJ"], alpha=0.12, lw=0)
         a.set_ylim(0, 1.08); a.set_xlabel("事件间隔 τ / h"); a.set_ylabel("后续事件可交付能力 Γ_B/Γ_B⁰")
         a.set_title(f"({'ab'[j]}) {t}，γ=1.10"); a.legend(fontsize=7, loc="lower right")
     d = data[0][0]
@@ -178,7 +181,7 @@ def fig_sensitivity(tag=""):
 
 def fig_map():
     out = []
-    for tag, lab in [("", "c_rb=3 元/kW"), ("_crb0", "c_rb=0")]:
+    for tag, lab in [("", "c_rb=0（江苏规则）"), ("_crb3", "c_rb=3 元/kW")]:
         d = rd(f"exp3_map{tag}.csv")
         if d is not None: out.append((d, lab))
     if not out: return
@@ -201,7 +204,7 @@ def fig_map():
 
 # ---------------------------------------------------------------- fig07 Monte Carlo
 def fig_mc():
-    sets = [("_certain", "事件确定 · c_rb=3 元/kW"), ("_certain_crb0", "事件确定 · c_rb=0"), ("_e3uncertain", "E3 不确定（p=0.6，提前1 h确认）")]
+    sets = [("_certain", "事件确定（江苏规则）"), ("_certain_crb3", "事件确定 · c_rb=3 元/kW"), ("_e3uncertain", "E3 不确定（p=0.6，提前1 h确认）")]
     rows = [(rd(f"exp4{t}.csv"), rd(f"exp4{t}_strategies.csv"), lab) for t, lab in sets]
     rows = [r for r in rows if r[0] is not None and r[1] is not None]
     if not rows: return
@@ -225,13 +228,13 @@ def fig_mc():
 
 # ---------------------------------------------------------------- fig08 shadow prices
 def fig_shadow():
-    d = rd("exp5_shadow.csv"); z = rd("exp5_shadow_crb0.csv"); g = rd("exp5_shadow_gamma100_crb0.csv")
+    d = rd("exp5_shadow.csv"); z = rd("exp5_shadow_crb3.csv"); g = rd("exp5_shadow_gamma100.csv")
     if d is None: return
     fig, ax = plt.subplots(3, 1, figsize=(8.5, 6.8), sharex=True)
     for a in ax: shade(a)
     ax[0].step(d.hour, d.price, where="post", color=C["base"], lw=1, ls="--", label="分时电价")
-    ax[0].plot(d.hour, d.lambda_el, color=C["JR-D"], lw=2, label="恢复通道价格 λ（γ=1.10，c_rb=3 元/kW）")
-    if z is not None: ax[0].plot(z.hour, z.lambda_el, color=C["IR-O*"], lw=1.5, label="λ（γ=1.10，c_rb=0）")
+    ax[0].plot(d.hour, d.lambda_el, color=C["JR-D"], lw=2, label="恢复通道价格 λ（γ=1.10，c_rb=0）")
+    if z is not None: ax[0].plot(z.hour, z.lambda_el, color=C["IR-O*"], lw=1.5, label="λ（γ=1.10，c_rb=3 元/kW）")
     if g is not None: ax[0].plot(g.hour, g.lambda_el, color=C["IR-P"], lw=1.5, label="λ（γ=1.00，c_rb=0）")
     ax[0].set_ylabel("元/MWh"); ax[0].legend(fontsize=7, loc="upper left"); ax[0].set_title("(a) 设施用电的边际价值（电平衡对偶）")
     ax[0].set_ylim(0, max(2500, float(np.nanpercentile(d.lambda_el, 97)) * 1.1))
@@ -247,7 +250,7 @@ def fig_shadow():
 
 # ---------------------------------------------------------------- fig09 commitment pairing
 def fig_commit():
-    out = [(rd(f"exp6_commitment{t}.csv"), lab) for t, lab in [("", "c_rb=3 元/kW"), ("_crb0", "c_rb=0")]]
+    out = [(rd(f"exp6_commitment{t}.csv"), lab) for t, lab in [("", "c_rb=0"), ("_crb3", "c_rb=3 元/kW")]]
     out = [o for o in out if o[0] is not None]
     if not out: return
     fig, ax = plt.subplots(1, len(out), figsize=(5.6 * len(out), 3.6), squeeze=False); fig.subplots_adjust(wspace=0.3)
@@ -290,22 +293,60 @@ def fig_pareto():
 
 
 # ---------------------------------------------------------------- fig11 capacity
+def _exp12():
+    import glob
+    fs = [f for f in sorted(glob.glob(os.path.join(RES, "exp12_capacity*.csv"))) if not f.endswith("_crb0.csv")]
+    ss = [f for f in sorted(glob.glob(os.path.join(RES, "exp12_strategies*.csv"))) if not f.endswith("_crb0.csv")]
+    if not fs or not ss: return None, None
+    d = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True).drop_duplicates(["C", "realisation", "strategy"])
+    s = pd.read_csv(ss[0]); d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+    return d, s
+
+
 def fig_capacity():
-    d = rd("exp12_capacity_crb0.csv"); s = rd("exp12_strategies_crb0.csv")
-    if d is None or s is None: return
-    names = dict(zip(s["index"], s["label"])); d["name"] = d.strategy.map(names)
-    g = d.groupby(["C", "name"]).agg(av=("all_valid", "mean"), f=("fulfil_rate_pct", "mean"), net=("net_cost_adj", "mean")).reset_index()
-    fig, ax = plt.subplots(1, 3, figsize=(12, 3.6)); fig.subplots_adjust(wspace=0.3)
+    d, s = _exp12()
+    if d is None: return
+    g = d.groupby(["C", "name"]).agg(full=("all_full", "mean"), av=("all_valid", "mean"), f=("fulfil_rate_pct", "mean"),
+                                     net=("net_cost_adj", "mean")).reset_index()
+    fig, ax = plt.subplots(1, 4, figsize=(15, 3.6)); fig.subplots_adjust(wspace=0.32)
     for nm in s["label"]:
         q = g[g.name == nm]
-        kw = dict(color=C[nm], lw=2, marker=MK[nm], ms=6, mec="#fcfcfb", mew=0.8, label=NAME[nm])
-        ax[0].plot(q.C, 100 * q.av, **kw); ax[1].plot(q.C, q.f, **kw); ax[2].plot(q.C, q.net / 1e4, **kw)
-    ax[0].axhline(95, color=MUTED, lw=1, ls="--"); ax[0].text(ax[0].get_xlim()[0], 96, "95% 可靠性", fontsize=7, color=INK2)
-    ax[0].set_ylabel("三次事件全部有效的天数占比 / %"); ax[1].set_ylabel("平均兑现率 / %"); ax[2].set_ylabel("平均综合成本 / 万元")
-    for a, t in zip(ax, ["(a) 可靠性", "(b) 兑现率", "(c) 综合成本（越低越好）"]):
+        kw = dict(color=C[nm], lw=2, marker=MK[nm], ms=5, mec="#fcfcfb", mew=0.8, label=NAME[nm])
+        ax[0].plot(q.C, 100 * q.full, **kw); ax[1].plot(q.C, 100 * q.av, **kw); ax[2].plot(q.C, q.f, **kw); ax[3].plot(q.C, q.net / 1e4, **kw)
+    for a in ax[:2]:
+        a.axhline(95, color=MUTED, lw=1, ls="--"); a.axhline(90, color=MUTED, lw=0.8, ls=":")
+        a.set_ylim(-3, 103)
+    ax[0].set_ylabel("每次事件均足额（≥98%）的天数占比 / %"); ax[1].set_ylabel("三次事件全部有效（≥80%）的天数占比 / %")
+    ax[2].set_ylabel("平均兑现率 / %"); ax[3].set_ylabel("平均综合成本 / 万元")
+    for a, t in zip(ax, ["(a) 足额可靠性（虚线 95%，点线 90%）", "(b) 有效性（江苏 80% 口径）", "(c) 兑现率", "(d) 综合成本（越低越好）"]):
         a.set_xlabel("每次事件的统一承诺 C / MW"); a.set_title(t)
     ax[0].legend(fontsize=7, loc="lower left")
     save(fig, "fig11_capacity.png")
+
+
+# ---------------------------------------------------------------- fig14 two-event capacity region
+def fig_region():
+    import glob
+    fs = sorted(glob.glob(os.path.join(RES, "exp13_region*.csv")))
+    if not fs: return
+    lab = {"": "A 1 h，B 1 h", "_DB2": "A 1 h，B 2 h", "_DA2": "A 2 h，B 1 h"}
+    panels = []
+    for f in fs:
+        tag = os.path.basename(f)[len("exp13_region"):-4]
+        d = pd.read_csv(f)
+        for tau, q in d.groupby("tau_h"): panels.append((f"{lab.get(tag, tag)}，间隔 {tau:g} h", q.sort_values("C1")))
+    fig, ax = plt.subplots(1, len(panels), figsize=(3.6 * len(panels), 3.6), squeeze=False, sharey=True); fig.subplots_adjust(wspace=0.08)
+    curves = [("C2_JR", "JR-D", "-", "联合响应+跨事件联合恢复 JR"), ("C2_IRJ", "IR-P", "--", "IR后状态+联合恢复"),
+              ("C2_JRM", "JR-M", "-.", "逐事件联合 JR-M"), ("C2_IRO", "IR-O*", ":", "独立恢复 IR-O*（事后最优分摊）")]
+    for j, (t, q) in enumerate(panels):
+        a = ax[0, j]
+        a.fill_between(q.C1, 0, q.C2_JR, color=C["JR-D"], alpha=0.08, lw=0)
+        for col, key, ls, nm in curves:
+            a.plot(q.C1, q[col], color=C[key], lw=2, ls=ls, label=nm)
+        a.set_xlabel("事件 A 承诺 C₁ / MW"); a.set_title(f"({'abcdefgh'[j]}) {t}", fontsize=9)
+        a.set_xlim(0, None); a.set_ylim(0, None)
+    ax[0, 0].set_ylabel("事件 B 最大可交付 C₂ / MW"); ax[0, 0].legend(fontsize=6.5, loc="lower left")
+    save(fig, "fig14_capacity_region.png")
 
 
 # ---------------------------------------------------------------- fig12 stylised theorem
@@ -360,6 +401,6 @@ def fig_robust():
 if __name__ == "__main__":
     fig_case(); fig_mechanism()
     for case in ["DAcommit", "uniform6"]:
-        fig_timeseries(case); fig_timeseries(case, "_crb0")
-    fig_sensitivity(); fig_sensitivity("_crb0"); fig_map(); fig_mc(); fig_shadow(); fig_commit()
-    fig_pareto(); fig_capacity(); fig_stylized(); fig_robust()
+        fig_timeseries(case); fig_timeseries(case, "_crb3")
+    fig_sensitivity(); fig_sensitivity("_crb3"); fig_map(); fig_mc(); fig_shadow(); fig_commit()
+    fig_pareto(); fig_capacity(); fig_stylized(); fig_robust(); fig_region()

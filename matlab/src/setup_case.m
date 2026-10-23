@@ -16,9 +16,9 @@ end
 gc = 0; gs = 0;
 for k = 1:numel(ev)
     tt = ev(k).s:ev(k).e;
-    phi = 1 + par.fac.a_aux + par.fac.theta ./ inp.real.cop(tt);
+    phi = 1 + par.fac.a_aux + par.fac.theta ./ inp.fc.cop(tt);
     gc = gc + mean(phi .* d.pdyn .* sum(inp.fc.flex(tt, :), 2));
-    gs = gs + par.bess.Pmax + mean(par.tes.Qmax ./ inp.real.cop(tt));
+    gs = gs + par.bess.Pmax + mean(par.tes.Qmax ./ inp.fc.cop(tt));
 end
 ctx.alpha = gc / (gc + gs);
 ctx.cap_comp = gc / numel(ev); ctx.cap_stor = gs / numel(ev);

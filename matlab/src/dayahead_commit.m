@@ -13,7 +13,7 @@ sc = make_scen(ctx.inp, par, ctx.base, 1, par.Tsim, c);
 st = state_init(par, K);
 st = add_arrivals(st, sc.flex(1, :, 1), par);
 sc.flex(1, :, :) = repmat(sc.flex(1, :, 1), [1 1 sc.S]);   % identical first step
-sc.inf(1, :) = sc.inf(1, 1); sc.fix(1, :) = sc.fix(1, 1); sc.pv(1, :) = sc.pv(1, 1);
+sc.inf(1, :) = sc.inf(1, 1); sc.fix(1, :) = sc.fix(1, 1); sc.pv(1, :) = sc.pv(1, 1); sc.cop(1, :) = sc.cop(1, 1);
 % events with call probability < 1 occur only in round(prob*S) of the scenarios (scen_called)
 amode = 'scenario'; if sc.S == 1, amode = 'ce'; end
 act = event_activity(ctx, 1, sc.S, amode);
