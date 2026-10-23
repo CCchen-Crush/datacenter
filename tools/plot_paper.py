@@ -84,31 +84,64 @@ def endogenous_points(scen="S1", tag="_S1", rho=1.0):
     return pts
 
 
-def figS7():
-    fig = plt.figure(figsize=(SINGLE_COL * 1.15, 3.0))
-    # endogenous protocol (exp16 packages): reliability-benefit plane
-    ax = fig.add_subplot(111); pts = endogenous_points()
-    place = {"Back-test, JR-D": (99, 49.5, "right"), "Perfect-recourse MILP, JR-D": (64, 46.5, "right"),
-             "Back-test, IR-O*": (64, 41.0, "right"), "Back-test, JR-M": (97, 31.0, "center"),
-             "Single-event capability, IR-O*": (4, 26.0, "left"), "Back-test, IR-P": (62, 22.0, "left"),
-             "Single-event capability, IR-P": (5, 8.0, "left")}
-    for lab, n, Cv, sh, ben, bt in pts:
-        ax.scatter(sh, ben, s=46 if bt else 40, marker=MK[n], color=COL[n] if bt else "white", edgecolor=COL[n], lw=1.2, zorder=3)
-        name = lab.split(", ")[0].replace("Single-event capability", "single-event").replace("Perfect-recourse MILP", "perfect-recourse MILP")
-        txt = f"{n}, {name.lower() if name.startswith('Back') else name}\n({Cv} MW)"
-        x, y, ha = place.get(lab, (sh + 4, ben + 3, "left"))
-        ax.annotate(txt, (sh, ben), xytext=(x, y), textcoords="data", ha=ha, va="center", fontsize=5.9, color=COL[n],
-                    arrowprops=dict(arrowstyle="-", color=COL[n], lw=0.5, shrinkA=0, shrinkB=3.5))
-    ax.scatter([], [], marker="o", color="#555555", s=30, label="Back-test commitment, Eq. (15)")
-    ax.scatter([], [], marker="o", color="white", edgecolor="#555555", s=30, label="Capability-based commitment")
-    ax.legend(loc="lower right", fontsize=6.2, handletextpad=0.3, borderaxespad=0.3)
-    ax.set_xlim(-8, 108); ax.set_ylim(-3, 55)
-    ax.set_xlabel("Days with full delivery, out of sample (%)"); ax.set_ylabel("Daily benefit vs no DR (10$^3$ CNY)")
-    ax.set_title("Endogenous commitment, S1", fontsize=8)
-    save(fig, "FigS7_endogenous_plane")
+def figS7(rho=0.95):
+    """Day-ahead commitment methods in the plane of out-of-sample full delivery and benefit (Table 4): physical
+    capability (perfect-recourse MILP, single-event capability; Exp16) and the closed-loop back-test on the historical
+    days (sample average, Wasserstein-robust, cost-optimal below the robust capacity; Exp18 with Exp12). Points are
+    numbered; the key lists the strategy, the commitment and the methods that select it."""
+    from paper_style import capability, dro_capacity, eps_sampling
+    from matplotlib.lines import Line2D
+    nd = rd("exp17_nodr.csv")
+    if nd is None: return
+    nd = nd.set_index("realisation")
+    mk = {"sample average": "o", "robust": "s", "cost-optimal": "*"}
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 3.0), sharey=True); fig.subplots_adjust(wspace=0.08, top=0.84)
+    for j, (scen, tag) in enumerate([("S1", "_S1"), ("S2", "_S2")]):
+        ax = axs[j]; t = load_capacity(tag); h = _history(scen)
+        if t is None or h is None: continue
+        grid = np.sort(h.C.unique()); groups = {}
+        for n in ["JR-M", "JR-D"]:
+            lb, step = capability(h, n); x = lb.values + step / 2
+            c_saa = dro_capacity(x, rho, 0, grid); c_dro = dro_capacity(x, rho, eps_sampling(x), grid)
+            N = h.day.nunique(); hn = h[h.name == n]; cnt = hn.groupby("C").day.nunique()
+            J = hn.groupby("C").net_cost_adj.mean()[cnt == N]; cand = J[J.index <= (c_dro + 1e-9 if not np.isnan(c_dro) else -1)]
+            c_opt = cand.idxmin() if len(cand) else np.nan
+            for lab, c in [("sample average", c_saa), ("robust", c_dro), ("cost-optimal", c_opt)]:
+                if np.isnan(c): continue
+                if (n, c) not in groups:
+                    q = t[(t.name == n) & np.isclose(t.C, c)].set_index("realisation")
+                    groups[(n, c)] = [100 * q.all_full.mean(), (nd.net_cost_adj.reindex(q.index) - q.net_cost_adj).mean() / 1e3, []]
+                groups[(n, c)][2].append(lab)
+        items = []                                         # marker, size, face, edge, x, y, key text
+        for (n, c), (f, bft, labs) in groups.items():
+            lab = "cost-optimal" if "cost-optimal" in labs else ("robust" if "robust" in labs else "sample average")
+            items.append((mk[lab], 80 if lab == "cost-optimal" else 36, COL[n], "black" if lab == "cost-optimal" else COL[n], f, bft,
+                          f"{n}, {c:g} MW: {', '.join(labs)}"))
+        e16 = rd(f"exp16_endogenous_{scen}.csv"); pk = rd(f"exp16_packages_{scen}.csv")
+        if e16 is not None and pk is not None:
+            e16["pkg"] = e16.package.map(dict(zip(pk["index"], pk["label"])))
+            for labp, n, txt in [("RA|JR-D", "JR-D", "JR-D, 8.18/7.98 MW: perfect-recourse MILP"), ("SE|IR-O*", "IR-O*", "IR-O*, 8.18/7.98 MW: single-event capability"),
+                                 ("SE|IR-P", "IR-P", "IR-P, 8.18/7.98 MW: single-event capability")]:
+                q = e16[e16.pkg == labp]
+                if not q.empty:
+                    items.append(("D", 30, "white", COL[n], 100 * q.all_full.mean(), (q.nodr_net_cost_adj - q.net_cost_adj).mean() / 1e3, txt))
+        seen = {}
+        for k, (m, sz, fc, ec, f, bft, txt) in enumerate(items, 1):
+            ax.scatter(f, bft, marker=m, s=sz, facecolor=fc, edgecolor=ec, lw=0.9 if m == "D" else 0.5, zorder=3)
+            key = (round(f / 3), round(bft)); off = seen.get(key, 0); seen[key] = off + 1
+            ax.annotate(str(k), (f, bft), xytext=(-9 - 8 * off, 4), textcoords="offset points", fontsize=6.4, ha="center", color=ec if m == "D" else fc)
+        key = "\n".join(f"{k}  {it[6]}" for k, it in enumerate(items, 1)) + "\nIR-O*, IR-P: no commitment ≥ 1 MW from the back-test"
+        ax.text(0.03, 0.4, key, transform=ax.transAxes, fontsize=5.6, va="center", color="#333333",
+                bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#cccccc", alpha=0.9))
+        ax.set_xlim(-5, 108); ax.set_ylim(-4, 52); ax.set_xlabel("Days with full delivery, out of sample (%)"); ax.set_title(SCEN[scen], fontsize=7.8)
+        if j == 0: ax.set_ylabel("Daily benefit vs no DR (10$^3$ CNY)")
+        panel(ax, "ab"[j], x=-0.12 if j == 0 else -0.04)
+    hd = [Line2D([], [], marker=m, ls="", color="#555555", ms=6 if l != "cost-optimal" else 9, mec="black" if l == "cost-optimal" else "#555555", label=l)
+          for l, m in mk.items()] + [Line2D([], [], marker="D", ls="", mfc="white", mec="#555555", ms=5, label="physical capability")]
+    fig.legend(handles=hd, loc="upper center", bbox_to_anchor=(0.5, 1.0), ncol=4, fontsize=6.4)
+    save(fig, "FigS7_commitment_methods")
 
 
-# ------------------------------------------------------------------ Fig. 4 two-event reliability region
 def fig6_region(lo=1.0):
     """Two-event firm region in S2 (30-min interval): largest C2 delivered in full on >= 95 % of the test days for a fixed
     first-event commitment C1 (Exp20 'region', bisection), uniform firm capacities on the diagonal (Exp20 bess6) and the
@@ -230,7 +263,8 @@ def figS1():
         a.fill_between(g.tau_h, g.G_IRJ / g.G0, g.G_bound / g.G0, color=COL["IR-P"], alpha=0.12, lw=0)
         a.set_ylim(0, 1.08); a.set_xlabel("Event interval τ (h)"); a.set_ylabel("Deliverable capability $Γ_B/Γ_B^0$" if j == 0 else "")
         a.set_title(t, fontsize=7.8); panel(a, "ab"[j], x=-0.18)
-    axs[0].legend(loc="lower right", fontsize=5.8)
+    axs[1].legend(loc="lower right", fontsize=5.6)
+    a = axs[2]; a.tick_params(length=0)
     d = data[0][0]; taus = sorted(d.tau_h.unique()); gams = sorted(d.gamma.unique())
     Z = np.array([[float((d[(d.gamma == g) & (d.tau_h == t)].G_JR - d[(d.gamma == g) & (d.tau_h == t)].G_IR).iloc[0] / d[(d.gamma == g) & (d.tau_h == t)].G0.iloc[0]) for t in taus] for g in gams])
     a = axs[2]; a.grid(False); im = a.imshow(100 * Z, origin="lower", aspect="auto", cmap="Blues", vmin=0)
@@ -254,7 +288,8 @@ def figS2():
         a.set_title(f"Lag bound L = {L:g} h", fontsize=7.8); a.set_xlabel("Event interval τ (h)")
     np.atleast_1d(axs)[0].set_ylabel("Deliverable reduction of event B (MW)"); np.atleast_1d(axs)[0].legend(fontsize=5.8, loc="lower right")
     err = max((d.G_JR_closed - d.G_JR_lp).abs().max(), (d.G_IR_closed - d.G_IR_lp).abs().max())
-    fig.text(0.99, 0.01, f"max |closed form − LP| = {err:.1e} MW over {len(d)} cases", ha="right", fontsize=6.5)
+    fig.subplots_adjust(top=0.8)
+    fig.text(0.99, 0.985, f"max |closed form − LP| = {err:.0e} MW over {len(d)} cases (rounding of the stored results)", ha="right", va="top", fontsize=6.5)
     save(fig, "FigS2_proposition2_check")
 
 
