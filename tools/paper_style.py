@@ -194,3 +194,12 @@ def recovery_flows(q, ref, windows, theta=1.0, ups=0.05):
         U[k] = float(np.sum(np.maximum(v, 0)) * dt); S["Compute deferred"] = float(np.sum(np.maximum(-v, 0)) * dt)
     S = {k: v for k, v in S.items() if v > 1e-6}; U = {k: v for k, v in U.items() if v > 1e-6}
     return S, U
+
+
+def eps_sampling(xi):
+    """Expected 1-Wasserstein estimation error of the empirical distribution of N samples (del Barrio et al. 1999):
+    eps_N = N^(-1/2) * integral of sqrt(F(1 - F)) over the support, evaluated with the empirical CDF F."""
+    x = np.sort(np.asarray(xi, float)); N = len(x)
+    if N < 2: return 0.0
+    F = np.arange(1, N) / N; dx = np.diff(x)
+    return float(np.sum(np.sqrt(F * (1 - F)) * dx) / np.sqrt(N))

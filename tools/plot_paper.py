@@ -766,7 +766,7 @@ def fig8_sensitivity():
     if d is None: return
     d["gap"] = d.cfgname.map(lambda x: float(x.split("_")[0][3:])); d["gamma"] = d.cfgname.map(lambda x: float(x.split("_")[1][1:]))
     g = d.groupby(["gap", "gamma", "name"]).all_full.mean().unstack("name") * 100
-    Z = [(g["JR-D"], "Full delivery, JR-D (%)", "Blues", 0, 100), (g["JR-D"] - g[["IR-O*", "IR-P"]].max(axis=1), "JR-D − best independent (pp)", "Oranges", 0, 100),
+    Z = [(g["JR-D"], "JR-D: full delivery (%)", "Blues", 0, 100), (g["JR-D"] - g[["IR-O*", "IR-P"]].max(axis=1), "JR-D − best IR (pp)", "Oranges", 0, 100),
          (g["JR-D"] - g["JR-M"], "JR-D − JR-M (pp)", "Purples", 0, 100)]
     fig = plt.figure(figsize=(DOUBLE_COL, 2.75)); gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 1.05], wspace=0.42)
     for k, (v, title, cm, vmin, vmax) in enumerate(Z):
@@ -780,7 +780,7 @@ def fig8_sensitivity():
         ax.set_xticks(range(M.shape[1])); ax.set_xticklabels([f"{x:g}" for x in M.columns]); ax.set_yticks(range(M.shape[0]))
         ax.set_yticklabels([f"{x:.2f}" for x in M.index]); ax.set_xlabel("Event interval τ (h)")
         if k == 0: ax.set_ylabel("Connection margin γ")
-        ax.set_title(title, fontsize=7.4); panel(ax, "abc"[k], x=-0.3 if k == 0 else -0.2)
+        ax.set_title(title, fontsize=7.4); panel(ax, "abc"[k], x=-0.32 if k == 0 else -0.26, y=1.08)
     sd = _exp14("single", ["_a"])
     ax = fig.add_subplot(gs[0, 3])
     if sd is not None:

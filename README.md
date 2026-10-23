@@ -5,7 +5,7 @@ consecutive demand response (DR) in an AI data-center integrated energy system (
 reproducible MATLAB / GNU Octave study prepared for *Applied Energy*.
 
 * **Manuscript draft:** [`paper/manuscript.md`](paper/manuscript.md) · numbers: [`paper/numbers.md`](paper/numbers.md) · figures: [`paper/figures/`](paper/figures)
-* **Research plan:** [`docs/研究方案_AE重构.md`](docs/研究方案_AE重构.md) · writing blueprint: [`docs/论文蓝图_AE.md`](docs/论文蓝图_AE.md) · results: [`docs/实验结果_AE.md`](docs/实验结果_AE.md) · theory: [`docs/理论推导.md`](docs/理论推导.md)
+* **Research plan:** [`docs/研究方案_AE重构.md`](docs/研究方案_AE重构.md), current direction [`docs/方向调整_v2.md`](docs/方向调整_v2.md) · writing blueprint: [`docs/论文蓝图_AE.md`](docs/论文蓝图_AE.md) · results: [`docs/实验结果_AE.md`](docs/实验结果_AE.md) · theory: [`docs/理论推导.md`](docs/理论推导.md) · handover: [`docs/交接文档_AE.md`](docs/交接文档_AE.md)
 * **Data (derived from public traces):** [`data/`](data), provenance in [`data_prep/README.md`](data_prep/README.md)
 
 ## Research question
@@ -28,11 +28,14 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 
 | Module | Question | Experiment | Paper figure |
 |---|---|---|---|
-| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1–S3, 3–9 MW × 26 days), `exp14_sweep` region | Fig. 3, Fig. 4 |
-| Mechanism | Why does joint recovery help, and when not? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 2, Fig. S1–S2 |
-| Strategy comparison | Fixed vs endogenous commitment | `exp12_capacity`, `exp16_endogenous` | Fig. 5 |
-| Sensitivity | Interval τ, margin γ, lag bounds $L_c$, BESS power | `exp14_sweep` (`tau_gamma`, `single`) | Fig. 6 |
-| Uncertainty and ablation | Statistics over days, scenario MPC, resources | `exp12_capacity`, `exp4_montecarlo`, `exp14_sweep` (`ablation`) | Fig. 7, Fig. 8, Fig. S4 |
+| Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 11; S1, S2 |
+| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp14_sweep` region | Fig. 5, 6 |
+| Value decomposition | Coordination vs cross-event foresight, conditions | `exp20_capacity_configs` (tau), `exp14_sweep` (tau_gamma, single) | Fig. 7, 8 |
+| System-level insight | Equivalent battery energy and connection capacity | `exp20_capacity_configs` (bess, gamma) | Fig. 9 |
+| Commitment | Distributionally robust firm capacity (Proposition 3) | `exp18_history`, `exp16_endogenous` | Fig. 10, S7 |
+| Integrated energy system | Who provides the recovery channel; device contribution | `exp15` time series, `exp20` (ies, resources) | Fig. 11, 12 |
+| Users and economics | Service quality, costs, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, S4 |
+| Robustness | Static split in hindsight, pause/resume overhead | `exp19_hindsight`, `exp20` (overhead) | text, supplementary |
 | Supplementary | Physical capability regions, rebound policy, shadow prices | `exp13_region`, `exp8_rebound`, `exp5_shadow` | Fig. S3, S5, S6 |
 
 ## Reproduce
@@ -42,10 +45,14 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 tools/run_queue.sh 4 tools/jobs/checkpoint.txt     # firm-capacity sweeps S1, S2, S3
 tools/run_queue.sh 4 tools/jobs/batch2.txt         # endogenous commitment, sensitivity, ablation, uncertainty, supplementary
 tools/run_queue.sh 4 tools/jobs/batch3.txt         # reliability region, typical-day mechanism
+tools/run_queue.sh 4 tools/jobs/batch4.txt         # firm-capacity sweeps below 3 MW
+tools/run_queue.sh 6 tools/jobs/batch5.txt         # historical back-test (DRO), substitution, interval, IES, overhead, hindsight
+tools/run_queue.sh 2 tools/jobs/batch5b.txt        # BESS substitution with the connection kept (rerun)
+tools/run_queue.sh 2 tools/jobs/batch6.txt         # resource ablation, lag bounds, JR-S uncertainty, supplementary
 # merge parallel parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
 tools/merge_all.sh
 python3 tools/paper_numbers.py > paper/numbers.md
-python3 tools/plot_paper.py                         # paper/figures/*.pdf|svg|png
+python3 tools/plot_paper.py                         # Fig. 1-14 and S1-S7 -> paper/figures/*.pdf|svg|png
 ```
 
 Single experiments run from MATLAB/Octave with `cd matlab; RUN = 12; E12_SCEN = 'S2-30'; main_run_all`
@@ -65,7 +72,7 @@ matlab/src/planner_jr.m       intraday cross-event joint recovery MPC (JR-D / JR
 matlab/src/planner_iro.m      independent recovery benchmarks (IR-O*, IR-P)
 matlab/src/plant_step.m       plant replay (EDF execution, IES balances, connection-limit enforcement)
 matlab/src/set_scenario.m     event scenarios S1, S2-<min>, S3
-matlab/experiments/           exp1 ... exp16
+matlab/experiments/           exp1 ... exp20 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection)
 matlab/results/               all result CSVs (see docs/实验结果_AE.md)
 tools/                        job queue, merge, numbers and figure scripts
 paper/                        manuscript draft, numbers, figures

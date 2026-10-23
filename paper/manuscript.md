@@ -220,16 +220,20 @@ All strategies face the same commitments, service deadlines, physical limits and
 - **JR-M** — event-by-event joint recovery. The joint model is used, but only the current or next event is visible, which represents single-event DR scheduling and isolates the value of cross-event foresight.
 - **JR-oracle** — joint recovery with perfect information (reference).
 
-**Table 2.** Controlled scenario matrix of the ablation (✓ available, ✕ not available).
+**Table 2.** Controlled scenario matrix (✓ available, ✕ not available). The resource and device configurations are operated by the JR-D controller with the connection limit of the base case.
 
-| Configuration | Compute flexibility | BESS | TES | Joint recovery | Cross-event foresight |
-|---|---|---|---|---|---|
-| A1 BESS only | ✕ | ✓ | ✕ | – | ✓ |
-| A2 Compute only | ✓ | ✕ | ✕ | – | ✓ |
-| A3 Compute + BESS | ✓ | ✓ | ✕ | ✓ | ✓ |
-| IR-O\* / IR-P | ✓ | ✓ | ✓ | ✕ | ✓ |
-| JR-M | ✓ | ✓ | ✓ | ✓ | ✕ |
-| JR-D (proposed) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Configuration | Compute flexibility | BESS | Cold storage | Gas engine | Absorption chiller | Joint recovery | Cross-event foresight |
+|---|---|---|---|---|---|---|---|
+| R1 BESS only | ✕ | ✓ | ✕ | ✓ | ✓ | – | ✓ |
+| R2 Compute only | ✓ | ✕ | ✕ | ✓ | ✓ | – | ✓ |
+| R3 Compute + BESS | ✓ | ✓ | ✕ | ✓ | ✓ | ✓ | ✓ |
+| D1 w/o gas engine | ✓ | ✓ | ✓ | ✕ | ✕ (no heat) | ✓ | ✓ |
+| D2 w/o absorption chiller | ✓ | ✓ | ✓ | ✓ | ✕ | ✓ | ✓ |
+| D3 w/o cold storage | ✓ | ✓ | ✕ | ✓ | ✓ | ✓ | ✓ |
+| D4 w/o all three | ✓ | ✓ | ✕ | ✕ | ✕ | ✓ | ✓ |
+| IR-O\* / IR-P | ✓ | ✓ | ✓ | ✓ | ✓ | ✕ | ✓ |
+| JR-M | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✕ |
+| JR-D (proposed) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ### 4.4 Implementation
 
@@ -241,9 +245,9 @@ The models are implemented in MATLAB/GNU Octave and solved with GLPK (Gurobi and
 
 The AIDC of Section 2.1 operates under the Jiangsu two-part TOU tariff and DR rules; its parameters are listed in Table A1. All load and weather profiles are derived from public data: the deferrable training and batch work from the Alibaba PAI GPU cluster trace [16], split by task runtime into the classes C1–C3; the online inference load from the Azure LLM inference trace 2024 [17]; and the PV output and chiller COP from ERA5 reanalysis weather of Suzhou in the summer of 2024. The DR day is a hot weekday (5 August 2024, maximum temperature 38.3 °C). The DR baseline is the average of the five preceding workdays, and the connection limit is $P^{cap}$ = 16.03 MW, 1.10 times the typical-day peak of 14.57 MW. Without DR the AIDC reaches this limit on most evenings (mean daily peak 15.82 MW), so the recovery channel (1) is narrow. The forecasts use the mean of the preceding weekdays for computing, of the available inference days for inference, and of the preceding three days for PV and temperature. The day-ahead scenario set $\Omega^{DA}$ contains five historical days at the 10–90 % quantiles of the daily deferrable load among the 20 preceding weekdays.
 
-The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 14 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors. Every strategy is simulated in closed loop on every day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
+The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 16 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event, on 14 of them upwards (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors. Every strategy is simulated in closed loop on every day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
 
-The event scenarios are listed in Table 3. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.2. All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 2). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.7), so that the benchmark always operates in its best day-ahead configuration.
+The event scenarios are listed in Table 3. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3. All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 2). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.7), so that the benchmark always operates in its best day-ahead configuration.
 
 **Table 3.** Event scenarios.
 
@@ -266,7 +270,31 @@ Figs. 3, 4 and 11 trace the two events of S2 on a representative operating day w
 
 These results confirm that the deliverable reduction of the second event is decided by the recovery state that the first event leaves behind, and that joint recovery shapes this state through both the choice of deferred work and the allocation of the channel.
 
-### 5.4 Strategy comparison under fixed and endogenous commitments
+### 5.3 Firm consecutive DR capacity
+
+[Fig. 5, Table 5, Fig. 6 — filled from `paper/numbers.md`: C^firm_0.95 of every strategy in S1, S2, S3 with block-bootstrap CIs; the gain of JR-D over the best independent benchmark and over JR-M; the two-event reliability region.]
+
+### 5.4 Where the gain comes from: coordination, foresight and their conditions
+
+[Fig. 7 (firm capacity vs interval: coordination value JR-M − IR-O\*, foresight value JR-D − JR-M), Fig. 8 (interval × connection margin, lag bounds). Link to Proposition 2.]
+
+### 5.5 System-level value: equivalent battery and connection capacity
+
+[Fig. 9: firm capacity vs BESS size and vs connection limit; battery energy (MWh, investment at 0.6 CNY/Wh) and connection capacity (MW) that joint recovery substitutes.]
+
+### 5.6 Distributionally robust commitment
+
+[Fig. 10, Table 4: capability distributions on historical and test days; C^DRO(ε); calibration of predicted vs realised full-delivery probability; endogenous commitment C* (Eq. (18)) and its out-of-sample reliability and benefit; perfect-recourse and single-event commitments.]
+
+### 5.7 Role of the integrated energy system
+
+[Fig. 12 with Fig. 11: firm capacity without the gas engine, the absorption chiller, the cold storage; resource ablation R1–R3; composition of the recovery channel.]
+
+### 5.8 Service quality, economics and robustness
+
+[Fig. 13 (capacity–service Pareto), Fig. 14 (cost components, paired differences, delivery distribution), event-call uncertainty with JR-S (Fig. S4), static split in hindsight (Exp19), pause/resume overhead (Exp20).]
+
+### 5.9 [to merge into 5.6 and 5.8] Strategy comparison under fixed and endogenous commitments
 
 **Fixed commitment.** Fig. 5a compares the strategies at C = 7 MW, the commitment that the strategies select in the endogenous protocol below. JR-D delivers both events in full on all 26 days in S1 and S2 and yields the largest daily benefit relative to no DR participation, 44.8 k CNY in S1 and 43.1 k CNY in S2. Its DR revenue of 48.3 k CNY reaches 96 % of the payment cap of the two events and is offset mainly by the delay cost of the deferred work (4.4–6.4 k CNY); the electricity and gas costs even fall slightly because consumption is shifted out of the evening peak. IR-O\* delivers in full on 85 % and 81 % of the days and gains 40.3 and 38.5 k CNY. Its delay cost is higher (5.9–7.6 k CNY) because the IT scheduler repays its own share of the reduction without regard to the storage. JR-M gains 37.3 k CNY in S1 but only 19.1 k CNY in S2: there the second event finds the AIDC with 4.1×10³ GPU·h of backlog and 3.4 MWh of stored energy (JR-D: 2.2×10³ GPU·h and 6.0 MWh), so its revenue drops to 32.2 k CNY and a shortfall assessment of 4.7 k CNY is levied. IR-P, which coordinates through a day-ahead price, gains 17.8 and 29.8 k CNY. On a paired basis JR-D is cheaper than every benchmark on all 26 days in both scenarios; its mean advantage is 4.5 k CNY/day over IR-O\* (95 % CI 2.5–7.6) and 7.6 k CNY/day over JR-M (6.4–8.8) in S1, and 4.6 k CNY/day (2.7–7.4) and 24.1 k CNY/day (19.6–28.5) in S2.
 
