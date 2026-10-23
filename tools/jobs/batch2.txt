@@ -1,5 +1,6 @@
 # batch 2: experiments that do not depend on the capacity checkpoint (tag|settings)
-e16S1|RUN=16; E16_SCEN='S1';
+# e16S1 finished 2026-10-23, results committed (exp16_*_S1.csv); uncomment to rerun
+# e16S1|RUN=16; E16_SCEN='S1';
 tg100|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.00; E14_TAG='_g100';
 tg105|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.05; E14_TAG='_g105';
 tg110|RUN=14; E14_SET='tau_gamma'; E14_C=7; E14_GAMMAS=1.10; E14_TAG='_g110';
