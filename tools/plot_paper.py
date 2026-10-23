@@ -729,7 +729,8 @@ def fig10_calibration(rho=0.95):
             e_n = eps_sampling(x); c_n = dro_capacity(x, rho, e_n, grid); sel[(s, n)] = (e_n, c_n, dro_capacity(x, rho, 0, grid))
             if np.all(np.isnan(Cd)): off.append(f"{n}: none ≥ {grid.min():g} MW ($\\varepsilon_N$ = {e_n:.2f})"); continue
             ax.plot(eps, np.where(np.isnan(Cd), np.nan, Cd), color=COL[n], ls=LS[n], lw=1.3, label=n, drawstyle="steps-post")
-            if e_n <= emax: ax.plot(e_n, c_n, marker="*", ms=9, color=COL[n], mec="black", mew=0.4, zorder=4)
+            if e_n <= emax and not np.isnan(c_n): ax.plot(e_n, c_n, marker="*", ms=9, color=COL[n], mec="black", mew=0.4, zorder=4)
+            elif np.isnan(c_n): off.append(f"{n}: none ≥ {grid.min():g} MW at $\\varepsilon_N$ = {e_n:.2f}")
         if off: ax.text(0.97, 0.04, "\n".join(off), transform=ax.transAxes, ha="right", va="bottom", fontsize=5.8, color="#555555")
         ax.set_xlim(0, emax); ax.axhline(grid.min(), color="#cccccc", lw=0.5, ls=":")
         ax.set_xlabel("Wasserstein radius ε (MW); $\\star$ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)")
