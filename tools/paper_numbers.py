@@ -8,7 +8,7 @@ bootstrap intervals over these days (2000 resamples, percentile method).
 import numpy as np
 import pandas as pd
 from paper_style import (rd, load_capacity, capacity_table, c_rho, ORDER, SCEN, capability, worst_case_prob, dro_capacity,
-                         cv_radius, exp20)
+                         cv_radius, eps_sampling, exp20)
 
 B = 2000
 rng = np.random.default_rng(7)
@@ -168,13 +168,14 @@ def dro_section(rhos=(0.90, 0.95)):
     if h is None or t is None: return
     h_("Distributionally robust commitment (Section 4.1, Proposition 3), S1: 20 historical days -> 26 test days")
     grid = np.sort(h.C.unique()); nodr = nd.set_index("realisation").net_cost_adj if nd is not None else None
-    print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | radius eps (MW, LOO) | DRO C | margin Phi at DRO C (MW) | "
-          "C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
-    print("|---" * 11 + "|")
+    print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | "
+          "margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
+    print("|---" * 13 + "|")
     for rho in rhos:
         for n in ORDER:
             lb, step = capability(h, n); x = lb.values + step / 2
-            c_saa = dro_capacity(x, rho, 0, grid); e = cv_radius(x, lb.values, rho, grid); c_dro = dro_capacity(x, rho, e, grid)
+            c_saa = dro_capacity(x, rho, 0, grid); e = eps_sampling(x); c_dro = dro_capacity(x, rho, e, grid)
+            e_cv = cv_radius(x, lb.values, rho, grid); c_cv = dro_capacity(x, rho, e_cv, grid)
             phi = np.nan
             if not np.isnan(c_dro):
                 m = np.sort(x[x >= c_dro - 1e-12] - c_dro); r = len(m) - rho * len(x); k = int(np.floor(r + 1e-12))
@@ -188,7 +189,7 @@ def dro_section(rhos=(0.90, 0.95)):
             if not np.isnan(cs) and nodr is not None:
                 q = t[(t.name == n) & np.isclose(t.C, cs)].set_index("realisation"); ben = f"{(nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3:.1f}"
             g = lambda c: "<%g" % grid.min() if np.isnan(c) else f"{c:g}"
-            print(f"| {rho:.2f} | {n} | {x.mean():.2f} / {x.min():.2f} | {g(c_saa)} | {e:.3f} | {g(c_dro)} | {phi:.3f} | {g(cs)} | {f(cs)} | {f(c_saa)} | {ben} |")
+            print(f"| {rho:.2f} | {n} | {x.mean():.2f} / {x.min():.2f} | {g(c_saa)} | {e:.3f} | {g(c_dro)} | {e_cv:.3f} | {g(c_cv)} | {phi:.3f} | {g(cs)} | {f(cs)} | {f(c_saa)} | {ben} |")
 
 
 def exp20_section():

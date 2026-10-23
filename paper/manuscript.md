@@ -34,6 +34,7 @@
 | MPC | Model predictive control |
 | PV | Photovoltaic |
 | SAA | Sample average approximation |
+| DRO | Distributionally robust optimisation |
 | SLA | Service-level agreement |
 | TES | Thermal (chilled-water) energy storage |
 | TOU | Time of use |
@@ -57,6 +58,9 @@
 | $\underline E$, $\bar E$, $\bar P^{B}$ | BESS energy bounds and power rating |
 | $\mathrm{COP}_t$ | Electric chiller COP (temperature dependent) |
 | $\rho$ | Target reliability of the firm capacity |
+| $\epsilon_f$ | Metering tolerance of full delivery (2 %) |
+| $\varepsilon$ | Radius of the 1-Wasserstein ambiguity set (MW) |
+| $\Omega^{DA}$, $\Omega$ | Historical days used day-ahead; operating (test) days |
 | $c^{jct}$, $c^{late}$ | Delay and lateness prices of deferred work (CNY per GPU·h·h) |
 
 **Variables**
@@ -73,6 +77,8 @@
 | $z_k$, $R_k$, $s_k$ | Validity indicator, paid reduction and shortfall of event $k$ |
 | $u_\omega$ | Indicator that every event is delivered in full in scenario $\omega$ |
 | $C^{firm}_\rho$ | Firm consecutive DR capacity at reliability $\rho$ |
+| $\xi_d$ | Closed-loop capability of the controller on day $d$ (MW) |
+| $C^{DRO}_\rho(\varepsilon)$, $\Phi_\rho(C)$ | Distributionally robust firm capacity; certified reliability margin (MW) |
 
 ## 1. Introduction
 
@@ -84,7 +90,7 @@ Each event leaves recovery debts behind. Deferred training and batch work accumu
 
 **Computing–energy coupling in data-center integrated energy systems.** Data centers increasingly operate as integrated energy systems (IES) with combined cooling, heating and power, cold storage and batteries [14,15]. Zhang et al. coupled computing and electricity in a bi-level capacity planning model of a data-center cluster under supply–demand uncertainty [40], Lu et al. studied battery-assisted operation of hyperscale AI data centers [41], and the reliability impact of energy-system flexibility on data centers has been quantified in [42]. These studies capture the coupling between computing, power and heat within a scheduling period. They treat the computing backlog and the state of charge as internal operating states, not as debts that are inherited across DR events and that determine the next deliverable reduction.
 
-**Deliverability and recovery of flexible resources.** Aggregate flexibility models describe the power–energy envelope of homogeneous devices [23], and Evans et al. derived recovery guarantees for aggregated energy storage that must be restored between service requests [33]. Li distinguishes eligible AI workloads from dependable load relief [32], and the scenario approach provides probabilistic guarantees for closed-loop constraint satisfaction [22]. Recovery guarantees, however, have been developed for one type of resource with one type of debt. An AIDC holds two heterogeneous debts at once: computing debt is lossless but deadline-bound, storage debt is lossy but has no deadline, and both compete for the same recovery channel.
+**Deliverability and recovery of flexible resources.** Aggregate flexibility models describe the power–energy envelope of homogeneous devices [23], and Evans et al. derived recovery guarantees for aggregated energy storage that must be restored between service requests [33]. Li distinguishes eligible AI workloads from dependable load relief [32], and the scenario approach provides probabilistic guarantees for closed-loop constraint satisfaction [22]. Distributionally robust chance constraints over Wasserstein ambiguity sets give data-driven reliability guarantees [43,45] and are widely used for flexibility commitments; their two-stage form, solved by column-and-constraint generation [46], evaluates the second stage with perfect recourse and therefore certifies physical capability rather than the deliverability of the controller that will operate the resource. Recovery guarantees, moreover, have been developed for one type of resource with one type of debt. An AIDC holds two heterogeneous debts at once: computing debt is lossless but deadline-bound, storage debt is lossy but has no deadline, and both compete for the same recovery channel.
 
 To the best of our knowledge, few studies have examined how the heterogeneous recovery demands left by one DR event limit the deliverable capacity of the next one under a shared grid connection, or how this effect can be built into multi-event DR commitments. As a result, the capacity that an AIDC can firmly offer for consecutive events, and the conditions under which coordinated recovery enlarges it, are unknown. To address these gaps, this paper develops a recovery-aware coordinated scheduling framework for consecutive DR of an AIDC integrated energy system. The main contributions are as follows.
 
@@ -146,11 +152,11 @@ i.e. electricity, gas, storage degradation, delay of deferred work, shortfall as
 ### 3.5 Firm consecutive DR capacity
 
 Let $\omega\in\Omega$ denote a realisation of computing arrivals, inference load, weather and event calls, and $\bar r_{k,\omega}(C)$ the reduction delivered in event $k$ by a given operating strategy when the uniform commitment $C$ is in force. The **firm consecutive DR capacity** at reliability $\rho$ is
-$$C^{firm}_\rho=\max\Big\{C:\ \Pr_\omega\big[\bar r_{k,\omega}(C)\ge (1-\epsilon)C,\ \forall k\in\mathcal K\big]\ge\rho\Big\}, \tag{12}$$
-with a metering tolerance $\epsilon$ = 2 %. Its multi-event generalisation is the reliability region $\mathcal C_\rho=\{(C_1,\dots,C_K):\Pr[\bar r_{k,\omega}\ge(1-\epsilon)C_k\ \forall k]\ge\rho\}$, which shows how a higher commitment in one event compresses the deliverable space of the next. $C^{firm}_\rho$ is a deliverability metric for the grid and is reported separately from the settlement validity ($\bar r_k\ge 0.8C_k$).
+$$C^{firm}_\rho=\max\Big\{C:\ \Pr_\omega\big[\bar r_{k,\omega}(C)\ge (1-\epsilon_f)C,\ \forall k\in\mathcal K\big]\ge\rho\Big\}, \tag{12}$$
+with a metering tolerance $\epsilon_f$ = 2 %. Its multi-event generalisation is the reliability region $\mathcal C_\rho=\{(C_1,\dots,C_K):\Pr[\bar r_{k,\omega}\ge(1-\epsilon_f)C_k\ \forall k]\ge\rho\}$, which shows how a higher commitment in one event compresses the deliverable space of the next. $C^{firm}_\rho$ is a deliverability metric for the grid and is reported separately from the settlement validity ($\bar r_k\ge 0.8C_k$).
 
 Because a larger commitment can only tighten the delivery requirement, the delivery indicator is monotone in $C$ for a fixed realisation, and (12) is evaluated by sample average approximation: for every $C$ on a grid $\mathcal G$, the strategy is simulated in closed loop on the realisations $\omega\in\Omega$, and
-$$\hat C^{firm}_\rho=\max\Big\{C\in\mathcal G:\ \frac{1}{|\Omega|}\sum_{\omega}\mathbb 1\big[\bar r_{k,\omega}(C')\ge(1-\epsilon)C'\ \forall k\big]\ge\rho\ \ \forall C'\le C,\ C'\in\mathcal G\Big\}. \tag{13}$$
+$$\hat C^{firm}_\rho=\max\Big\{C\in\mathcal G:\ \frac{1}{|\Omega|}\sum_{\omega}\mathbb 1\big[\bar r_{k,\omega}(C')\ge(1-\epsilon_f)C'\ \forall k\big]\ge\rho\ \ \forall C'\le C,\ C'\in\mathcal G\Big\}. \tag{13}$$
 Confidence intervals of $\hat C^{firm}_\rho$ and of the capacity gain $\Delta C_\rho=C^{firm}_{\rho,JR}-C^{firm}_{\rho,IR}$ are obtained by a block bootstrap over operating days. The relative gain is $I_\rho=\Delta C_\rho/C^{firm}_{\rho,IR}$.
 
 ### 3.6 Theoretical properties
@@ -168,7 +174,7 @@ The proofs are given in Appendix B. Proposition 2 explains the mechanism examine
 ### 4.1 Day-ahead recovery-aware commitment
 
 The commitment of every event must anticipate the recovery state that the preceding events will leave behind, as delivered by the controller that will actually operate the AIDC. The day-ahead layer therefore measures the capability of that controller in closed loop. For every historical day $d$ of $\Omega^{DA}$ and every candidate commitment $C$ of the grid $\mathcal G$, the intraday controller of Section 4.2 is simulated with the realised data of day $d$, which yields the comprehensive cost $J_d(C)$ and the capability
-$$\xi_d=\max\big\{C\in\mathcal G:\ \bar r_{k,d}(C')\ge(1-\epsilon)C'\ \ \forall k,\ \forall C'\le C,\ C'\in\mathcal G\big\}+\tfrac12\Delta_{\mathcal G}, \tag{15}$$
+$$\xi_d=\max\big\{C\in\mathcal G:\ \bar r_{k,d}(C')\ge(1-\epsilon_f)C'\ \ \forall k,\ \forall C'\le C,\ C'\in\mathcal G\big\}+\tfrac12\Delta_{\mathcal G}, \tag{15}$$
 the midpoint between the largest uniform commitment that the controller delivers in full on day $d$ and the next commitment of the grid (step $\Delta_{\mathcal G}$), at which delivery first fails. The empirical distribution $\hat P_N=\frac1N\sum_d\delta_{\xi_d}$ summarises the deliverability of the controller, but the operating day can differ from the historical days (Section 5.1). The commitment is therefore protected against all distributions within the 1-Wasserstein ball $\mathcal B_\varepsilon(\hat P_N)=\{Q:\ W_1(Q,\hat P_N)\le\varepsilon\}$:
 $$C^{DRO}_\rho(\varepsilon)=\max\Big\{C\in\mathcal G:\ \inf_{Q\in\mathcal B_\varepsilon(\hat P_N)}Q(\xi\ge C)\ge\rho\Big\}, \tag{16}$$
 the distributionally robust counterpart of (12). The radius $\varepsilon$ (MW) is the largest average shift of the capability that the commitment must withstand.
@@ -177,12 +183,14 @@ the distributionally robust counterpart of (12). The radius $\varepsilon$ (MW) i
 $$\Phi_\rho(C)=\frac1N\Big[\sum_{j=1}^{\lfloor r\rfloor}\delta_{(j)}(C)+\big(r-\lfloor r\rfloor\big)\,\delta_{(\lfloor r\rfloor+1)}(C)\Big]\ \ge\ \varepsilon . \tag{17}$$
 Hence (i) $C^{DRO}_\rho(\varepsilon)=\max\{C\in\mathcal G:\ r(C)\ge0,\ \Phi_\rho(C)\ge\varepsilon\}$ is obtained by sorting; (ii) for $\varepsilon=0$ it equals the sample-average capacity, the empirical $(1-\rho)$-quantile of $\xi$; (iii) it is non-increasing in $\varepsilon$, and it is insensitive to the radius when the days just above the commitment keep a large margin, i.e. when the capability distribution is concentrated. $\Phi_\rho(C)$ is the smallest average capability loss (MW) that would push the full-delivery probability below $\rho$; it is the certified reliability margin of the commitment. The proof is given in Appendix B.
 
-The radius is selected by leave-one-out validation on $\Omega^{DA}$: the smallest $\varepsilon$ for which the commitment computed without day $d$ is delivered on day $d$ for at least a share $\rho$ of the days. Among the robustly deliverable commitments, the operator chooses the one with the lowest back-tested cost,
+The radius is set to the expected 1-Wasserstein estimation error of the empirical distribution [44],
+$$\varepsilon_N=\frac{1}{\sqrt N}\int\sqrt{\hat F_N(\xi)\big(1-\hat F_N(\xi)\big)}\,d\xi, \tag{18a}$$
+which is small for a concentrated capability distribution and large for a dispersed one; a leave-one-out validation on $\Omega^{DA}$ serves as a check (Section 5.6). Among the robustly deliverable commitments, the operator chooses the one with the lowest back-tested cost,
 $$C^*=\arg\min\big\{\bar J(C)=\tfrac1N\textstyle\sum_dJ_d(C):\ C\in\mathcal G,\ C\le C^{DRO}_\rho(\varepsilon)\big\}. \tag{18}$$
 Every strategy can be paired with this procedure, which makes the endogenous-commitment comparison of Section 5.4 fair: all strategies use the same days, the same objective and the same reliability target.
 
 For comparison, the commitments can also be obtained from a two-stage stochastic MILP with perfect recourse, in which $\mathbf C$ is the first-stage decision and the joint recovery model (2)–(11) of every scenario is the second stage,
-$$\min_{\mathbf C}\ -\epsilon^{C}\textstyle\sum_kC_k+\sum_{\omega}p_\omega J_\omega(\mathbf C),\qquad \bar r_{k,\omega}\ge(1-\epsilon)C_k-M(1-u_\omega)\ \forall k,\quad \sum_\omega p_\omega u_\omega\ge\rho. \tag{19}$$
+$$\min_{\mathbf C}\ -\epsilon^{C}\textstyle\sum_kC_k+\sum_{\omega}p_\omega J_\omega(\mathbf C),\qquad \bar r_{k,\omega}\ge(1-\epsilon_f)C_k-M(1-u_\omega)\ \forall k,\quad \sum_\omega p_\omega u_\omega\ge\rho. \tag{19}$$
 Because the recourse of (19) knows each scenario in advance, it measures the physical consecutive capability. In the case study it returns the single-event capabilities (8.18/7.98 MW in S1) and thus overstates the firm consecutive capacity that a real controller delivers. Two-stage distributionally robust models solved by column-and-constraint generation share this recourse structure; the closed-loop capability (15) avoids it.
 
 ### 4.2 Intraday cross-event joint recovery MPC
@@ -198,7 +206,7 @@ Input : historical days Ω_DA, test realisations Ω, commitment grid G, reliabil
 Output: commitment C*, firm capacity Ĉ_ρ, closed-loop trajectories
  1  Day-ahead recovery-aware commitment (Eqs. (15)-(18))
  2    for every C ∈ G and day d ∈ Ω_DA: run the closed loop (steps 7-12) → cost J_d(C); capability ξ_d (15)
- 3    ε ← leave-one-out validation; C_DRO ← max{C: Φ_ρ(C) ≥ ε} (17); C* ← argmin J̄(C), C ≤ C_DRO (18)
+ 3    ε ← ε_N (18a); C_DRO ← max{C: Φ_ρ(C) ≥ ε} (17); C* ← argmin J̄(C), C ≤ C_DRO (18)
  4  Firm capacity on the operating days (SAA, Eq. (13))
  5    for every C ∈ G and ω ∈ Ω: run the closed loop (steps 7-12) with commitment C
  6    Ĉ_ρ ← largest C whose full-delivery share ≥ ρ for all C' ≤ C; bootstrap CIs over days
@@ -374,7 +382,7 @@ Two consequences are used in Section 5. First, the minimum recovery energy $\tau
 $$\inf_{Q\in\mathcal B_\varepsilon}Q(\xi\ge C)=\frac{n(C)}N-\max\Big\{\textstyle\sum_dw_d:\ \sum_dw_d\,\delta_d(C)\le\varepsilon,\ 0\le w_d\le\frac1N\Big\},$$
 whose optimum removes the atoms with the smallest margins first. The probability stays at least $\rho$ if and only if removing mass $r(C)/N$, i.e. the $\lfloor r\rfloor$ atoms with the smallest margins and the fraction $r-\lfloor r\rfloor$ of the next one, costs at least $\varepsilon$, which is (17). For $\varepsilon=0$ the condition reduces to $n(C)\ge\rho N$, the sample-average constraint. $\Phi_\rho(C)$ is non-increasing in $C$, because $n(C)$ and all margins decrease with $C$, so the feasible commitments form a lower set and $C^{DRO}_\rho(\varepsilon)$ is non-increasing in $\varepsilon$. When the atoms just above $C$ have large margins, $\Phi_\rho(C)$ is large and a moderate radius does not change the commitment. ∎
 
-If the radius exceeds the finite-sample concentration radius $\varepsilon_N(\beta)$ of the 1-Wasserstein distance [43], the true capability distribution lies in $\mathcal B_\varepsilon(\hat P_N)$ with confidence $1-\beta$ and the commitment $C^{DRO}_\rho$ is delivered in full with probability at least $\rho$. Such radii are conservative for $N=20$, so the case study selects the radius by leave-one-out validation (Section 4.1).
+If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\beta}$ of the 1-Wasserstein distance [43], the true capability distribution lies in $\mathcal B_\varepsilon(\hat P_N)$ with confidence $1-\beta$ and the commitment $C^{DRO}_\rho$ is delivered in full with probability at least $\rho$. Such radii are conservative for $N=20$; the case study uses the expected estimation error (18a), which scales with the dispersion of the capability, and checks it by leave-one-out validation.
 
 **Remark B.1 (single channel price).** For the joint model with fixed binaries, let $\lambda_t$ be the dual of the electric balance, $\nu_t$ that of the BESS energy equation and $\mu_{c,t}$ that of the backlog equation of class $c$. The KKT conditions give $\lambda_t=\pi_t+\lambda^{cap}_t+\lambda^{ev}_t$ when the import is interior, $\eta_c\nu_t=\lambda_t+c^{deg}$ for interior charging and $\mu_{c,t}=\varepsilon_t\lambda_t$ for interior execution. When catch-up and recharge are both interior, $\mu_{c,t}/\varepsilon_t=\lambda_t=\eta_c\nu_t-c^{deg}$: one channel price values both debts. Independent recovery schedules catch-up against $\pi_t$ or its own share, ignores $\lambda^{cap}_t$ and breaks this equality; IR-P restores the price part with a day-ahead signal but neither updates it with the realised state nor resolves the non-uniqueness of the IT response at that price (supplementary Fig. S6).
 
@@ -388,3 +396,6 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_N(\bet
 [41] Lu et al. Battery-assisted operation of hyperscale AI data centers. arXiv:2605.14105, 2026.
 [42] Quantitative impacts of energy system flexibility provision on data center reliability, Applied Energy, 2026, 127904. https://doi.org/10.1016/j.apenergy.2026.127904
 [43] Esfahani PM, Kuhn D. Data-driven distributionally robust optimization using the Wasserstein metric: performance guarantees and tractable reformulations. Mathematical Programming, 2018, 171: 115–166.
+[44] del Barrio E, Giné E, Matrán C. Central limit theorems for the Wasserstein distance between the empirical and the true distributions. The Annals of Probability, 1999, 27(2): 1009–1071.
+[45] Duan C, Fang W, Jiang L, Yao L, Liu J. Distributionally robust chance-constrained approximate AC-OPF with Wasserstein metric. IEEE Transactions on Power Systems, 2018, 33(5): 4924–4936.
+[46] Zeng B, Zhao L. Solving two-stage robust optimization problems using a column-and-constraint generation method. Operations Research Letters, 2013, 41(5): 457–461.

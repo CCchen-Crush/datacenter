@@ -662,7 +662,7 @@ def fig9_substitution(lo=1.0):
 
 # ------------------------------------------------------------------ Fig. 10 distributionally robust commitment: calibration
 def fig10_calibration(rho=0.95):
-    from paper_style import capability, worst_case_prob, dro_capacity, cv_radius
+    from paper_style import capability, worst_case_prob, dro_capacity, cv_radius, eps_sampling
     h = rd("exp18_history_S1.csv"); hs = rd("exp18_strategies_S1.csv")
     if h is None:
         parts = [rd("exp18_history_S1_a.csv"), rd("exp18_history_S1_b.csv")]
@@ -686,9 +686,9 @@ def fig10_calibration(rho=0.95):
         lb, step = capability(h, n); x = lb.values + step / 2
         Cd = [dro_capacity(x, rho, e, grid) for e in eps]
         ax.plot(eps, np.nan_to_num(Cd, nan=grid.min() - 0.5), color=COL[n], ls=LS[n], lw=1.3, label=n)
-        e_cv = cv_radius(x, lb.values, rho, grid); c_cv = dro_capacity(x, rho, e_cv, grid); sel[n] = (e_cv, c_cv, dro_capacity(x, rho, 0, grid))
-        ax.plot(e_cv, np.nan_to_num(c_cv, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
-    ax.set_xlabel("Wasserstein radius ε (MW)"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)"); ax.legend(loc="upper right", fontsize=6.2)
+        e_n = eps_sampling(x); c_n = dro_capacity(x, rho, e_n, grid); sel[n] = (e_n, c_n, dro_capacity(x, rho, 0, grid))
+        ax.plot(e_n, np.nan_to_num(c_n, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
+    ax.set_xlabel("Wasserstein radius ε (MW); ★ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)"); ax.legend(loc="upper right", fontsize=6.2)
     panel(ax, "b", x=-0.2)
     ax = axs[2]
     for n in ORDER:
