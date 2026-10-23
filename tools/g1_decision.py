@@ -27,14 +27,11 @@ NBOOT = 2000
 rng = np.random.default_rng(2024)
 
 
-def load_exp12():
-    files = sorted(glob.glob(os.path.join(RES, "exp12_capacity*.csv")))
-    files = [f for f in files if not f.endswith("_crb0.csv")]
-    if not files: return None, None
-    d = pd.concat([pd.read_csv(f) for f in files], ignore_index=True).drop_duplicates(["C", "realisation", "strategy"])
-    sf = sorted(glob.glob(os.path.join(RES, "exp12_strategies*.csv")))
-    sf = [f for f in sf if not f.endswith("_crb0.csv")]
-    s = pd.read_csv(sf[0])
+def load_exp12(tag=""):
+    """exp12_capacity<tag>.csv (tag '' = deterministic MPC with forecasts, '_oracle' = perfect forecasts)."""
+    f = os.path.join(RES, f"exp12_capacity{tag}.csv"); sf = os.path.join(RES, f"exp12_strategies{tag}.csv")
+    if not os.path.exists(f) or not os.path.exists(sf): return None, None
+    d = pd.read_csv(f); s = pd.read_csv(sf)
     d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
     return d, list(s["label"])
 
@@ -79,11 +76,11 @@ def fmt_ci(x):
     return f"[{lo:+.1f}, {hi:+.1f}]"
 
 
-def g1a():
-    d, names = load_exp12()
+def g1a(tag="", title="closed-loop deterministic MPC (forecasts)"):
+    d, names = load_exp12(tag)
     if d is None:
-        print("G1a: no exp12 results"); return {}
-    print("=" * 100); print("G1a  reliable capacity, uniform commitment, closed-loop deterministic MPC, c_rb = 0"); print("=" * 100)
+        print(f"G1a{tag}: no exp12 results"); return {}
+    print("=" * 100); print(f"G1a{tag}  reliable capacity, uniform commitment, {title}, c_rb = 0"); print("=" * 100)
     N = d.realisation.nunique()
     print(f"realisations (distinct PAI weekdays): {N}; commitment grid: {sorted(d.C.unique())} MW")
     g = d.groupby(["C", "name"]).agg(fulfil=("fulfil_rate_pct", "mean"), all_valid=("all_valid", "mean"),
@@ -101,22 +98,31 @@ def g1a():
         print((g[col].unstack(1)[names] * sc).round(1 if sc != 100 else 0).to_string())
     print(f"\nsimulator checks: max connection overrun {g.cap_viol.max() * 1000:.1f} kW, max lateness {g.late.max():.3g} GPU-h*h, solver fallbacks {int(g.fb.sum())}")
     res = {}
+    cmin = float(d.C.min())
     for col, lab in [("all_full", "full delivery (>= 98 % in every event)"), ("all_valid", "Jiangsu validity (>= 80 % in every event)")]:
         cp = caps(d, names, col); bt = boot_caps(d, names, col)
-        print(f"\n--- reliable capacity C_rho by {lab} (MW per event)")
+        print(f"\n--- reliable capacity C_rho by {lab} (MW per event; NaN = below the smallest grid value {cmin:g} MW)")
         print(pd.DataFrame(cp).T.rename(columns=lambda r: f"rho={r:.0%}").to_string())
         ib = [names.index(x) for x in ("IR-O*", "IR-P") if x in names]
         jd = names.index("JR-D"); jm = names.index("JR-M") if "JR-M" in names else None
+        # a benchmark that misses rho already at the smallest commitment has C_rho < cmin: the difference
+        # is then computed with cmin and is a strict lower bound (marked ">")
+        lb = lambda v: cmin if np.isnan(v) else v
         for j, rho in enumerate(RHOS):
-            best_ir = max(cp[names[i]][rho] if not np.isnan(cp[names[i]][rho]) else -np.inf for i in ib)
+            irv = [cp[names[i]][rho] for i in ib]
+            best_ir = max(lb(v) for v in irv); low_ir = all(np.isnan(v) for v in irv)
             d_ir = cp["JR-D"][rho] - best_ir
-            bt_ir = bt[:, jd, j] - np.nanmax(np.where(np.isnan(bt[:, ib, j]), -np.inf, bt[:, ib, j]), axis=1)
-            line = f"  rho={rho:.0%}: dC(JR-D - best of IR-O*/IR-P) = {d_ir:+.1f} MW, bootstrap 95% CI {fmt_ci(bt_ir)}, P(dC >= 1 MW) = {np.mean(bt_ir >= 1 - 1e-9):.2f}"
+            bt_ir = bt[:, jd, j] - np.max(np.where(np.isnan(bt[:, ib, j]), cmin, bt[:, ib, j]), axis=1)
+            line = (f"  rho={rho:.0%}: dC(JR-D - best of IR-O*/IR-P) {'>' if low_ir else '='} {d_ir:+.1f} MW, bootstrap 95% CI {fmt_ci(bt_ir)}"
+                    f"{' (lower bounds)' if low_ir else ''}, P(dC >= 1 MW) = {np.nanmean(bt_ir >= 1 - 1e-9):.2f}")
+            d_m = np.nan
             if jm is not None:
-                d_m = cp["JR-D"][rho] - cp["JR-M"][rho]; bt_m = bt[:, jd, j] - bt[:, jm, j]
-                line += f" | dC(JR-D - JR-M) = {d_m:+.1f} MW, CI {fmt_ci(bt_m)}, P(dC >= 0.5) = {np.nanmean(bt_m >= 0.5 - 1e-9):.2f}"
+                low_m = np.isnan(cp["JR-M"][rho])
+                d_m = cp["JR-D"][rho] - lb(cp["JR-M"][rho])
+                bt_m = bt[:, jd, j] - np.where(np.isnan(bt[:, jm, j]), cmin, bt[:, jm, j])
+                line += f" | dC(JR-D - JR-M) {'>' if low_m else '='} {d_m:+.1f} MW, CI {fmt_ci(bt_m)}, P(dC >= 0.5) = {np.nanmean(bt_m >= 0.5 - 1e-9):.2f}"
             print(line)
-            res[(col, rho)] = (d_ir, d_m if jm is not None else np.nan)
+            res[(col, rho)] = (d_ir, d_m)
     # paired fulfilment gap JR-D - JR-M at C >= 7
     if "JR-M" in names:
         print("\n--- paired fulfilment gap JR-D - JR-M (pp), mean [95% bootstrap CI over days]")
@@ -164,7 +170,7 @@ def g1b():
 
 
 if __name__ == "__main__":
-    a = g1a(); b = g1b()
+    a = g1a(); g1a("_oracle", "same controllers with perfect forecasts (information diagnostic)"); b = g1b()
     print("\n" + "=" * 100); print("Criteria"); print("=" * 100)
     if a:
         d_ir, d_m = a.get(("all_full", 0.95), (np.nan, np.nan))

@@ -293,13 +293,10 @@ def fig_pareto():
 
 
 # ---------------------------------------------------------------- fig11 capacity
-def _exp12():
-    import glob
-    fs = [f for f in sorted(glob.glob(os.path.join(RES, "exp12_capacity*.csv"))) if not f.endswith("_crb0.csv")]
-    ss = [f for f in sorted(glob.glob(os.path.join(RES, "exp12_strategies*.csv"))) if not f.endswith("_crb0.csv")]
-    if not fs or not ss: return None, None
-    d = pd.concat([pd.read_csv(f) for f in fs], ignore_index=True).drop_duplicates(["C", "realisation", "strategy"])
-    s = pd.read_csv(ss[0]); d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
+def _exp12(tag=""):
+    d = rd(f"exp12_capacity{tag}.csv"); s = rd(f"exp12_strategies{tag}.csv")
+    if d is None or s is None: return None, None
+    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
     return d, s
 
 

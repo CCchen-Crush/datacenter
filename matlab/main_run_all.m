@@ -11,6 +11,7 @@
 %                                  RB_SENS = true -> also repeat Exp2-6 with c_rb = 3 CNY/kW (tag '_crb3')
 %                                  E12_CS = [...], E12_TAG = '_p1' -> commitment levels / file tag of Exp12
 %                                  (to split the capacity sweep over parallel processes)
+%                                  E12_FMODE = 'oracle' -> Exp12 with perfect forecasts (information diagnostic)
 %   Base case: Jiangsu settlement rules alone (no gap-rebound assessment, c_rb = 0). The rebound
 %   assessment is a policy parameter: Exp8 sweeps it, RB_SENS repeats the main experiments at 3 CNY/kW.
 clc;
@@ -112,7 +113,11 @@ if any(RUN == 12)
     fprintf('== Exp12: reliably deliverable capacity (c_rb = %g, Monte-Carlo commitment sweep)\n', ctx.par.dr.c_rb);
     if ~exist('E12_CS', 'var'), E12_CS = 4:0.5:9; end
     if ~exist('E12_TAG', 'var'), E12_TAG = ''; end
-    if QUICK, E12 = exp12_capacity(ctx, root, [6 8], 2, E12_TAG); else, E12 = exp12_capacity(ctx, root, E12_CS, 20, E12_TAG); end
+    S12 = [];                                   % default: deterministic MPC (forecasts)
+    if exist('E12_FMODE', 'var')                % e.g. 'oracle': same controllers with perfect forecasts
+        S12 = {'IR-O*', E12_FMODE, 'IR-O*'; 'IR-P', E12_FMODE, 'IR-P'; 'JR-M', E12_FMODE, 'JR-M'; 'JR', E12_FMODE, 'JR-D'};
+    end
+    if QUICK, E12 = exp12_capacity(ctx, root, [6 8], 2, E12_TAG, S12); else, E12 = exp12_capacity(ctx, root, E12_CS, 20, E12_TAG, S12); end
 end
 if any(RUN == 13)
     fprintf('== Exp13: two-event capacity region (perfect information)\n');
