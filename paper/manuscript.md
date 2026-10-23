@@ -157,7 +157,7 @@ with a metering tolerance $\epsilon_f$ = 2 %. Its multi-event generalisation is 
 
 Because a larger commitment can only tighten the delivery requirement, the delivery indicator is monotone in $C$ for a fixed realisation, and (12) is evaluated by sample average approximation: for every $C$ on a grid $\mathcal G$, the strategy is simulated in closed loop on the realisations $\omega\in\Omega$, and
 $$\hat C^{firm}_\rho=\max\Big\{C\in\mathcal G:\ \frac{1}{|\Omega|}\sum_{\omega}\mathbb 1\big[\bar r_{k,\omega}(C')\ge(1-\epsilon_f)C'\ \forall k\big]\ge\rho\ \ \forall C'\le C,\ C'\in\mathcal G\Big\}. \tag{13}$$
-Confidence intervals of $\hat C^{firm}_\rho$ and of the capacity gain $\Delta C_\rho=C^{firm}_{\rho,JR}-C^{firm}_{\rho,IR}$ are obtained by a block bootstrap over operating days. The relative gain is $I_\rho=\Delta C_\rho/C^{firm}_{\rho,IR}$.
+Confidence intervals of $\hat C^{firm}_\rho$ and of the capacity gain $\Delta C_\rho$ between two strategies are obtained by a block bootstrap over operating days.
 
 ### 3.6 Theoretical properties
 
@@ -248,7 +248,7 @@ All strategies face the same commitments, service deadlines, physical limits and
 
 ### 4.4 Implementation
 
-The models are implemented in MATLAB/GNU Octave and solved with GLPK (Gurobi and `intlinprog` are supported). The intraday MILP has about $10^4$ variables and one binary per event; a closed-loop day of JR-D takes 4–5 s and of JR-S about 60 s on one CPU core.
+The models are implemented in MATLAB/GNU Octave and solved with GLPK (Gurobi and `intlinprog` are supported). The intraday MILP has about $10^4$ variables and one binary per event; the MILP solves of a closed-loop day take about 5 s for JR-D and about 60 s for JR-S on one CPU core.
 
 ## 5. Case studies
 
@@ -258,7 +258,7 @@ The AIDC of Section 2.1 operates under the Jiangsu two-part TOU tariff and DR ru
 
 The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 16 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event, on 14 of them upwards (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors. Every strategy is simulated in closed loop on every day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
 
-The event scenarios are listed in Table 1. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3. All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 3). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.7), so that the benchmark always operates in its best day-ahead configuration.
+The event scenarios are listed in Table 1. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3. All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 3). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.9), so that the benchmark always operates in its best day-ahead configuration.
 
 **Table 1.** Event scenarios.
 
@@ -444,7 +444,7 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\be
 
 **Fig. 5.** Sources and uses of the recovery energy on the typical day (S2, 7 MW), relative to the no-DR operation of the same day, under (a) IR-O\* and (b) JR-D: grid energy drawn through the channel is attributed to the connection margin, gas engine, absorption chiller, PV and cold storage; uses are catch-up and recharge in the interval and after the events.
 
-**Fig. 6.** Share of the 26 operating days on which every event is delivered in full (a–c) and on which every event is valid under the 80 % rule (d–f) versus the uniform commitment, for S1, S2 and S3; bands: 95 % block-bootstrap intervals; ticks: firm capacities at 95 %; arrows: gain of JR-D over the best independent benchmark.
+**Fig. 6.** Share of the 26 operating days on which every event is delivered in full (a–c) and on which every event is valid under the 80 % rule (d–f) versus the uniform commitment, for S1, S2 and S3; bands: 95 % block-bootstrap intervals; ticks: firm capacities at 95 %; arrows: gain of JR-D over the best independent benchmark, a lower bound because neither independent benchmark is firm at 1 MW.
 
 **Fig. 7.** Two-event firm region in S2 (30-min interval, reliability 95 %): largest second-event commitment delivered in full for a fixed first-event commitment, for JR-D and JR-M (bisection on the 26 operating days), and the physical capability with perfect information on the DR day (dashed), which is the same for joint, event-by-event and independent recovery.
 
