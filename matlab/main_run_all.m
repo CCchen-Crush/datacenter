@@ -120,7 +120,10 @@ if any(RUN == 12)
     end
     c12 = ctx; if exist('E12_SCEN', 'var'), c12 = set_scenario(ctx, E12_SCEN); end   % S1 (default) | S2-<min> | S3
     if ~exist('E12_N', 'var'), E12_N = 26; end                                       % distinct PAI test weekdays
-    if QUICK, E12 = exp12_capacity(c12, root, [6 8], 2, E12_TAG, S12); else, E12 = exp12_capacity(c12, root, E12_CS, E12_N, E12_TAG, S12); end
+    if ~exist('E12_ACTIVE', 'var'), E12_ACTIVE = []; end                     % strategy subset of this part
+    if ~exist('E12_ALPHA', 'var'), E12_ALPHA = []; end                       % [C, alpha*] tuned before
+    if QUICK, E12 = exp12_capacity(c12, root, [6 8], 2, E12_TAG, S12); else
+        E12 = exp12_capacity(c12, root, E12_CS, E12_N, E12_TAG, S12, E12_ACTIVE, E12_ALPHA); end
 end
 if any(RUN == 13)
     fprintf('== Exp13: two-event capacity region (perfect information)\n');
@@ -199,7 +202,9 @@ if any(RUN == 18)
     if ~exist('E18_CS', 'var'), E18_CS = 1:0.5:9; end
     if ~exist('E18_TAG', 'var'), E18_TAG = ['_' E18_SCEN]; end
     fprintf('== Exp18: back-test on the historical days (%s)\n', E18_SCEN);
-    E18 = exp18_history(set_scenario(ctx, E18_SCEN), root, E18_CS, E18_TAG);
+    if ~exist('E18_ACTIVE', 'var'), E18_ACTIVE = []; end                     % strategy subset of this part
+    if ~exist('E18_ALPHA', 'var'), E18_ALPHA = []; end
+    E18 = exp18_history(set_scenario(ctx, E18_SCEN), root, E18_CS, E18_TAG, [], E18_ACTIVE, E18_ALPHA);
 end
 if any(RUN == 19)
     % upper bound of static-split independent recovery (best split in hindsight on every test day)
@@ -207,10 +212,12 @@ if any(RUN == 19)
     if ~exist('E19_CS', 'var'), E19_CS = [1 2 3 5 7]; end
     if ~exist('E19_TAG', 'var'), E19_TAG = ['_' E19_SCEN]; end
     fprintf('== Exp19: IR-O with the best split in hindsight (%s)\n', E19_SCEN);
-    E19 = exp19_hindsight(set_scenario(ctx, E19_SCEN), root, E19_CS, [], E19_TAG);
+    if ~exist('E19_ALPHA', 'var'), E19_ALPHA = []; end
+    E19 = exp19_hindsight(set_scenario(ctx, E19_SCEN), root, E19_CS, [], E19_TAG, [], E19_ALPHA);
 end
 if any(RUN == 20)
-    % firm capacity by bisection for system configurations: E20_SET = 'bess' | 'gamma' | 'ies' | 'resources' | 'tau' | 'overhead'
+    % firm capacity by bisection for system configurations:
+    %   E20_SET = 'bess' | 'bessM' | 'gamma' | 'ies' | 'resources' | 'tau' | 'overhead' | 'region' (E20_C1)
     if ~exist('E20_SET', 'var'), E20_SET = 'bess'; end
     if ~exist('E20_SCEN', 'var'), E20_SCEN = 'S2-30'; end
     if ~exist('E20_TAG', 'var'), E20_TAG = ''; end
@@ -245,6 +252,13 @@ if any(RUN == 20)
             for mins = [15 60 120 180]
                 cf(end+1) = struct('name', sprintf('tau%d', mins), 'scen', sprintf('S2-%d', mins), 'mods', [], ...
                                    'S', {[SD; SM; SI]}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
+            end
+        case 'region'        % two-event firm region: first event fixed at C1, firm C2 by bisection
+            if ~exist('E20_C1', 'var'), E20_C1 = [2 4 6 7 8]; end
+            cf = struct('name', {}, 'scen', {}, 'mods', {}, 'S', {}, 'lo', {}, 'hi', {}, 'C1', {});
+            for c1 = E20_C1
+                cf(end+1) = struct('name', sprintf('C1_%g', c1), 'scen', E20_SCEN, 'mods', [], 'S', {[SD; SM]}, ...
+                                   'lo', 1, 'hi', 10, 'C1', c1); %#ok<SAGROW>
             end
         case 'overhead'      % robustness: pause/resume overhead of deferred work
             for ov = [0.02 0.05]

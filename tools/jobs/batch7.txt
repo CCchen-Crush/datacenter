@@ -1,0 +1,28 @@
+# batch 7 (rerun after the container restart of 11:42 UTC; run in the dev copy with tools/run_queue.sh 4).
+# Every experiment now writes its CSV after each commitment / strategy; E*_ALPHA reuses the IR-O* splits tuned
+# day-ahead before for the same scenario (tune_alpha is deterministic); E18_ACTIVE / E12_ACTIVE split strategies.
+hS1ir|RUN=18; E18_SCEN='S1'; E18_ACTIVE=[1 2]; E18_TAG='_S1_ir'; E18_ALPHA=[1 0.2; 1.5 0.2; 2 0.9; 3 0.7; 3.5 0.5; 4 0.2; 4.5 0.2; 5 0.3; 5.5 0.4; 6 0.4; 6.5 0.5; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.6];
+hS1jr|RUN=18; E18_SCEN='S1'; E18_ACTIVE=[3 4]; E18_TAG='_S1_jr';
+S1_c|RUN=12; E12_SCEN='S1'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S1_c'; E12_ALPHA=[1 0.2; 1.5 0.2; 2 0.9; 3 0.7; 3.5 0.5; 4 0.2; 4.5 0.2; 5 0.3; 5.5 0.4; 6 0.4; 6.5 0.5; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.6];
+S2_c|RUN=12; E12_SCEN='S2-30'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S2_c'; E12_ALPHA=[1 0.2; 1.5 0.7; 3 0.2; 3.5 0.4; 4 0.2; 4.5 0.3; 5 0.4; 5.5 0.5; 6 0.5; 6.5 0.6; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.5];
+S3_e|RUN=12; E12_SCEN='S3'; E12_CS=[1 1.5 2 2.5]; E12_TAG='_S3_e'; E12_ALPHA=[1 0.2; 1.5 0.3; 8 0.7; 8.5 0.7; 9 0.6];
+S3_a|RUN=12; E12_SCEN='S3'; E12_CS=[3 3.5 4]; E12_TAG='_S3_a';
+S3_b|RUN=12; E12_SCEN='S3'; E12_CS=[4.5 5 5.5 6]; E12_TAG='_S3_b';
+S3_c|RUN=12; E12_SCEN='S3'; E12_CS=[6.5 7 7.5]; E12_TAG='_S3_c';
+bessB|RUN=20; E20_SET='bess'; E20_SUB=3; E20_TAG='_b';
+gamA|RUN=20; E20_SET='gamma'; E20_SUB=1:2; E20_TAG='_a';
+gamB|RUN=20; E20_SET='gamma'; E20_SUB=3:4; E20_TAG='_b';
+ies|RUN=20; E20_SET='ies';
+tauA|RUN=20; E20_SET='tau'; E20_SUB=1:2; E20_TAG='_a';
+tauB|RUN=20; E20_SET='tau'; E20_SUB=3:4; E20_TAG='_b';
+regA|RUN=20; E20_SET='region'; E20_C1=[2 4 6]; E20_TAG='_a';
+regB|RUN=20; E20_SET='region'; E20_C1=[7 8]; E20_TAG='_b';
+hS2ir|RUN=18; E18_SCEN='S2-30'; E18_ACTIVE=[1 2]; E18_TAG='_S2_ir'; E18_ALPHA=[1 0.2; 1.5 0.7; 3 0.2; 3.5 0.4; 4 0.2; 4.5 0.3; 5 0.4; 5.5 0.5; 6 0.5; 6.5 0.6; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.5];
+hS2jr|RUN=18; E18_SCEN='S2-30'; E18_ACTIVE=[3 4]; E18_TAG='_S2_jr';
+hind1|RUN=19; E19_SCEN='S1'; E19_ALPHA=[1 0.2; 1.5 0.2; 2 0.9; 3 0.7; 3.5 0.5; 4 0.2; 4.5 0.2; 5 0.3; 5.5 0.4; 6 0.4; 6.5 0.5; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.6];
+hind2|RUN=19; E19_SCEN='S2-30'; E19_TAG='_S2'; E19_ALPHA=[1 0.2; 1.5 0.7; 3 0.2; 3.5 0.4; 4 0.2; 4.5 0.3; 5 0.4; 5.5 0.5; 6 0.5; 6.5 0.6; 7 0.6; 7.5 0.5; 8 0.5; 8.5 0.7; 9 0.5];
+ovh|RUN=20; E20_SET='overhead';
+sg1|RUN=14; E14_SET='single'; E14_C=7; E14_TAG='_a';
+jrs|RUN=4; MC_PART='uncertain'; NMC=26;
+rb|RUN=8;
+supp|RUN=[1 5 11 13];

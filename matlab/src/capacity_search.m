@@ -2,7 +2,8 @@ function [Cr, E] = capacity_search(ctx, strat, rho, o)
 %CAPACITY_SEARCH  Firm capacity C_rho of one strategy by bisection over the uniform commitment C.
 %   ctx   case with the event scenario and the system parameters already set
 %   strat {name, forecast mode, label}; rho target reliability (share of test days with full delivery)
-%   o     .lo, .hi bracket (MW), .tol resolution (MW), .rs test realisations
+%   o     .lo, .hi bracket (MW), .tol resolution (MW), .rs test realisations, .C1 (optional) fixed
+%         commitment of the first event (the bisection then sets every later event to C)
 %   At every evaluated C the benchmarks are prepared day-ahead (IR-O*: split tuned on the day-ahead
 %   scenarios; IR-P: channel price). The evaluation stops as soon as more days have failed than rho
 %   allows. The share of days with full delivery is non-increasing in C for the joint strategies; for
@@ -12,22 +13,24 @@ function [Cr, E] = capacity_search(ctx, strat, rho, o)
 %   stopped early].
 nfail_max = floor((1 - rho) * numel(o.rs) + 1e-9);
 E = zeros(0, 4);
-[ok, row] = evaluate(ctx, strat, o.lo, o.rs, nfail_max); E(end + 1, :) = row;
+[ok, row] = evaluate(ctx, strat, o.lo, o, nfail_max); E(end + 1, :) = row;
 if ~ok, Cr = NaN; return; end
-[ok, row] = evaluate(ctx, strat, o.hi, o.rs, nfail_max); E(end + 1, :) = row;
+[ok, row] = evaluate(ctx, strat, o.hi, o, nfail_max); E(end + 1, :) = row;
 if ok, Cr = o.hi; return; end
 lo = o.lo; hi = o.hi;
 while hi - lo > o.tol + 1e-9
     mid = o.tol * round((lo + hi) / 2 / o.tol);
     if mid <= lo + 1e-9 || mid >= hi - 1e-9, break; end
-    [ok, row] = evaluate(ctx, strat, mid, o.rs, nfail_max); E(end + 1, :) = row;
+    [ok, row] = evaluate(ctx, strat, mid, o, nfail_max); E(end + 1, :) = row;
     if ok, lo = mid; else, hi = mid; end
 end
 Cr = lo;
 end
 
-function [ok, row] = evaluate(ctx, strat, C, rs, nfail_max)
-c0 = apply_commit(ctx, C * ones(1, numel(ctx.ev)));
+function [ok, row] = evaluate(ctx, strat, C, o, nfail_max)
+rs = o.rs; Cv = C * ones(1, numel(ctx.ev));
+if isfield(o, 'C1'), Cv(1) = o.C1; end
+c0 = apply_commit(ctx, Cv);
 switch strat{1}
     case 'IR-O*', c0.alpha_star = tune_alpha(c0, 'expected', ctx.par.bench.alpha_grid);
     case 'IR-P',  c0.lambda_hr_da = dayahead_prices(c0);

@@ -1,4 +1,4 @@
 label,C_rho,rho,n_eval
-BESS_only|JR-D,NaN,0.95,1
-compute_only|JR-D,3,0.95,7
+BESS_only|JR-D,,0.95,1
 compute_BESS|JR-D,7.5,0.95,8
+compute_only|JR-D,3,0.95,7

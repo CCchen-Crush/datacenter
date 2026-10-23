@@ -19,6 +19,7 @@ S0 = {'IR-O*', 'expected', 'IR-O*'; 'IR-P', 'expected', 'IR-P'; 'JR-M', 'expecte
 rows = []; hdr = {}; names = {}; t0 = tic;
 for i = 1:numel(cfgs)
     cf = cfgs(i); S = S0; if isfield(cf, 'S') && ~isempty(cf.S), S = cf.S; end
+    names{i} = cf.name; %#ok<AGROW>
     if isfield(cf, 'gap') && ~isempty(cf.gap)
         c = set_events(ctx, [17, 18 + cf.gap], 1, 6, [24 24]); c.scen = sprintf('gap%.2f', cf.gap);
     else
@@ -49,13 +50,12 @@ for i = 1:numel(cfgs)
         end
         fprintf('  exp14%s %-12s C=%-14s alpha*=%.1f | all-full %s (%.0f min)\n', tag, cf.name, mat2str(Cm(j, :)), ...
             c0.alpha_star, sprintf('%4.2f ', mean(q, 1)), toc(t0) / 60);
+        write_csv(fullfile(root, 'results', sprintf('exp14_%s.csv', tag)), ...
+            [{'cfg', 'cj', 'C1', 'C2', 'C3', 'realisation', 'strategy', 'alpha_star'}, hdr], rows);
+        write_csv(fullfile(root, 'results', sprintf('exp14_%s_cfg.csv', tag)), {'cfg'}, (1:numel(names))', names);
+        write_csv(fullfile(root, 'results', sprintf('exp14_%s_strategies.csv', tag)), {'index'}, (1:size(S, 1))', S(:, 3));
     end
-    names{i} = cf.name; %#ok<AGROW>
 end
-write_csv(fullfile(root, 'results', sprintf('exp14_%s.csv', tag)), ...
-    [{'cfg', 'cj', 'C1', 'C2', 'C3', 'realisation', 'strategy', 'alpha_star'}, hdr], rows);
-write_csv(fullfile(root, 'results', sprintf('exp14_%s_cfg.csv', tag)), {'cfg'}, (1:numel(names))', names);
-write_csv(fullfile(root, 'results', sprintf('exp14_%s_strategies.csv', tag)), {'index'}, (1:size(S, 1))', S(:, 3));
 out.rows = rows; out.hdr = hdr;
 end
 

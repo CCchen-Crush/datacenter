@@ -1,11 +1,13 @@
 function out = exp20_capacity_configs(ctx, root, cfgs, tag, o)
 %EXP20_CAPACITY_CONFIGS  Firm consecutive DR capacity C_rho (bisection over the uniform commitment, see
 %   capacity_search) for system configurations: substitution curves of BESS size and connection margin,
-%   contribution of the IES devices, pause/resume overhead of deferred work. Every configuration has
+%   contribution of the IES devices, pause/resume overhead of deferred work, two-event firm region. Every
+%   configuration has
 %     .name  label            .scen  event scenario (set_scenario)       .mods  ctx_with_par changes
 %     .S     strategies {name, forecast mode, label}                     .lo, .hi  search bracket (MW)
+%     .C1    (optional) fixed commitment of the first event; the bisection then runs over the later ones
 %   Writes results/exp20_<tag>.csv (one capacity per configuration and strategy) and
-%   results/exp20_<tag>_evals.csv (every evaluated commitment).
+%   results/exp20_<tag>_evals.csv (every evaluated commitment) after every strategy.
 rho = getf(o, 'rho', 0.95); tol = getf(o, 'tol', 0.25); N = getf(o, 'N', 26);
 rs = test_days(ctx, N);
 caps = []; E = []; lc = {}; le = {}; t0 = tic;
@@ -14,15 +16,17 @@ for i = 1:numel(cfgs)
     c = set_scenario(ctx, cf.scen);
     if isfield(cf, 'mods') && ~isempty(cf.mods), c = ctx_with_par(c, cf.mods); end
     for k = 1:size(cf.S, 1)
-        [Cr, Ek] = capacity_search(c, cf.S(k, :), rho, struct('lo', cf.lo, 'hi', cf.hi, 'tol', tol, 'rs', rs));
+        so = struct('lo', cf.lo, 'hi', cf.hi, 'tol', tol, 'rs', rs);
+        if isfield(cf, 'C1') && ~isempty(cf.C1), so.C1 = cf.C1; end
+        [Cr, Ek] = capacity_search(c, cf.S(k, :), rho, so);
         caps = [caps; Cr, rho, size(Ek, 1)]; lc{end + 1} = sprintf('%s|%s', cf.name, cf.S{k, 3}); %#ok<AGROW>
         E = [E; Ek]; le = [le, repmat({sprintf('%s|%s', cf.name, cf.S{k, 3})}, 1, size(Ek, 1))]; %#ok<AGROW>
         fprintf('  exp20%s %-12s %-6s C_%.2f = %5.2f MW (%d evaluations, %.0f min)\n', tag, cf.name, cf.S{k, 3}, rho, Cr, ...
             size(Ek, 1), toc(t0) / 60);
+        write_csv(fullfile(root, 'results', sprintf('exp20_%s.csv', tag)), {'C_rho', 'rho', 'n_eval'}, caps, lc);
+        write_csv(fullfile(root, 'results', sprintf('exp20_%s_evals.csv', tag)), {'C', 'share', 'days', 'stopped'}, E, le);
     end
 end
-write_csv(fullfile(root, 'results', sprintf('exp20_%s.csv', tag)), {'C_rho', 'rho', 'n_eval'}, caps, lc);
-write_csv(fullfile(root, 'results', sprintf('exp20_%s_evals.csv', tag)), {'C', 'share', 'days', 'stopped'}, E, le);
 out.caps = caps; out.labels = lc;
 end
 
