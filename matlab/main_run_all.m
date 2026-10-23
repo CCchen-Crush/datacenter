@@ -223,6 +223,10 @@ if any(RUN == 20)
                 S = [SD; SI]; if P == 6, S = [SD; SM; SI]; end
                 cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', E20_SCEN, 'mods', struct('bess_P', P, 'keep_Pcap', true), 'S', {S}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
             end
+        case 'bessM'         % JR-M on the BESS sweep (battery equivalent of cross-event foresight)
+            for P = [0 3 9 12]
+                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', E20_SCEN, 'mods', struct('bess_P', P, 'keep_Pcap', true), 'S', {SM}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
+            end
         case 'gamma'         % connection margin: substitution curve (gamma 1.10 = base, in 'bess')
             for g = [1.00 1.05 1.20 1.30]
                 cf(end+1) = struct('name', sprintf('g%.2f', g), 'scen', E20_SCEN, 'mods', struct('gamma', g), 'S', {[SD; SI]}, 'lo', 1, 'hi', 16); %#ok<SAGROW>

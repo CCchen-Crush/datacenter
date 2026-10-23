@@ -1,0 +1,3 @@
+# batch 5c: JR-M on the BESS sweep (battery equivalent of cross-event foresight), S2, connection kept
+bessM1|RUN=20; E20_SET='bessM'; E20_SUB=1:2; E20_TAG='_a';
+bessM2|RUN=20; E20_SET='bessM'; E20_SUB=3:4; E20_TAG='_b';

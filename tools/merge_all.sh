@@ -30,7 +30,7 @@ m14 region_S2-30 _p1 _p2 _p3 _p4
 mc() { out=$1; shift; python3 merge_concat.py "$out" "$@"; }
 [ -f $R/exp18_history_S1_a.csv ] && [ -f $R/exp18_history_S1_b.csv ] && { mc exp18_history_S1.csv exp18_history_S1_a.csv exp18_history_S1_b.csv; \
     cp $R/exp18_strategies_S1_a.csv $R/exp18_strategies_S1.csv; rm -f $R/exp18_strategies_S1_a.csv $R/exp18_strategies_S1_b.csv; }
-for st in bess tau gamma; do
+for st in bess bessM tau gamma; do
     mc exp20_$st.csv exp20_${st}_a.csv exp20_${st}_b.csv exp20_${st}_c.csv
     mc exp20_${st}_evals.csv exp20_${st}_a_evals.csv exp20_${st}_b_evals.csv exp20_${st}_c_evals.csv
 done

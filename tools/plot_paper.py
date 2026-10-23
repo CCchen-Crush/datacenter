@@ -824,7 +824,7 @@ def _cost_decomp(ax, tabs, nd, C0):
 
 def fig14_economics(C0=7.0):
     nd = rd("exp17_nodr.csv")
-    tabs = [(load_capacity(t), s) for t, s in CAP_TAGS]; tabs = [(d, s) for d, s in tabs if d is not None]
+    tabs = [(load_capacity(t), s) for t, s in CAP_TAGS[:2]]; tabs = [(d, s) for d, s in tabs if d is not None]   # S3: medians in the text
     if not tabs or nd is None: return
     nd = nd.set_index("realisation")
     fig = plt.figure(figsize=(DOUBLE_COL, 6.0)); gs = fig.add_gridspec(2, 2, height_ratios=[1.05, 1], width_ratios=[1.25, 1], hspace=0.62, wspace=0.26)
