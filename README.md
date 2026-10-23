@@ -28,15 +28,15 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 
 | Module | Question | Experiment | Paper figure |
 |---|---|---|---|
-| Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 11; S1, S2 |
-| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp20` (region), `exp13_region` | Fig. 5, 6, S3; Table 4 |
-| Value decomposition | Coordination vs cross-event foresight, conditions | `exp20_capacity_configs` (tau), `exp14_sweep` (tau_gamma, single) | Fig. 7, 8 |
-| System-level insight | Equivalent battery energy and connection capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 9 |
-| Commitment | Distributionally robust firm capacity (Proposition 3) | `exp18_history`, `exp16_endogenous` | Fig. 10, S7; Table 5 |
-| Integrated energy system | Who provides the recovery channel; device contribution | `exp15` time series, `exp20` (ies, resources) | Fig. 11, 12 |
-| Users and economics | Service quality, costs, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, S4 |
-| Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8, Fig. 8d |
-| Supplementary | Physical capability regions, rebound policy, shadow prices | `exp13_region`, `exp8_rebound`, `exp5_shadow` | Fig. S3, S5, S6 |
+| Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 5; S5, S6 |
+| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp20` (region), `exp13_region` | Fig. 6, 7, S1; Table 4 |
+| Value decomposition | Coordination vs cross-event foresight, conditions | `exp20_capacity_configs` (tau), `exp14_sweep` (tau_gamma, single) | Fig. 8, 9 |
+| System-level insight | Equivalent battery energy and connection capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 10 |
+| Commitment | Distributionally robust firm capacity (Proposition 3) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 5 |
+| Integrated energy system | Who provides the recovery channel; device contribution | `exp15` time series, `exp20` (ies, resources) | Fig. 5, 12 |
+| Users and economics | Service quality, costs, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, S3 |
+| Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8, Fig. 9d |
+| Supplementary | Physical capability regions, rebound policy, shadow prices | `exp13_region`, `exp8_rebound`, `exp5_shadow` | Fig. S1, S4, S7 |
 
 ## Reproduce
 

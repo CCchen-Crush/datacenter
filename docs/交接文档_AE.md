@@ -180,15 +180,15 @@ cd tools && /tmp/venv/bin/python plot_paper.py       # 全部图；也可只画�
 - 可靠容量用“每次事件均足额（≥98%）”口径，江苏 80% 有效口径另报。
 - IR-O* 在每个承诺水平用日前场景回测重新调分摊比例 α，IR-P 用日前联合计划的通道影子价格，都是最强形态。
 - 测试日是 DR 日之后的 26 个不重复 PAI 工作日（各配高温日气象与 Azure 推理日）；置信区间用按测试日的区组自助法。
-- 两事件完美信息能力域（exp13）在 1 h 事件下几乎是矩形。可行域改用闭环可靠率口径（exp14 region），完美信息结果只放补充材料（Fig. S3），说明“物理能力相近、差别在运行与协调”。
+- 两事件完美信息能力域（exp13）在 1 h 事件下几乎是矩形。可行域改用闭环可靠率口径（exp14 region），完美信息结果只放补充材料（Fig. S1），说明“物理能力相近、差别在运行与协调”。
 - 不再新增实验种类；不开发新算法；不建作业级 GPU 仿真。
 
 ## 6 下一步清单（按顺序）
 
 1. **通读全文**（英文润色、术语统一：IR-O\*/IR-P/JR-M/JR-D/JR-S、“firm capacity”“recovery channel”“debt”）；检查正文引用的图表编号与图题。
 2. **参考文献**：已合并为 38 条、按首次引用顺序编号（未引用的旧条目已删去；中文文献已译为英文并注明 in Chinese）。2026-10-23 已用 Crossref / arXiv 核对：[14]、[15]、[20]、[21] 已补全作者、完整标题和卷号，[10] 补页码，[4]、[11]–[13]、[16]、[19]、[24]、[33] 标题与作者一致。仍需人工核对的只有 [17]、[18]（中文期刊，Crossref 未收录，请对照中文原文核对英文译名与卷期页码）。
-3. **图题**：Fig. 1–14、S1–S7 的图题已写在 `paper/manuscript.md` 的 “Figure captions” 一节；表格已按首次引用顺序编号（Table 1 场景、2 算法、3 场景矩阵、4 可靠容量、5 日前承诺）。
-4. **投稿格式**：转 Elsevier LaTeX（elsarticle）或 Word；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 6 拼成）；Highlights 每条 ≤ 85 字符（已满足）。
+3. **图题**：Fig. 1–14、S1–S7 的图题已写在 `paper/manuscript.md` 的 “Figure captions” 一节，图号按首次引用顺序编排（2026-10-23 晚调整：桑基图改为 Fig. 5，原 Fig. 5–10 顺延为 6–11；补充图依次为 S1 完美信息能力域、S2 承诺方法、S3 调用不确定、S4 反弹、S5 命题 1、S6 命题 2、S7 影子价格；`tools/plot_paper.py` 的函数名与输出文件名同步）；表格已按首次引用顺序编号（Table 1 场景、2 算法、3 场景矩阵、4 可靠容量、5 日前承诺）。
+4. **投稿格式**：转 Elsevier LaTeX（elsarticle）或 Word；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 7 拼成）；Highlights 每条 ≤ 85 字符（已满足）。
 5. **可选补充**：S2 的完美追索两阶段承诺（exp16 目前只有 S1）；若审稿人追问半径选取，可在补充材料给出留一交叉验证半径的对照（`paper/numbers.md` 中 “eps LOO” 列已算好：S1 JR-M 0、S2 JR-M 0.015 MW → 4.5 MW）。
 6. **复现**：换容器后若需重跑，用 `tools/jobs/batch7.txt`（约 4 小时，4 核）以及 checkpoint、batch2/3/5b/5c 中已完成的部分；结果用 `PY=python3 tools/refresh.sh` 汇总。
 

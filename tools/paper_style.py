@@ -158,7 +158,7 @@ def cv_radius(xi_mid, xi_lb, rho, grid, eps_grid=None):
     return float(eps_grid[-1])
 
 
-# ------------------------------------------------------------------ recovery energy sources and uses (Sankey, Fig. 11)
+# ------------------------------------------------------------------ recovery energy sources and uses (Sankey, Fig. 5)
 PDYN = 8.4 / 8 / 1000 * 0.75          # MW per busy GPU (dynamic part), Table A1
 def recovery_flows(q, ref, windows, theta=1.0, ups=0.05):
     """Energy (MWh) that recovery draws in the given hour windows, relative to the no-DR operation of the same day.

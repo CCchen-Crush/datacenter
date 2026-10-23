@@ -3,9 +3,10 @@
 
 Usage: python3 tools/plot_paper.py [fig ...]      e.g.  python3 tools/plot_paper.py 5 9 S7
 Fig. 1 system and recovery channel | 2 framework | 3 typical-day power balance | 4 backlogs and storage |
-5 reliability curves | 6 two-event region | 7 coordination vs foresight | 8 sensitivity | 9 substitution curves |
-10 distributionally robust commitment | 11 recovery-energy Sankey | 12 IES contribution | 13 capacity-service Pareto |
-14 economics; S1-S7 supplementary
+5 recovery-energy Sankey | 6 reliability curves | 7 two-event region | 8 coordination vs foresight | 9 sensitivity |
+10 substitution curves | 11 distributionally robust commitment | 12 IES contribution | 13 capacity-service Pareto |
+14 economics | S1 perfect-information regions | S2 commitment methods | S3 call uncertainty | S4 rebound policy |
+S5 Proposition 1 | S6 Proposition 2 | S7 shadow prices
 """
 import sys
 import numpy as np
@@ -18,8 +19,8 @@ from paper_style import (rd, save, shade, panel, load_capacity, capacity_table, 
 CAP_TAGS = [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]
 
 
-# ------------------------------------------------------------------ Fig. 3 reliability curves
-def fig3():
+# ------------------------------------------------------------------ Fig. 6 reliability curves
+def fig6_capacity():
     data = [(load_capacity(t), s) for t, s in CAP_TAGS]
     data = [(d, s) for d, s in data if d is not None]
     if not data: return
@@ -54,10 +55,10 @@ def fig3():
     hh, ll = axs[0, 0].get_legend_handles_labels()
     fig.subplots_adjust(top=0.9)
     fig.legend(hh, ll, loc="upper center", bbox_to_anchor=(0.5, 0.995), ncol=4, handlelength=2.6, columnspacing=1.6)
-    save(fig, "Fig5_reliable_capacity")
+    save(fig, "Fig6_reliable_capacity")
 
 
-# ------------------------------------------------------------------ Fig. 5 strategy comparison
+# ------------------------------------------------------------------ cost components (Fig. 14)
 DCOST = [("cost_energy", "Electricity", "#8fb3d9"), ("cost_gas", "Natural gas", "#e8c48a"), ("cost_deg", "Storage degradation", "#b9b9b9"),
          ("cost_delay", "Task delay", "#c9a3c9"), ("term_adj", "End-of-day state", "#a6d4c8"), ("pen_dev", "Shortfall assessment", "#e39a8f"),
          ("dr_pay", "DR revenue", "#7fbf7f")]
@@ -84,8 +85,8 @@ def endogenous_points(scen="S1", tag="_S1", rho=1.0):
     return pts
 
 
-def figS7(rho=0.95):
-    """Day-ahead commitment methods in the plane of out-of-sample full delivery and benefit (Table 4): physical
+def figS2(rho=0.95):
+    """Day-ahead commitment methods in the plane of out-of-sample full delivery and benefit (Table 5): physical
     capability (perfect-recourse MILP, single-event capability; Exp16) and the closed-loop back-test on the historical
     days (sample average, Wasserstein-robust, cost-optimal below the robust capacity; Exp18 with Exp12). Points are
     numbered; the key lists the strategy, the commitment and the methods that select it."""
@@ -139,10 +140,10 @@ def figS7(rho=0.95):
     hd = [Line2D([], [], marker=m, ls="", color="#555555", ms=6 if l != "cost-optimal" else 9, mec="black" if l == "cost-optimal" else "#555555", label=l)
           for l, m in mk.items()] + [Line2D([], [], marker="D", ls="", mfc="white", mec="#555555", ms=5, label="physical capability")]
     fig.legend(handles=hd, loc="upper center", bbox_to_anchor=(0.5, 1.0), ncol=4, fontsize=6.4)
-    save(fig, "FigS7_commitment_methods")
+    save(fig, "FigS2_commitment_methods")
 
 
-def fig6_region(lo=1.0):
+def fig7_region(lo=1.0):
     """Two-event firm region in S2 (30-min interval): largest C2 delivered in full on >= 95 % of the test days for a fixed
     first-event commitment C1 (Exp20 'region', bisection), uniform firm capacities on the diagonal (Exp20 bess6) and the
     physical capability boundary with perfect information on the DR day (Exp13, tau = 0.5 h)."""
@@ -176,7 +177,7 @@ def fig6_region(lo=1.0):
     ax.set_xlim(0, 9); ax.set_ylim(0, 9.4)
     ax.set_xlabel("Commitment of event 1, $C_1$ (MW)"); ax.set_ylabel("Firm commitment of event 2, $C_2$ (MW)")
     ax.legend(loc="lower right", fontsize=6.0, bbox_to_anchor=(1.0, 0.1)); ax.set_title("S2, 30-min interval, reliability 95 %", fontsize=8)
-    save(fig, "Fig6_two_event_region")
+    save(fig, "Fig7_two_event_region")
     return top
 
 
@@ -249,7 +250,7 @@ def fig1():
 
 
 # ------------------------------------------------------------------ supplementary figures
-def figS1():
+def figS5():
     files = [("exp1_mechanism_CA6_DA2.csv", "Event A: 6 MW × 2 h, event B: 1 h"), ("exp1_mechanism_CA6_DA1_DB2.csv", "Event A: 6 MW × 1 h, event B: 2 h")]
     data = [(rd(f), t) for f, t in files]
     if any(x is None for x, _ in data): return
@@ -273,10 +274,10 @@ def figS1():
     a.set_xticks(range(len(taus))); a.set_xticklabels([f"{x:g}" for x in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{x:.2f}" for x in gams])
     a.set_xlabel("Event interval τ (h)"); a.set_ylabel("Connection margin γ"); a.set_title("Capability gain of joint recovery (% of $Γ_B^0$)", fontsize=7.8)
     panel(a, "c", x=-0.22)
-    save(fig, "FigS1_mechanism_bound")
+    save(fig, "FigS5_mechanism_bound")
 
 
-def figS2():
+def figS6():
     d = rd("exp11_stylized.csv")
     if d is None: return
     Ls = sorted(d.L_h.unique())
@@ -290,10 +291,10 @@ def figS2():
     err = max((d.G_JR_closed - d.G_JR_lp).abs().max(), (d.G_IR_closed - d.G_IR_lp).abs().max())
     fig.subplots_adjust(top=0.8)
     fig.text(0.99, 0.985, f"max |closed form − LP| = {err:.0e} MW over {len(d)} cases (rounding of the stored results)", ha="right", va="top", fontsize=6.5)
-    save(fig, "FigS2_proposition2_check")
+    save(fig, "FigS6_proposition2_check")
 
 
-def figS3():
+def figS1():
     files = [("", "A 1 h, B 1 h"), ("_DA2", "A 2 h, B 1 h"), ("_DB2", "A 1 h, B 2 h"), ("_K3", "Three events: E1 = E2 = $C_1$, max E3")]
     panels = []
     for tag, lab in files:
@@ -313,10 +314,10 @@ def figS3():
     for a in axs[-1, :]: a.set_xlabel("$C_1$ (MW)")
     for a in axs[:, 0]: a.set_ylabel("max $C_2$ (MW)")
     axs.flat[0].legend(fontsize=5.6, loc="lower left")
-    save(fig, "FigS3_perfect_information_regions")
+    save(fig, "FigS1_perfect_information_regions")
 
 
-def figS4():
+def figS3():
     d = rd("exp4_e3uncertain.csv"); s = rd("exp4_e3uncertain_strategies.csv")
     if d is None or s is None: return
     d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
@@ -329,10 +330,10 @@ def figS4():
         a.set_xticks(range(len(names))); a.set_xticklabels(names, fontsize=6.8); a.set_ylabel(lab); panel(a, "ab"[j])
         if j == 1: a.set_ylim(60, 102)
     axs[0].legend(fontsize=6.5); fig.suptitle("S3 with call uncertainty of the rapid peak-shaving event E3 (p = 0.6, 1 h notice), C = 6 MW", fontsize=8, y=1.02)
-    save(fig, "FigS4_call_uncertainty")
+    save(fig, "FigS3_call_uncertainty")
 
 
-def figS5():
+def figS4():
     d = rd("exp8_rebound.csv"); s = rd("exp8_strategies.csv")
     if d is None or s is None: return
     d["name"] = d.strategy.map(dict(zip(s["index"], s["label"])))
@@ -345,10 +346,10 @@ def figS5():
     axs[0].set_xlabel("Peak post-event rebound (MW)"); axs[0].set_ylabel("Cost under Jiangsu rules (10$^3$ CNY)"); panel(axs[0], "a")
     axs[1].set_xlabel("Rebound assessment price $c^{rb}$ (CNY/kW per event)"); axs[1].set_ylabel("Peak post-event rebound (MW)"); panel(axs[1], "b")
     axs[0].legend(fontsize=6.5)
-    save(fig, "FigS5_rebound_policy")
+    save(fig, "FigS4_rebound_policy")
 
 
-def figS6():
+def figS7():
     d = rd("exp5_shadow.csv")
     if d is None: return
     fig, axs = plt.subplots(2, 1, figsize=(SINGLE_COL * 1.4, 3.6), sharex=True); fig.subplots_adjust(hspace=0.15)
@@ -359,7 +360,7 @@ def figS6():
     for k, c in zip([1, 2, 3], ["#9ecae1", "#4292c6", "#08519c"]): a.plot(d.hour, d[f"cost_B{k}"], color=c, lw=1.3, label=f"Backlog value C{k}")
     a.set_ylabel("CNY per GPU·h"); a.set_xlabel("Hour of day"); a.legend(fontsize=6.3); panel(a, "b", x=-0.12)
     for a in axs: a.set_xlim(12, 30)
-    save(fig, "FigS6_shadow_prices")
+    save(fig, "FigS7_shadow_prices")
 
 
 FIGS = {"S1": figS1, "S2": figS2, "S3": figS3, "S4": figS4, "S5": figS5, "S6": figS6, "S7": figS7}
@@ -431,7 +432,7 @@ def fig2_framework():
 
 
 
-# ------------------------------------------------------------------ Fig. 11 recovery energy Sankey
+# ------------------------------------------------------------------ Fig. 5 recovery energy Sankey
 def _sankey(ax, S, U, scol, ucol, total_h=0.86, gap=0.025, x0=0.27, x1=0.69, w=0.035):
     from matplotlib.path import Path
     from matplotlib.patches import PathPatch, Rectangle
@@ -465,7 +466,7 @@ def _sankey(ax, S, U, scol, ucol, total_h=0.86, gap=0.025, x0=0.27, x1=0.69, w=0
     ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
 
 
-def fig11(case="short_r21", gap=(18.0, 18.5), after=(19.5, 21.5)):
+def fig5_sankey(case="short_r21", gap=(18.0, 18.5), after=(19.5, 21.5)):
     import os
     case = os.environ.get("FIG11_CASE", case)
     ref = rd(f"ts15_{case}_NoDR.csv")
@@ -496,7 +497,7 @@ def fig11(case="short_r21", gap=(18.0, 18.5), after=(19.5, 21.5)):
         share = 100 * U.get("Recharge in the interval", 0) / max(g, 1e-9)
         ax.set_title(f"{n}: BESS recharge takes {share:.0f} % of the interval channel", fontsize=7.8)
         panel(ax, "ab"[j], x=0.0, y=0.98)
-    save(fig, "Fig11_recovery_sankey")
+    save(fig, "Fig5_recovery_sankey")
 
 
 
@@ -587,8 +588,8 @@ def fig4_states(suf="_r21"):
 
 
 
-# ------------------------------------------------------------------ Fig. 7 value of coordination and of cross-event foresight vs interval
-def fig7_decomp():
+# ------------------------------------------------------------------ Fig. 8 value of coordination and of cross-event foresight vs interval
+def fig8_decomp():
     """Firm capacity versus the event interval (Exp20 'tau' + the 30-min base case of 'bess'): coordination value
     JR-M - IR-O* and cross-event foresight value JR-D - JR-M. A strategy below the search bracket (NaN) is drawn just under
     it and its value counts as a lower bound; a configuration that has not been run is left out."""
@@ -638,10 +639,10 @@ def fig7_decomp():
         ax.set_ylim(0, max(coord + fore) + 2.4)
     ax.axhline(0, color="black", lw=0.6); ax.set_xticks(x); ax.set_xticklabels([f"{v:g}" for v in full])
     ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Capacity gain (MW)"); ax.legend(loc="upper left", fontsize=6.0); panel(ax, "b", x=-0.14)
-    save(fig, "Fig7_value_decomposition")
+    save(fig, "Fig8_value_decomposition")
 
 
-# ------------------------------------------------------------------ Fig. 9 substitution curves: battery energy and connection capacity
+# ------------------------------------------------------------------ Fig. 10 substitution curves: battery energy and connection capacity
 BESS_COST = 0.6          # million CNY per MWh (0.6 CNY/Wh system cost, Table A1)
 P_TYP = 14.573           # typical-day peak import (MW); P^cap = gamma * P_TYP
 
@@ -684,7 +685,7 @@ def _equiv(v_ref, v_new, x_base):
     k = int(np.argmax(yn)); return c, _inv(xn[:k + 1], yn[:k + 1], c)
 
 
-def fig9_substitution(lo=1.0):
+def fig10_substitution(lo=1.0):
     T = substitution_table()
     if T is None: return
     E, G = T; res = {}
@@ -724,18 +725,18 @@ def fig9_substitution(lo=1.0):
     ax.axhline(0, color="black", lw=0.6); ax.set_xlim(-0.5, 2.4); ax.set_xticks([])
     ax.set_title("Saved by cross-event foresight\n(same firm capacity as JR-M)", fontsize=7.0)
     ax.set_ylabel("Battery (MWh, +) / connection (MW, −)"); panel(ax, "c", x=-0.32)
-    save(fig, "Fig9_substitution")
+    save(fig, "Fig10_substitution")
     return res
 
 
-# ------------------------------------------------------------------ Fig. 10 distributionally robust commitment: calibration
+# ------------------------------------------------------------------ Fig. 11 distributionally robust commitment: calibration
 def _history(scen):
     h = rd(f"exp18_history_{scen}.csv"); hs = rd(f"exp18_strategies_{scen}.csv")
     if h is None or hs is None: return None
     h["name"] = h.strategy.map(dict(zip(hs["index"], hs["label"]))); return h
 
 
-def fig10_calibration(rho=0.95):
+def fig11_calibration(rho=0.95):
     """Distributionally robust commitment: (a) capability per day on the historical and the test days, (b) robust firm
     capacity versus the Wasserstein radius, (c) predicted versus realised full-delivery probability; one row per scenario."""
     from paper_style import capability, worst_case_prob, dro_capacity, eps_sampling
@@ -788,7 +789,7 @@ def fig10_calibration(rho=0.95):
         ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
         ax.text(0.03, 0.95, "hollow: sample average (ε = 0)\nfilled: distributionally robust ($\\varepsilon_N$)", transform=ax.transAxes, fontsize=5.8, va="top")
         panel(ax, "cfi"[i] if len(rows) > 1 else "c", x=-0.2)
-    save(fig, "Fig10_dro_calibration")
+    save(fig, "Fig11_dro_calibration")
     return sel
 
 
@@ -838,7 +839,7 @@ def fig12_ies(case="short_r21", lo=1.0):
 
 
 
-# ------------------------------------------------------------------ Fig. 8 sensitivity: interval x connection margin, lag bounds
+# ------------------------------------------------------------------ Fig. 9 sensitivity: interval x connection margin, lag bounds
 def _exp14(st, parts):
     d = rd(f"exp14_{st}.csv")
     if d is not None:
@@ -853,7 +854,7 @@ def _exp14(st, parts):
     return pd.concat(out, ignore_index=True) if out else None
 
 
-def fig8_sensitivity():
+def fig9_sensitivity():
     d = _exp14("tau_gamma", ["_g100", "_g105", "_g110", "_g120"])
     if d is None: return
     d["gap"] = d.cfgname.map(lambda x: float(x.split("_")[0][3:])); d["gamma"] = d.cfgname.map(lambda x: float(x.split("_")[1][1:]))
@@ -886,7 +887,7 @@ def fig8_sensitivity():
         ax.set_xlabel("Scale of lag bounds $L_c$"); ax.set_ylabel("Full delivery (%), S1, 7 MW"); ax.set_ylim(-3, 104)
         ax.legend(loc="center right", bbox_to_anchor=(1.0, 0.45), fontsize=6.2)
     panel(ax, "d", x=-0.28)
-    save(fig, "Fig8_sensitivity")
+    save(fig, "Fig9_sensitivity")
 
 
 
@@ -961,8 +962,9 @@ def fig14_economics(C0=7.0):
 
 
 
-FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig3, "6": fig6_region, "7": fig7_decomp, "8": fig8_sensitivity,
-             "9": fig9_substitution, "10": fig10_calibration, "11": fig11, "12": fig12_ies, "13": fig13, "14": fig14_economics})
+FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig5_sankey, "6": fig6_capacity, "7": fig7_region,
+             "8": fig8_decomp, "9": fig9_sensitivity, "10": fig10_substitution, "11": fig11_calibration, "12": fig12_ies, "13": fig13,
+             "14": fig14_economics})
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ def capacity_section():
                 else:
                     lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5]); dM = f"{v['JR-D'] - v['JR-M']:+.1f} [{lo2:+.1f}, {hi2:+.1f}]"
                 print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | {dC} | {I} | {dM} |")
-    h("Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
+    h("Table 4: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
     print("| Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |\n|---|---|---|---|---|---|")
     for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
         d = load_capacity(tag)

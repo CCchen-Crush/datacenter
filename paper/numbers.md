@@ -19,7 +19,7 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 | S3 | 80 % | 90% | <1 | <1 | 5.5 | 8.5 | > +7.5 | > 750 % | +3.0 [+2.0, +3.0] |
 | S3 | 80 % | 95% | <1 | <1 | 5 | 7.5 | > +6.5 | > 650 % | +2.5 [+2.0, +3.0] |
 
-## Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
+## Table 4: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
 
 | Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |
 |---|---|---|---|---|---|
