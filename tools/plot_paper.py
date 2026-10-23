@@ -708,14 +708,16 @@ def fig10_calibration(rho=0.95):
         ax.set_yticks(range(len(names))); ax.set_yticklabels(names); ax.set_xlabel("Capability $\\xi$ (MW)")
         ax.set_xlim(grid.min() - 0.6, grid.max() + 0.4); ax.legend(loc="lower left", fontsize=6.0)
         ax.set_title(SCEN[s], fontsize=7.8, loc="left"); panel(ax, "adg"[i] if len(rows) > 1 else "a", x=-0.28)
-        ax = axs[i, 1]; eps = np.round(np.arange(0, 0.301, 0.005), 3)
+        ax = axs[i, 1]; emax = 0.25; eps = np.round(np.arange(0, emax + 1e-9, 0.0025), 4); off = []
         for n in names:
             lb, step = capability(h, n); x = lb.values + step / 2
             Cd = [dro_capacity(x, rho, e, grid) for e in eps]
-            ax.plot(eps, np.nan_to_num(Cd, nan=grid.min() - 0.5), color=COL[n], ls=LS[n], lw=1.3, label=n)
             e_n = eps_sampling(x); c_n = dro_capacity(x, rho, e_n, grid); sel[(s, n)] = (e_n, c_n, dro_capacity(x, rho, 0, grid))
-            ax.plot(e_n, np.nan_to_num(c_n, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
-        ax.axhline(grid.min(), color="#cccccc", lw=0.5, ls=":")
+            if np.all(np.isnan(Cd)): off.append(f"{n}: none ≥ {grid.min():g} MW ($\\varepsilon_N$ = {e_n:.2f})"); continue
+            ax.plot(eps, np.where(np.isnan(Cd), np.nan, Cd), color=COL[n], ls=LS[n], lw=1.3, label=n, drawstyle="steps-post")
+            if e_n <= emax: ax.plot(e_n, c_n, marker="*", ms=9, color=COL[n], mec="black", mew=0.4, zorder=4)
+        if off: ax.text(0.97, 0.04, "\n".join(off), transform=ax.transAxes, ha="right", va="bottom", fontsize=5.8, color="#555555")
+        ax.set_xlim(0, emax); ax.axhline(grid.min(), color="#cccccc", lw=0.5, ls=":")
         ax.set_xlabel("Wasserstein radius ε (MW); $\\star$ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)")
         ax.set_ylim(grid.min() - 0.8, grid.max() + 0.3); ax.legend(loc="upper right", fontsize=6.0)
         panel(ax, "beh"[i] if len(rows) > 1 else "b", x=-0.2)
@@ -727,6 +729,9 @@ def fig10_calibration(rho=0.95):
                 if C not in real.index: continue
                 ax.scatter(worst_case_prob(x, C, 0), real[C], s=12, marker="o", facecolor="white", edgecolor=COL[n], lw=0.7)
                 ax.scatter(worst_case_prob(x, C, e_n), real[C], s=12, marker=MK[n], color=COL[n])
+        ax.fill_between([0, 1], [0, 1], [0, 0], color="#d9534f", alpha=0.06, lw=0)
+        ax.text(0.97, 0.06, "over-confident", ha="right", fontsize=5.8, color="#b03a36", transform=ax.transAxes)
+        ax.text(0.03, 0.62, "conservative", ha="left", fontsize=5.8, color="#2f6b2f", transform=ax.transAxes)
         ax.plot([0, 1], [0, 1], color="#555555", lw=0.6, ls="--"); ax.axhline(rho, color="#bbbbbb", lw=0.5, ls=":")
         ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
         ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
