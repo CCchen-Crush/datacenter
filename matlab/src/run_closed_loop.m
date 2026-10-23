@@ -8,11 +8,17 @@ t1 = st.t; t2 = T; if isfield(ctx, 't_stop') && ~isempty(ctx.t_stop), t2 = ctx.t
 f = {'pg','pit','pch','pdis','E','S','pgt','qac','qec','qtc','qtd','ppv','pv','cop','overdue','over','inf'};
 for i = 1:numel(f), L.(f{i}) = zeros(T, 1); end
 L.y = zeros(T, 3); L.z = zeros(T, 3); L.backlog = zeros(T, 3); L.solve_time = zeros(T,1); L.fallback = false(T,1);
+ov = 0; if isfield(par.it, 'overhead'), ov = par.it.overhead; end      % pause/resume overhead (plant only)
+dsys = sys_derived(par); lag = dsys.lag;
 for t = t1:t2
     st = add_arrivals(st, D.flex(t, :), par);
     data = struct('inf', D.inf(t), 'fix', D.fix(t), 'pv', D.pv(t), 'cop', D.cop(t));
     [u, info] = planner(st, data, ctx);
     [st, rec] = plant_step(st, u, par, data, base, ev);
+    if ov > 0                    % work deferred in this step costs ov extra work with the same deadline
+        q = max(D.flex(t, :) - rec.y, 0);
+        for c = 1:3, st.rem(t + lag(c), c) = st.rem(t + lag(c), c) + ov * q(c) * par.dt; end
+    end
     for i = 1:numel(f), L.(f{i})(t) = rec.(f{i}); end
     L.y(t, :) = rec.y; L.z(t, :) = rec.z; L.backlog(t, :) = rec.backlog;
     L.solve_time(t) = info.time; L.fallback(t) = info.fallback;

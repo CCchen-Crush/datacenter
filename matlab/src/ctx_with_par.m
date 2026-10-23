@@ -7,6 +7,9 @@ function c = ctx_with_par(ctx, mods)
 %     lag_scale  factor on the lag bounds L_c of the deferrable classes (0 = no compute flexibility)
 %     bess_P     BESS power (MW); energy follows at the base 2-h ratio (0 = no BESS)
 %     tes_on     false = no chilled-water storage
+%     gt_on      false = no gas engine (and therefore no recovered heat for the absorption chiller)
+%     ac_on      false = no absorption chiller
+%     overhead   extra work per unit of deferred work (pause/resume overhead, plant only)
 %     c_rb       rebound assessment (CNY/MW per event)
 par = ctx.par;
 if isfield(mods, 'gamma'), par.cap.gamma = mods.gamma; end
@@ -20,6 +23,9 @@ if isfield(mods, 'bess_P')
     end
 end
 if isfield(mods, 'tes_on') && ~mods.tes_on, par.tes.Qmax = 0; end
+if isfield(mods, 'gt_on') && ~mods.gt_on, par.gt.Pmax = 0; end
+if isfield(mods, 'ac_on') && ~mods.ac_on, par.ac.Qmax = 0; end
+if isfield(mods, 'overhead'), par.it.overhead = mods.overhead; end
 if isfield(mods, 'c_rb'), par.dr.c_rb = mods.c_rb; end
 c = setup_case(par, ctx.inp);
 K = numel(ctx.ev); E = ctx.par.ev;                 % event definition (start, end, notice) of ctx

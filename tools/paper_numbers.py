@@ -74,6 +74,17 @@ def fixed_section(Cs=(6.0, 7.0, 7.5)):
             for n in ORDER:
                 r = q[q.name == n]
                 print(f"| {n} | " + " | ".join(f"{r[c].mean() * sc:.1f}" for c, _, sc in cols) + " |")
+            nd = rd("exp17_nodr.csv")
+            if nd is not None:
+                nd = nd.set_index("realisation")
+                comp = [("cost_energy", "electricity"), ("cost_gas", "gas"), ("cost_deg", "degradation"), ("cost_delay", "delay"),
+                        ("term_adj", "end state"), ("pen_dev", "shortfall"), ("dr_pay", "DR revenue (-)"), ("net_cost_adj", "net change")]
+                print("\nCost change vs no DR (k CNY/day, mean over days):\n")
+                print("| strategy | " + " | ".join(c[1] for c in comp) + " | E_start E2 (MWh) | backlog into E2 (GPU·h) |"); print("|---" * (len(comp) + 3) + "|")
+                for n in ORDER:
+                    r = q[q.name == n].set_index("realisation"); ref = nd.reindex(r.index)
+                    v = [(-r[c].mean() if c == "dr_pay" else (r[c] - ref[c]).mean()) / 1e3 for c, _ in comp]
+                    print(f"| {n} | " + " | ".join(f"{x:+.1f}" for x in v) + f" | {r.E_start_E2.mean():.2f} | {r.B_start_E2.mean():.0f} |")
             P = q[q.name == "JR-D"].set_index("realisation")
             for n in ["IR-O*", "IR-P", "JR-M"]:
                 Bq = q[q.name == n].set_index("realisation"); dd = (P.net_cost_adj - Bq.net_cost_adj).dropna() / 1e3

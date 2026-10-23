@@ -36,17 +36,22 @@ def fig3():
             if i == 1: ax.set_xlabel("Uniform commitment per event C (MW)")
             if i == 0: ax.set_title(SCEN[s], fontsize=8.5)
             panel(ax, "abcdef"[i * len(data) + j], x=-0.02, y=1.02)
-            # reliable capacities at 95 %
+            # firm capacities at 95 %: markers on the reliability line and the gain of JR-D over the best independent benchmark
             tab, _ = capacity_table(d, col, rhos=(0.95,), B=200)
-            cj = tab["JR-D"][0][0.95]; ci = np.nanmax([tab[n][0][0.95] for n in ("IR-O*", "IR-P")])
-            if not np.isnan(cj):
-                ax.annotate("", xy=(cj, 95), xytext=(cj, 4), arrowprops=dict(arrowstyle="-", color=COL["JR-D"], lw=0.8, ls=":"))
-            if not np.isnan(cj):
-                base = ci if not np.isnan(ci) else C.min() - 0.5
-                txt = f"$\\Delta C_{{0.95}}$ = {cj - base:+.1f} MW" if not np.isnan(ci) else f"$\\Delta C_{{0.95}}$ > {cj - C.min() + 0.5:.1f} MW"
-                ax.text(cj + 0.12, 50, txt, ha="left", va="center", fontsize=7.2, color=COL["JR-D"],
-                        bbox=dict(boxstyle="round,pad=0.2", fc="white", ec=COL["JR-D"], lw=0.5))
-    axs[0, 0].legend(loc="lower left", ncol=2, handlelength=2.2, columnspacing=0.8)
+            cr = {n: tab[n][0][0.95] for n in ORDER}
+            cj = cr["JR-D"]; ci = np.nanmax([cr["IR-O*"], cr["IR-P"]]) if not np.all(np.isnan([cr["IR-O*"], cr["IR-P"]])) else np.nan
+            for n in ORDER:
+                if not np.isnan(cr[n]): ax.plot(cr[n], 95, marker="|", ms=9, mew=1.6, color=COL[n], zorder=4)
+            if not np.isnan(cj) and i == 0:
+                x0 = ci if not np.isnan(ci) else C.min()
+                ya = 12
+                ax.annotate("", xy=(cj, ya), xytext=(x0, ya), arrowprops=dict(arrowstyle="<|-|>", color=COL["JR-D"], lw=0.9, mutation_scale=7))
+                txt = f"$\\Delta C_{{0.95}}$ = {cj - ci:+.1f} MW" if not np.isnan(ci) else f"$\\Delta C_{{0.95}}$ > {cj - C.min():.1f} MW"
+                ax.text((x0 + cj) / 2, ya + 3, txt, ha="center", va="bottom", fontsize=6.8, color=COL["JR-D"],
+                        bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.85))
+    hh, ll = axs[0, 0].get_legend_handles_labels()
+    fig.subplots_adjust(top=0.9)
+    fig.legend(hh, ll, loc="upper center", bbox_to_anchor=(0.5, 0.995), ncol=4, handlelength=2.6, columnspacing=1.6)
     save(fig, "Fig3_reliable_capacity")
 
 
@@ -179,10 +184,15 @@ def fig8():
 
 
 # ------------------------------------------------------------------ Fig. 2 typical-day recovery mechanism
+FIG2_CASE = ""          # suffix of the typical-day case of exp15 (e.g. "_r21"); set by the environment variable FIG2_CASE
+
+
 def fig2():
+    import os
+    suf = os.environ.get("FIG2_CASE", FIG2_CASE)
     cases = [("short", "Short interval (30 min)"), ("long", "Long interval (3 h)")]
     S = [("IROs", "IR-O*"), ("JRM", "JR-M"), ("JRD", "JR-D")]
-    D = {c: {n: rd(f"ts15_{c}_{f}.csv") for f, n in S} for c, _ in cases}
+    D = {c: {n: rd(f"ts15_{c}{suf}_{f}.csv") for f, n in S} for c, _ in cases}
     if any(v is None for c in D for v in D[c].values()): return
     fig, axs = plt.subplots(4, 2, figsize=(DOUBLE_COL, 7.4), sharex="col"); fig.subplots_adjust(hspace=0.12, wspace=0.22)
     for j, (c, title) in enumerate(cases):
@@ -224,7 +234,7 @@ def fig2():
         if j == 0: a.legend(loc="upper right", fontsize=6.3, ncol=2)
         for a in axs[:, j]: a.set_xlim(15, 26)
     axs[0, 0].legend(loc="lower left", fontsize=6.5, ncol=2); axs[1, 0].legend(loc="upper right", fontsize=6.5)
-    save(fig, "Fig2_recovery_mechanism")
+    save(fig, "Fig2_recovery_mechanism" + (os.environ.get("FIG2_OUT", "") if suf else ""))
 
 
 # ------------------------------------------------------------------ Fig. 4 two-event reliability region
@@ -334,7 +344,7 @@ def fig1():
     fig = plt.figure(figsize=(DOUBLE_COL, 3.6)); gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1], wspace=0.2)
     ax = fig.add_subplot(gs[0, 0]); ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.06, 1.0); ax.axis("off")
     E, Cc, Hh, W = "#1f5fa8", "#2aa7c9", "#c0392b", "#7a5cb8"
-    _box(ax, 0.00, 0.83, 0.40, 0.13, "Day-ahead recovery-aware\ncommitment $C_k$ (chance-constrained)", "#eef3fa", fs=5.8)
+    _box(ax, 0.00, 0.83, 0.40, 0.13, "Day-ahead recovery-aware\ncommitment $C_k$: closed-loop\nback-test at reliability $\\rho$", "#eef3fa", fs=5.6)
     _box(ax, 0.44, 0.83, 0.56, 0.13, "Intraday cross-event joint recovery MPC\n$y_{c,t}$, BESS, TES, gas engine", "#eef3fa", fs=5.9)
     _box(ax, 0.00, 0.53, 0.17, 0.15, "Utility grid\n$P^{grid}_t \\leq P^{cap}$", "#f2f2f2", fs=6.0)
     _box(ax, 0.00, 0.30, 0.17, 0.12, "DR operator\n(Jiangsu rules)", "#fff7e6", fs=6.0)
@@ -500,6 +510,75 @@ def figS6():
 
 
 FIGS = {"1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8, "S1": figS1, "S2": figS2, "S3": figS3, "S4": figS4, "S5": figS5, "S6": figS6}
+
+
+
+# ------------------------------------------------------------------ Fig. 13 firm capacity vs computing service quality
+def fig13(rho=0.95):
+    data = [(load_capacity(t), s) for t, s in CAP_TAGS[:2]]
+    data = [(d, s) for d, s in data if d is not None]
+    if not data: return
+    fig, axs = plt.subplots(2, len(data), figsize=(DOUBLE_COL, 5.0), squeeze=False); fig.subplots_adjust(wspace=0.22, hspace=0.38)
+    for j, (d, s) in enumerate(data):
+        g = d.groupby(["name", "C"]).agg(delay=("mean_delay_h", "mean"), sla=("sla_use_pct", "mean"), full=("all_full", "mean")).reset_index()
+        for i, (col, xl) in enumerate([("delay", "Mean extra completion time of deferred work (h)"), ("sla", "SLA slack used (%)")]):
+            ax = axs[i, j]
+            for n in ORDER:
+                q = g[g.name == n].sort_values("C")
+                ax.plot(q[col], q.C, color=COL[n], ls=LS[n], lw=1.1, alpha=0.8)
+                firm = q.full >= rho - 1e-9
+                ax.scatter(q[col][firm], q.C[firm], marker=MK[n], s=24, color=COL[n], zorder=3, label=n if (i == 0 and j == 0) else None)
+                ax.scatter(q[col][~firm], q.C[~firm], marker=MK[n], s=20, facecolor="white", edgecolor=COL[n], lw=0.9, zorder=3)
+            # Pareto front of firm operating points (largest commitment for a given service-quality cost)
+            f = g[g.full >= rho - 1e-9].sort_values(col); best = -np.inf; fx, fy = [], []
+            for _, r in f.iterrows():
+                if r.C > best + 1e-9: best = r.C; fx.append(r[col]); fy.append(r.C)
+            if fx:
+                ax.step(fx + [ax.get_xlim()[1]], fy + [fy[-1]], where="post", color="#555555", lw=0.8, ls=(0, (3, 2)), zorder=1,
+                        label="Front of firm points" if (i == 0 and j == 0) else None)
+            ax.set_xlabel(xl); ax.set_ylabel("Uniform commitment C (MW)" if j == 0 else "")
+            if i == 0: ax.set_title(SCEN[s], fontsize=8.5)
+            panel(ax, "abcd"[i * len(data) + j], x=-0.14 if j == 0 else -0.08)
+    fig.legend(*axs[0, 0].get_legend_handles_labels(), loc="upper center", bbox_to_anchor=(0.5, 1.0), ncol=5, fontsize=7)
+    fig.subplots_adjust(top=0.9)
+    save(fig, "Fig13_capacity_service_pareto")
+
+
+FIGS["13"] = fig13
+
+
+# ------------------------------------------------------------------ Fig. 2 framework: day-ahead DRO commitment + intraday joint recovery
+def fig2_framework():
+    fig, ax = plt.subplots(figsize=(DOUBLE_COL, 3.7)); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    B, O, G, P, K = "#eef3fa", "#fdf0e6", "#eaf5ec", "#f3eefa", "#333333"
+    for y0, h, lab in [(0.53, 0.44, "Day-ahead layer (once per day)"), (0.03, 0.46, "Intraday layer (every 15 min)")]:
+        ax.add_patch(FancyBboxPatch((0.005, y0), 0.99, h, boxstyle="round,pad=0.004,rounding_size=0.01", fc="#fafafa", ec="#bbbbbb", lw=0.6, ls="--"))
+        ax.text(0.015, y0 + h - 0.03, lab, fontsize=7.2, fontweight="bold", va="top", color="#444444")
+    _box(ax, 0.02, 0.6, 0.15, 0.22, "Historical days\n$\\Omega^{DA}$ (20 weekdays):\nloads, weather,\ninference", "#f2f2f2", fs=6.0)
+    _box(ax, 0.21, 0.6, 0.17, 0.22, "Closed-loop back-test\nof the intraday controller\nfor every $C\\in\\mathcal{G}$", B, fs=6.0)
+    _box(ax, 0.42, 0.6, 0.15, 0.22, "Capability per day\n$\\xi_d$ = largest $C$\nfully delivered\n(empirical $\\hat P_N$)", B, fs=6.0)
+    _box(ax, 0.61, 0.6, 0.17, 0.22, "Wasserstein ball\n$\\mathcal{B}_\\varepsilon(\\hat P_N)$:\n$\\inf_Q Q(\\xi\\geq C)\\geq\\rho$\n(Proposition 3)", P, fs=6.0)
+    _box(ax, 0.82, 0.6, 0.155, 0.22, "Commitment\n$C^*=C^{DRO}_{\\rho}(\\varepsilon)$\nsubmitted to the\nDR operator", O, fs=6.1)
+    for x0, x1 in [(0.17, 0.21), (0.38, 0.42), (0.57, 0.61), (0.78, 0.82)]:
+        _arr(ax, (x0, 0.71), (x1, 0.71), K)
+    ax.text(0.695, 0.585, "radius $\\varepsilon$: leave-one-out\nvalidation on $\\Omega^{DA}$", fontsize=5.6, ha="center", va="top", color="#5b3c8c")
+    _box(ax, 0.03, 0.12, 0.17, 0.22, "Measure state $\\mathbf{x}_t$:\nbacklogs $B_{1..3}$, SOC $E_t$,\ncold $S_t$, gas engine,\nevent confirmations", "#f2f2f2", fs=6.0)
+    _box(ax, 0.25, 0.12, 0.2, 0.22, "Forecasts corrected by\nthe latest errors (JR-D)\nor scenario tree (JR-S)", B, fs=6.0)
+    _box(ax, 0.5, 0.12, 0.22, 0.22, "Cross-event joint recovery\nMILP (2)-(11), 18-h horizon,\nall confirmed events:\nwhich debt to repay first", G, fs=6.0)
+    _box(ax, 0.77, 0.12, 0.2, 0.22, "Apply first step; plant\nreplay (storage, TES,\ncompute throttling, EDF);\nsettlement records", "#f2f2f2", fs=6.0)
+    for x0, x1 in [(0.2, 0.25), (0.45, 0.5), (0.72, 0.77)]:
+        _arr(ax, (x0, 0.23), (x1, 0.23), K)
+    _arr(ax, (0.87, 0.115), (0.115, 0.115), "#555555", ls="--", rad=-0.12)
+    ax.text(0.49, 0.045, "$t\\leftarrow t+\\Delta t$", fontsize=6.4, ha="center", color="#555555")
+    _arr(ax, (0.9, 0.6), (0.7, 0.34), "#e07b2a", lw=1.2)
+    ax.text(0.845, 0.455, "commitments $C_k$,\nterminal SOC\nreferences", fontsize=5.8, ha="left", va="center", color="#b35a1a")
+    _arr(ax, (0.56, 0.34), (0.3, 0.6), "#1f5fa8", ls=":", lw=1.0)
+    ax.text(0.37, 0.455, "the same controller\nis back-tested", fontsize=5.8, ha="right", va="center", color="#1f5fa8")
+    save(fig, "Fig2_framework")
+
+
+FIGS["2f"] = fig2_framework
+
 
 if __name__ == "__main__":
     which = sys.argv[1:] or list(FIGS)

@@ -20,6 +20,7 @@ par.it.flex_share = 0.75;        % [A] part of that work enrolled in Flex 1-3 ti
 par.it.phi_inf   = 0.25;         % [A] mean share of GPUs busy with online inference (non-deferrable)
 % deferrable classes from PAI runtime bins (<=1 h, 1-12 h, >12 h) [D]; lag-bounded SLA
 par.it.lag_h     = [0.5 1.5 3];  % [A] max lag L_c (h): Emerald AI Flex1-3 (10/25/50 % throughput loss over 6 h)
+par.it.overhead  = 0;            % [A] extra work per unit of deferred work (pause/resume overhead; robustness check 0.02-0.05)
 % GPU power capping as an additional DR-only lever (Acun et al., ACM e-Energy 2026): a capped GPU draws
 % (1-rho) of its dynamic power and loses beta*rho of its throughput, i.e. it leaves a recovery debt of
 % beta per unit of power reduction instead of 1 for pausing. Off in the base case (exp10 sensitivity).

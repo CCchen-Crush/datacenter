@@ -1,0 +1,16 @@
+# batch 5 (direction v2): distributionally robust commitment (Exp18, historical days), static-split upper bound
+# (Exp19), substitution curves of BESS size and connection margin, IES device contribution and pause/resume
+# overhead (Exp20, firm capacity by bisection). Run with tools/run_queue.sh P tools/jobs/batch5.txt
+hist1|RUN=18; E18_SCEN='S1'; E18_CS=1:0.5:4.5; E18_TAG='_S1_a';
+hist2|RUN=18; E18_SCEN='S1'; E18_CS=5:0.5:9; E18_TAG='_S1_b';
+bessB|RUN=20; E20_SET='bess'; E20_SUB=3; E20_TAG='_b';
+bessA|RUN=20; E20_SET='bess'; E20_SUB=1:2; E20_TAG='_a';
+bessC|RUN=20; E20_SET='bess'; E20_SUB=4:5; E20_TAG='_c';
+tauA|RUN=20; E20_SET='tau'; E20_SUB=1:2; E20_TAG='_a';
+tauB|RUN=20; E20_SET='tau'; E20_SUB=3:4; E20_TAG='_b';
+gamA|RUN=20; E20_SET='gamma'; E20_SUB=1:2; E20_TAG='_a';
+gamB|RUN=20; E20_SET='gamma'; E20_SUB=3:4; E20_TAG='_b';
+ies|RUN=20; E20_SET='ies';
+ovh|RUN=20; E20_SET='overhead';
+hind1|RUN=19; E19_SCEN='S1';
+hind2|RUN=19; E19_SCEN='S2-30'; E19_TAG='_S2';

@@ -196,5 +196,62 @@ if any(RUN == 17)
     fprintf('== Exp17: no-DR reference on the test days\n');
     E17 = exp17_nodr(ctx, root, 26);
 end
+if any(RUN == 18)
+    % closed-loop back-test on the historical days of the day-ahead pool (distributionally robust commitment)
+    if ~exist('E18_SCEN', 'var'), E18_SCEN = 'S1'; end
+    if ~exist('E18_CS', 'var'), E18_CS = 1:0.5:9; end
+    if ~exist('E18_TAG', 'var'), E18_TAG = ['_' E18_SCEN]; end
+    fprintf('== Exp18: back-test on the historical days (%s)\n', E18_SCEN);
+    E18 = exp18_history(set_scenario(ctx, E18_SCEN), root, E18_CS, E18_TAG);
+end
+if any(RUN == 19)
+    % upper bound of static-split independent recovery (best split in hindsight on every test day)
+    if ~exist('E19_SCEN', 'var'), E19_SCEN = 'S1'; end
+    if ~exist('E19_CS', 'var'), E19_CS = [1 2 3 4 5 6 7 7.5]; end
+    if ~exist('E19_TAG', 'var'), E19_TAG = ['_' E19_SCEN]; end
+    fprintf('== Exp19: IR-O with the best split in hindsight (%s)\n', E19_SCEN);
+    E19 = exp19_hindsight(set_scenario(ctx, E19_SCEN), root, E19_CS, [], E19_TAG);
+end
+if any(RUN == 20)
+    % firm capacity by bisection for system configurations: E20_SET = 'bess' | 'gamma' | 'ies' | 'tau' | 'overhead'
+    if ~exist('E20_SET', 'var'), E20_SET = 'bess'; end
+    if ~exist('E20_SCEN', 'var'), E20_SCEN = 'S2-30'; end
+    if ~exist('E20_TAG', 'var'), E20_TAG = ''; end
+    o20 = struct('rho', 0.95, 'tol', 0.25, 'N', 26);
+    SD = {'JR', 'expected', 'JR-D'}; SM = {'JR-M', 'expected', 'JR-M'}; SI = {'IR-O*', 'expected', 'IR-O*'};
+    cf = struct('name', {}, 'scen', {}, 'mods', {}, 'S', {}, 'lo', {}, 'hi', {});
+    switch E20_SET
+        case 'bess'          % BESS power (energy at the 2-h ratio): substitution curve
+            for P = [0 3 6 9 12]
+                S = [SD; SI]; if P == 6, S = [SD; SM; SI]; end
+                cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', E20_SCEN, 'mods', struct('bess_P', P), 'S', {S}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
+            end
+        case 'gamma'         % connection margin: substitution curve (gamma 1.10 = base, in 'bess')
+            for g = [1.00 1.05 1.20 1.30]
+                cf(end+1) = struct('name', sprintf('g%.2f', g), 'scen', E20_SCEN, 'mods', struct('gamma', g), 'S', {[SD; SI]}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
+            end
+        case 'ies'           % contribution of the IES devices to the firm capacity of JR-D
+            cf(1) = struct('name', 'noGT', 'scen', E20_SCEN, 'mods', struct('gt_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(2) = struct('name', 'noTES', 'scen', E20_SCEN, 'mods', struct('tes_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(3) = struct('name', 'noAC', 'scen', E20_SCEN, 'mods', struct('ac_on', false), 'S', {SD}, 'lo', 1, 'hi', 12);
+            cf(4) = struct('name', 'noIES', 'scen', E20_SCEN, 'mods', struct('gt_on', false, 'tes_on', false, 'ac_on', false), ...
+                           'S', {SD}, 'lo', 1, 'hi', 12);
+        case 'tau'           % firm capacity vs event interval (30 min is the bess6 configuration of 'bess')
+            for mins = [15 60 120 180]
+                cf(end+1) = struct('name', sprintf('tau%d', mins), 'scen', sprintf('S2-%d', mins), 'mods', [], ...
+                                   'S', {[SD; SM; SI]}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
+            end
+        case 'overhead'      % robustness: pause/resume overhead of deferred work
+            for ov = [0.02 0.05]
+                cf(end+1) = struct('name', sprintf('ovh%.2f', ov), 'scen', E20_SCEN, 'mods', struct('overhead', ov), ...
+                                   'S', {[SD; SM; SI]}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
+            end
+    end
+    if exist('E20_SUB', 'var'), cf = cf(E20_SUB); end
+    if exist('E20_N', 'var'), o20.N = E20_N; end
+    if exist('E20_LOHI', 'var'), for i = 1:numel(cf), cf(i).lo = E20_LOHI(1); cf(i).hi = E20_LOHI(2); end, end
+    fprintf('== Exp20: firm capacity by bisection, set %s (%d configurations)\n', E20_SET, numel(cf));
+    E20 = exp20_capacity_configs(ctx, root, cf, [E20_SET E20_TAG], o20);
+end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);
 diary off;
