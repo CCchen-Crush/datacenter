@@ -112,6 +112,7 @@ def capability(d, name, col="all_full"):
     smaller C of the grid (monotone definition, as Eq. 13). Returns (lower bound on the grid, grid step); a day that
     fails at the smallest commitment gets the lower bound grid_min - step."""
     p = d[d.name == name].pivot_table(index=d.columns[1] if "day" not in d.columns else "day", columns="C", values=col)
+    if p.empty: return pd.Series(dtype=float), 0.5
     Cs = p.columns.values.astype(float); step = np.min(np.diff(Cs)) if len(Cs) > 1 else 0.5
     ok = (p.values > 0.5).cumprod(axis=1).astype(bool)
     k = ok.sum(axis=1)

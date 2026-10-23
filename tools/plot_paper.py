@@ -671,48 +671,59 @@ def fig9_substitution(lo=1.0):
 
 
 # ------------------------------------------------------------------ Fig. 10 distributionally robust commitment: calibration
+def _history(scen):
+    h = rd(f"exp18_history_{scen}.csv"); hs = rd(f"exp18_strategies_{scen}.csv")
+    if h is None or hs is None: return None
+    h["name"] = h.strategy.map(dict(zip(hs["index"], hs["label"]))); return h
+
+
 def fig10_calibration(rho=0.95):
-    from paper_style import capability, worst_case_prob, dro_capacity, cv_radius, eps_sampling
-    h = rd("exp18_history_S1.csv"); hs = rd("exp18_strategies_S1.csv")
-    if h is None:
-        parts = [rd("exp18_history_S1_a.csv"), rd("exp18_history_S1_b.csv")]
-        if any(p is None for p in parts): return
-        h = pd.concat(parts, ignore_index=True); hs = rd("exp18_strategies_S1_a.csv")
-    h["name"] = h.strategy.map(dict(zip(hs["index"], hs["label"])))
-    t = load_capacity("_S1")
-    grid = np.sort(h.C.unique())
-    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(wspace=0.36))
-    ax = axs[0]
-    for k, n in enumerate(ORDER):
-        lb, step = capability(h, n); xh = lb.values + step / 2
-        tl, st2 = capability(t[t.C.isin(grid)], n); xt = tl.values + st2 / 2
-        ax.scatter(xh, k + 0.12 + 0.18 * (np.random.default_rng(1).random(len(xh)) - 0.5), s=9, color=COL[n], alpha=0.8, label="historical days" if k == 0 else None)
-        ax.scatter(xt, k - 0.22 + 0.18 * (np.random.default_rng(2).random(len(xt)) - 0.5), s=9, facecolor="white", edgecolor=COL[n], lw=0.7, label="test days" if k == 0 else None)
-    ax.set_yticks(range(len(ORDER))); ax.set_yticklabels(ORDER); ax.set_xlabel("Capability $\\xi$ (MW)"); ax.legend(loc="lower left", fontsize=6.2)
-    panel(ax, "a", x=-0.28)
-    ax = axs[1]; eps = np.round(np.arange(0, 0.201, 0.005), 3)
+    """Distributionally robust commitment: (a) capability per day on the historical and the test days, (b) robust firm
+    capacity versus the Wasserstein radius, (c) predicted versus realised full-delivery probability; one row per scenario."""
+    from paper_style import capability, worst_case_prob, dro_capacity, eps_sampling
+    rows = [(s, tag, _history(s), load_capacity(tag)) for s, tag in [("S1", "_S1"), ("S2", "_S2")]]
+    rows = [r for r in rows if r[2] is not None and r[3] is not None]
+    if not rows: return
+    fig, axs = plt.subplots(len(rows), 3, figsize=(DOUBLE_COL, 2.75 * len(rows) + 0.2), squeeze=False,
+                            gridspec_kw=dict(wspace=0.36, hspace=0.55))
     sel = {}
-    for n in ORDER:
-        lb, step = capability(h, n); x = lb.values + step / 2
-        Cd = [dro_capacity(x, rho, e, grid) for e in eps]
-        ax.plot(eps, np.nan_to_num(Cd, nan=grid.min() - 0.5), color=COL[n], ls=LS[n], lw=1.3, label=n)
-        e_n = eps_sampling(x); c_n = dro_capacity(x, rho, e_n, grid); sel[n] = (e_n, c_n, dro_capacity(x, rho, 0, grid))
-        ax.plot(e_n, np.nan_to_num(c_n, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
-    ax.set_xlabel("Wasserstein radius ε (MW); ★ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)"); ax.legend(loc="upper right", fontsize=6.2)
-    panel(ax, "b", x=-0.2)
-    ax = axs[2]
-    for n in ORDER:
-        lb, step = capability(h, n); x = lb.values + step / 2
-        real = t[t.name == n].groupby("C").all_full.mean()
-        e_cv = sel[n][0]
-        for C in grid:
-            if C not in real.index: continue
-            ax.scatter(worst_case_prob(x, C, 0), real[C], s=12, marker="o", facecolor="white", edgecolor=COL[n], lw=0.7)
-            ax.scatter(worst_case_prob(x, C, e_cv), real[C], s=12, marker=MK[n], color=COL[n])
-    ax.plot([0, 1], [0, 1], color="#555555", lw=0.6, ls="--"); ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
-    ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
-    ax.text(0.03, 0.95, "hollow: sample average (ε = 0)\nfilled: distributionally robust", transform=ax.transAxes, fontsize=6.0, va="top")
-    panel(ax, "c", x=-0.2)
+    for i, (s, tag, h, t) in enumerate(rows):
+        grid = np.sort(h.C.unique()); names = [n for n in ORDER if n in set(h.name)]
+        ax = axs[i, 0]
+        for k, n in enumerate(names):
+            lb, step = capability(h, n); xh = lb.values + step / 2
+            tl, st2 = capability(t[t.C.isin(grid)], n); xt = tl.values + st2 / 2
+            ax.scatter(xh, k + 0.14 + 0.16 * (np.random.default_rng(1).random(len(xh)) - 0.5), s=9, color=COL[n], alpha=0.85,
+                       label="historical days" if k == 0 else None)
+            ax.scatter(xt, k - 0.2 + 0.16 * (np.random.default_rng(2).random(len(xt)) - 0.5), s=9, facecolor="white", edgecolor=COL[n], lw=0.7,
+                       label="test days" if k == 0 else None)
+        ax.set_yticks(range(len(names))); ax.set_yticklabels(names); ax.set_xlabel("Capability $\\xi$ (MW)")
+        ax.set_xlim(grid.min() - 0.6, grid.max() + 0.4); ax.legend(loc="lower left", fontsize=6.0)
+        ax.set_title(SCEN[s], fontsize=7.8, loc="left"); panel(ax, "adg"[i] if len(rows) > 1 else "a", x=-0.28)
+        ax = axs[i, 1]; eps = np.round(np.arange(0, 0.301, 0.005), 3)
+        for n in names:
+            lb, step = capability(h, n); x = lb.values + step / 2
+            Cd = [dro_capacity(x, rho, e, grid) for e in eps]
+            ax.plot(eps, np.nan_to_num(Cd, nan=grid.min() - 0.5), color=COL[n], ls=LS[n], lw=1.3, label=n)
+            e_n = eps_sampling(x); c_n = dro_capacity(x, rho, e_n, grid); sel[(s, n)] = (e_n, c_n, dro_capacity(x, rho, 0, grid))
+            ax.plot(e_n, np.nan_to_num(c_n, nan=grid.min() - 0.5), marker="*", ms=8, color=COL[n], mec="black", mew=0.4)
+        ax.axhline(grid.min(), color="#cccccc", lw=0.5, ls=":")
+        ax.set_xlabel("Wasserstein radius ε (MW); $\\star$ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)")
+        ax.set_ylim(grid.min() - 0.8, grid.max() + 0.3); ax.legend(loc="upper right", fontsize=6.0)
+        panel(ax, "beh"[i] if len(rows) > 1 else "b", x=-0.2)
+        ax = axs[i, 2]
+        for n in names:
+            lb, step = capability(h, n); x = lb.values + step / 2
+            real = t[t.name == n].groupby("C").all_full.mean(); e_n = sel[(s, n)][0]
+            for C in grid:
+                if C not in real.index: continue
+                ax.scatter(worst_case_prob(x, C, 0), real[C], s=12, marker="o", facecolor="white", edgecolor=COL[n], lw=0.7)
+                ax.scatter(worst_case_prob(x, C, e_n), real[C], s=12, marker=MK[n], color=COL[n])
+        ax.plot([0, 1], [0, 1], color="#555555", lw=0.6, ls="--"); ax.axhline(rho, color="#bbbbbb", lw=0.5, ls=":")
+        ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
+        ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
+        ax.text(0.03, 0.95, "hollow: sample average (ε = 0)\nfilled: distributionally robust ($\\varepsilon_N$)", transform=ax.transAxes, fontsize=5.8, va="top")
+        panel(ax, "cfi"[i] if len(rows) > 1 else "c", x=-0.2)
     save(fig, "Fig10_dro_calibration")
     return sel
 

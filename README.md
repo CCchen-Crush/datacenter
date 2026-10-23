@@ -41,19 +41,21 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 ## Reproduce
 
 ```bash
-# experiments (GNU Octave 8 + glpk; each job is one process, P jobs run in parallel)
-tools/run_queue.sh 4 tools/jobs/checkpoint.txt     # firm-capacity sweeps S1, S2, S3
-tools/run_queue.sh 4 tools/jobs/batch2.txt         # endogenous commitment, sensitivity, ablation, uncertainty, supplementary
-tools/run_queue.sh 4 tools/jobs/batch3.txt         # reliability region, typical-day mechanism
-tools/run_queue.sh 4 tools/jobs/batch4.txt         # firm-capacity sweeps below 3 MW
-tools/run_queue.sh 6 tools/jobs/batch5.txt         # historical back-test (DRO), substitution, interval, IES, overhead, hindsight
-tools/run_queue.sh 2 tools/jobs/batch5b.txt        # BESS substitution with the connection kept (rerun)
-tools/run_queue.sh 2 tools/jobs/batch6.txt         # resource ablation, lag bounds, JR-S uncertainty, supplementary
-# merge parallel parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
-tools/merge_all.sh
-python3 tools/paper_numbers.py > paper/numbers.md
-python3 tools/plot_paper.py                         # Fig. 1-14 and S1-S7 -> paper/figures/*.pdf|svg|png
+# experiments (GNU Octave 8 + glpk; each job is one process, P jobs run in parallel; every experiment writes its CSV
+# after each commitment or strategy, so an interrupted job keeps its finished part)
+tools/run_queue.sh 4 tools/jobs/checkpoint.txt     # firm-capacity sweeps S1, S2 (3-9 MW) and S3 (8-9 MW)
+tools/run_queue.sh 4 tools/jobs/batch3.txt         # typical-day mechanism (mech)
+tools/run_queue.sh 4 tools/jobs/batch2.txt         # endogenous commitment (exp16), interval x connection margin
+tools/run_queue.sh 4 tools/jobs/batch5b.txt        # BESS substitution (connection kept); batch5c: JR-M on the BESS sweep
+tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commitments, S3, historical back-test (DRO),
+                                                    # connection margin, IES devices, interval, two-event region,
+                                                    # hindsight split, overhead, lag bounds, JR-S, supplementary
+# collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
+PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-14, S1-S7
 ```
+
+`tools/collect_results.py` merges the parts of a run copy (`DCDR_RUN_RESULTS`, default `/home/user/dev/matlab/results`)
+into `matlab/results/` without deleting them; run the queues from such a copy when the code may change while they run.
 
 Single experiments run from MATLAB/Octave with `cd matlab; RUN = 12; E12_SCEN = 'S2-30'; main_run_all`
 (options are documented at the top of `matlab/main_run_all.m`).
