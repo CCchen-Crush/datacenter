@@ -487,18 +487,18 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\be
 [7] Liu Z, Wierman A, Chen Y, Razon B, Chen N. Data center demand response: avoiding the coincident peak via workload shifting and local generation. Performance Evaluation 2013;70(10):770–791.
 [8] Wierman A, Liu Z, Liu I, Mohsenian-Rad H. Opportunities and challenges for data center demand response. In: International Green Computing Conference (IGCC); 2014.
 [9] Chen M, Gao C, Song M, et al. Internet data centers participating in demand response: a comprehensive review. Renewable and Sustainable Energy Reviews 2020;117:109466.
-[10] Acun F, Hankendi C, Levine E, Reynolds H, Bardwick J, Coskun AK. Investigating power consumption flexibility of AI data centers for demand response participation. In: ACM International Conference on Future and Sustainable Energy Systems (e-Energy); 2026.
+[10] Acun F, Hankendi C, Levine E, Reynolds H, Bardwick J, Coskun AK. Investigating power consumption flexibility of AI data centers for demand response participation. In: 17th ACM International Conference on Future and Sustainable Energy Systems (e-Energy); 2026, p. 344–348.
 [11] Du B, Fan X, Du E, Chen L, Han J, Hou Q, Zhang N, Kang C. From tokens to energy flexibility: quantization-enabled demand response for data centers with LLM inference workloads. arXiv:2606.18851; 2026.
 [12] Chen Y, Zheng X. To defer or to shift? The role of AI data center flexibility on grid interconnection. arXiv:2604.05376; 2026.
 [13] Williams C, Colangelo P, Coskun AK, et al. Power-flexible AI data centers: a new paradigm for grid-responsive compute. arXiv:2606.25098; 2026.
-[14] Data center load modeling through optimal energy consumption characteristics. Applied Energy 2025:126095. https://doi.org/10.1016/j.apenergy.2025.126095
-[15] Exploring the demand response potential of liquid-cooled data centers. Applied Energy 2026:127679. https://doi.org/10.1016/j.apenergy.2026.127679
+[14] Zhou Y, Wei F, Li S, Wang Z, Liu J, Yu D. Data center load modeling through optimal energy consumption characteristics: a path to simultaneously enhance energy efficiency and demand response quality. Applied Energy 2025;393:126095.
+[15] Chen C, Ye C, Ding Y, Xiong K, Tang X. Exploring the demand response potential of liquid-cooled data centers. Applied Energy 2026;412:127679.
 [16] Han O, Ding T, Yang M, et al. A novel 4-level joint optimal dispatch for demand response of data centers with district autonomy realization. Applied Energy 2024;358:122590.
 [17] Lin J, Han J, Wang Y, et al. Planning and operation optimization of a low-carbon data-center computing integrated energy system considering exergy efficiency. Journal of Shanghai Jiao Tong University 2025;59(9):1327–1337 (in Chinese).
 [18] Fan H, Chen S, Luo H, et al. Optimal operation of data centers considering multi-energy complementarity of cooling, heating and power and spatio-temporal adjustable loads. Southern Power System Technology 2026;20(5):28–36 (in Chinese).
 [19] Zhang S, Ding S, Li Y, Wei M, Tan Q. A bi-level planning model of integrated energy capacity configuration for data center cluster considering computing-electricity coupling operation and supply-demand uncertainties. Applied Energy 2026;425:128499.
-[20] Lu et al. Battery-assisted operation of hyperscale AI data centers. arXiv:2605.14105; 2026.
-[21] Quantitative impacts of energy system flexibility provision on data center reliability. Applied Energy 2026:127904. https://doi.org/10.1016/j.apenergy.2026.127904
+[20] Lu X, Qiu J, Lin J, An S, Sun M, Zhao J. Battery-assisted operation of hyperscale AI data centers under connect-and-manage interconnection practices. arXiv:2605.14105; 2026.
+[21] Yu Y, Shan K, Li H, Wang S. Quantitative impacts of energy system flexibility provision and design/operation on data center reliability and the key influential parameters. Applied Energy 2026;415:127904.
 [22] Hao H, Sanandaji BM, Poolla K, Vincent TL. Aggregate flexibility of thermostatically controlled loads. IEEE Transactions on Power Systems 2015;30(1):189–198.
 [23] Evans MP, Tindemans SH, Angeli D. Flexibility framework with recovery guarantees for aggregated energy storage devices. IEEE Transactions on Smart Grid 2022;13(5):3519–3531.
 [24] Li M. Beyond scalar flexibility: from eligible AI workloads to dependable load relief. arXiv:2609.05406; 2026.
