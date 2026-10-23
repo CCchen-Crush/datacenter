@@ -4,6 +4,8 @@
 > 主线以 [`研究方案_AE重构.md`](研究方案_AE重构.md) 为准，写法与图表规范以 [`论文蓝图_AE.md`](论文蓝图_AE.md) 为准（对标 Zhang 等 2026，Applied Energy 128499）。
 > 用户要求：保持主线，不再扩展实验种类；论文要“创新点明确、结果好、图表精美、问题真实紧迫”，不追求工程级认证；写作要主动自信，数据来源只在算例设置里交代一次，不反复自我否定结论量级。
 
+> **2026-10-23 16:50 更新：全部实验完成，论文已写完。** batch7 的 25 个作业全部跑完（无报错），结果已合并入 `matlab/results/`；论文 `paper/manuscript.md` 的摘要（250 词）、Highlights、第 5 节（5.1–5.8）、第 6 节和 Table 4、Table 5 全部按最终结果写定，没有待补占位符；14 张正文图和 S1–S7 补充图已重新生成（`tools/refresh.sh`）。中文结果汇总见 [`实验结果_AE.md`](实验结果_AE.md)。剩余工作见第 6 节。
+
 > **2026-10-23 12:30 更新（容器重启后）：** 11:42 UTC 容器重启，正在跑的作业全部丢失。现已改为“每个承诺水平 / 每个策略跑完即写 CSV”（exp12/14/18/19/20），重启只丢当前那一段；exp18 按承诺从小到大扫，某天第一次失败后不再跑该天（能力 ξ 只需要到第一次失败）；exp12/18/19 可用 `E*_ALPHA` 复用同场景已整定的 IR-O* 分摊比例（`src/bench_prepare.m`，tune_alpha 是确定性的，已核对一致）；exp20 新增 `E20_SET='region'`（第一事件固定 C1、二分法求第二事件可靠承诺，取代 exp14 区域网格）。
 > 全部剩余作业在 `tools/jobs/batch7.txt`（25 个，4 核约 4 小时），在开发副本 `/home/user/dev` 中运行：`cd /home/user/dev && nohup setsid bash tools/run_queue.sh 4 tools/jobs/batch7.txt > matlab/results/queue_batch7.log 2>&1 &`。
 > 结果汇总：`PY=<python> tools/refresh.sh`（= `collect_results.py` 把开发副本中的分段合并进 `matlab/results/`，不删分段、可重复执行 + `paper_numbers.py` + `plot_paper.py`）。旧的 S1/S2 合并文件已作为分段 `exp12_capacity_S1_ab.csv`、`S2_ab` 复制进开发副本。
@@ -17,7 +19,7 @@
 
 ## 0 一句话现状
 
-模型修正、场景定义、全部实验代码、作图脚本、取数脚本和论文第 1–4 节初稿都已完成并推送。**正式结果目前只有内生承诺实验 exp16（S1）已完成并入库**（`matlab/results/exp16_*_S1.csv`，见 4.2 节）；其余作业在本容器内正在跑，结果 CSV 要等每个分段跑完才写出，换容器后需要按第 3 节重跑（4 核约 4–5 小时，`batch2.txt` 中 e16S1 已注释掉）。第 4 节给出了从运行日志摘录的初步结果，结论方向已经清楚。
+模型、全部实验（exp1–exp20）、作图、取数和论文全文均已完成并推送（分支 `claude/ae-reliable-capacity`）。主要结论：JR-D 可靠容量 S1/S2 7.5 MW、S3 6.5 MW，独立基准 1 MW 都不可靠；预见价值 15 min 4.0 MW → 3 h 0；预见价值相当于 9.3 MWh 电池（5.6 百万元），加接网也换不来；成本最优鲁棒承诺 7 MW 样本外 100% 足额，完美追索两阶段承诺只有 85%；两事件可靠可行域中 JR-D 接近物理能力边界，JR-M 低 2.6–4.3 MW，而完美信息下三种控制器的物理能力相同。
 
 ## 1 文档与代码索引
 
@@ -183,13 +185,12 @@ cd tools && /tmp/venv/bin/python plot_paper.py       # 全部图；也可只画�
 
 ## 6 下一步清单（按顺序）
 
-1. **跑完第 3 节全部作业**（exp16 S1 已完成，不必重跑），执行 `merge_all.sh`。验收：`matlab/results/` 中有 `exp12_capacity_S1/S2/S3.csv`、`exp14_{tau_gamma,single,ablation,region_S2-30}.csv`、`exp16_*_S1.csv`、`exp4_e3uncertain.csv`、`ts15_*`、`exp1_*`、`exp5_*`、`exp8_*`、`exp11_*`、`exp13_*`。
-2. **取数**：`paper_numbers.py > paper/numbers.md`。检查 JR-D 在 26 日内无越限、无逾期、无求解回退（`cap_violation_MW`、`lateness_GPUh_h`、`fallbacks` 列）。
-3. **作图**：`plot_paper.py`，逐张检查。Fig. 3 的 ΔC 标注要与 numbers 一致；Fig. 5 要确认裁剪后的轴是否合适；Fig. 2 先确认典型日是否体现机理（IR-O* 事后先补完长时限任务、挤占回充）。若案例日不典型，把 `batch3.txt` 中 `mech` 的第三个参数改成一个“S2-30、7 MW 下 IR-O* 或 JR-M 失败而 JR-D 足额”的测试日编号（从 `exp12_capacity_S2.csv` 中筛选），重跑 `mech`。
-4. **内生承诺表**：从 `exp16_dayahead_S1.csv` 按式 (15) 对 ρ ∈ {0, 0.8, 1.0} 选各策略 C*，样本外结果直接查 `exp12_capacity_S1.csv`（同一批 26 日）。把这一步加到 `paper_numbers.py` 的 `endogenous_section()`。
-5. **写论文第 5 节与摘要、结论**。按蓝图第 5 节结构、八张图和 Table 2、Table 3（内生承诺），语气见蓝图第 0 节。摘要放 3–4 个最强数字（ΔC_0.95、S2 下 JR-M 的崩溃、成本差、适用条件）。
-6. **文档同步**：新建 `docs/实验结果_AE.md`（中文结果汇总，数字来自 numbers.md）；更新 README 的关键结果；更新 `docs/修改进度.md`。
-7. **投稿前**：核对参考文献 [38]–[42] 的作者与卷期；把 `paper/manuscript.md` 转成 Elsevier LaTeX 模板（elsarticle）；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 3 拼成）。
+1. **通读全文**（英文润色、术语统一：IR-O\*/IR-P/JR-M/JR-D/JR-S、“firm capacity”“recovery channel”“debt”）；检查正文引用的图表编号与图题。
+2. **参考文献**：把 [1]–[37]（目前指向 `docs/修订稿草稿/3_第8节_参考文献_附录A.md`）合并进 `paper/manuscript.md`，核对 [38]–[46] 的作者、卷期、页码。
+3. **图题（captions）**：为 Fig. 1–14、Fig. S1–S7 写图题（正文目前只引用图号）。
+4. **投稿格式**：转 Elsevier LaTeX（elsarticle）或 Word；补 Graphical Abstract（可由 Fig. 1(b) 与 Fig. 6 拼成）；Highlights 每条 ≤ 85 字符（已满足）。
+5. **可选补充**：S2 的完美追索两阶段承诺（exp16 目前只有 S1）；若审稿人追问半径选取，可在补充材料给出留一交叉验证半径的对照（`paper/numbers.md` 中 “eps LOO” 列已算好：S1 JR-M 0、S2 JR-M 0.015 MW → 4.5 MW）。
+6. **复现**：换容器后若需重跑，用 `tools/jobs/batch7.txt`（约 4 小时，4 核）以及 checkpoint、batch2/3/5b/5c 中已完成的部分；结果用 `PY=python3 tools/refresh.sh` 汇总。
 
 ## 7 其他说明
 
