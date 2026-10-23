@@ -185,6 +185,13 @@ end
 ix.ev = struct('R', {}, 'Z', {}, 'SF', {}, 'MX', {}, 'RHO', {}, 'C', {}, 'row_rb', {}, 'hw', {});
 tend = t0 + H - 1;
 act = opt.active;
+% reliability target of the day-ahead commitment ('commit' mode): u_s = 1 if every event is delivered in
+% full in scenario s, sum_s p_s u_s >= rho (scenario chance constraint)
+ix.U = [];
+if opt.rho > 0
+    [m, ix.U] = addb(m, 1, S, 0, 1, 0); m.isint(ix.U) = opt.milp;
+    m = lpb_addle(m, ones(S, 1), ix.U(:), -pr(:), -opt.rho);
+end
 for k = 1:numel(ev)
     e = ev(k); ix.ev(k).C = [];
     if strcmp(e.mode, 'none') || ~any(act(k, :)), continue; end
@@ -233,6 +240,9 @@ for k = 1:numel(ev)
                     m = lpb_addle(m, ones(nh+2,1), [Wv(s); Z(s); pgk], [par.dr.valid_lo; vmar + Mb; ones(nh,1)/nk], rhs0 + Mb);
                     m = lpb_addle(m, ones(nh+2,1), [Cv; SF(s); pgk], [1; -1; ones(nh,1)/nk], rhs0);
                     m = lpb_addle(m, [(1:nh)'; (1:nh)'], [pgk; repmat(MX(s), nh, 1)], [ones(nh,1); -ones(nh,1)], e.Pbmax * ones(nh,1));
+                    if ~isempty(ix.U)   % full delivery in scenario s if u_s = 1:  full_lo*C - rbar <= M (1 - u_s)
+                        m = lpb_addle(m, ones(nh+2,1), [Cv; ix.U(s); pgk], [par.dr.full_lo; Mb; ones(nh,1)/nk], rhs0 + Mb);
+                    end
                 end
                 ix.ev(k).R = R; ix.ev(k).Z = Z; ix.ev(k).SF = SF; ix.ev(k).MX = MX; ix.ev(k).C = Cv;
             case 'hard'
@@ -315,7 +325,7 @@ end
 
 function opt = defaults(opt, K)
 f = {'milp', true; 'nonant', true; 'fix_y', []; 'terminal', false; 'Eref_end', 0; 'Sref_end', 0; ...
-     'no_late', false; 'fix_z', []; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []};
+     'no_late', false; 'fix_z', []; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []; 'rho', 0};
 for i = 1:size(f,1)
     if ~isfield(opt, f{i,1}), opt.(f{i,1}) = f{i,2}; end
 end

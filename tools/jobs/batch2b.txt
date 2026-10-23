@@ -1,0 +1,2 @@
+# exp16 rerun with day-ahead full-delivery shares
+e16S1|RUN=16; E16_SCEN='S1';

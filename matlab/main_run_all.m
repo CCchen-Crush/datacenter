@@ -161,7 +161,7 @@ if any(RUN == 14)
                 cf(end+1) = struct('name', sprintf('bess%g', P), 'scen', 'S1', 'gap', [], 'mods', struct('bess_P', P), 'C', E14_C, 'S', []); %#ok<SAGROW>
             end
         case 'ablation'
-            if ~exist('E14_CS', 'var'), E14_CS = 1:0.5:9; end
+            if ~exist('E14_CS', 'var'), E14_CS = 1:0.5:8; end
             Sj = {'JR', 'expected', 'JR-D'};
             cf(1) = struct('name', 'BESS_only', 'scen', 'S1', 'gap', [], 'mods', struct('lag_scale', 0, 'tes_on', false), 'C', E14_CS(:), 'S', {Sj});
             cf(2) = struct('name', 'compute_only', 'scen', 'S1', 'gap', [], 'mods', struct('bess_P', 0, 'tes_on', false), 'C', E14_CS(:), 'S', {Sj});

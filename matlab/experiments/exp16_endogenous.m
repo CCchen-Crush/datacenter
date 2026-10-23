@@ -3,7 +3,9 @@ function out = exp16_endogenous(ctx, root, Cs, N, tag)
 %   same day-ahead information (the S day-ahead scenario days) and the same objective (expected
 %   comprehensive cost) to choose its own commitment, then operates with it on the N PAI test days.
 %     back-test  uniform commitment C* = argmin over Cs of the strategy's mean cost on the day-ahead
-%                scenarios (IR-O*: jointly with its static split, i.e. min over alpha of tune_alpha)
+%                scenarios (IR-O*: jointly with its static split, i.e. min over alpha of tune_alpha); the
+%                full-delivery share on the scenarios is stored as well, so that the reliability-constrained
+%                choice of Eq. (15) can be made for any rho (out-of-sample results: exp12 on the same days)
 %     RA         recovery-aware two-stage stochastic commitment (dayahead_commit 'coupled'; event-wise
 %                commitments, second stage = joint recovery model), operated by JR-D (proposed)
 %     SE         conventional single-event capability assessment (dayahead_commit 'single'), operated
@@ -16,21 +18,22 @@ if nargin < 5, tag = ''; end
 K = numel(ctx.ev); Sc = numel(ctx.sidx.flex);
 S = {'IR-O*', 'expected', 'IR-O*'; 'IR-P', 'expected', 'IR-P'; 'JR-M', 'expected', 'JR-M'; 'JR', 'expected', 'JR-D'};
 %% day-ahead: expected cost of each strategy on the day-ahead scenarios, for every uniform commitment
-da = nan(numel(Cs), size(S, 1)); astar = nan(numel(Cs), 1); t0 = tic;
+da = nan(numel(Cs), size(S, 1)); sh = da; astar = nan(numel(Cs), 1); t0 = tic;   % expected cost, full-delivery share
 for j = 1:numel(Cs)
     c0 = apply_commit(ctx, Cs(j) * ones(1, K));
     [astar(j), tab] = tune_alpha(c0, 'expected', ctx.par.bench.alpha_grid);
-    da(j, 1) = min(tab(:, 2));
+    [da(j, 1), ja] = min(tab(:, 2)); sh(j, 1) = tab(ja, 5);
     c0.alpha_star = astar(j); c0.lambda_hr_da = dayahead_prices(c0);
     for k = 2:size(S, 1)
-        v = zeros(Sc, 1);
-        for s = 1:Sc, R = run_strategy(scenario_ctx(c0, s), S{k, 1}, S{k, 2}); v(s) = R.M.net_cost_adj; end
-        da(j, k) = mean(v);
+        v = zeros(Sc, 2);
+        for s = 1:Sc, R = run_strategy(scenario_ctx(c0, s), S{k, 1}, S{k, 2}); v(s, :) = [R.M.net_cost_adj, R.M.all_full]; end
+        da(j, k) = mean(v(:, 1)); sh(j, k) = mean(v(:, 2));
     end
     fprintf('  exp16%s day-ahead C=%4.1f alpha*=%.1f | expected cost (k) %s (%.0f min)\n', tag, Cs(j), astar(j), ...
         sprintf('%6.1f ', da(j, :) / 1000), toc(t0) / 60);
 end
-write_csv(fullfile(root, 'results', sprintf('exp16_dayahead%s.csv', tag)), [{'C', 'alpha_star'}, S(:, 3)'], [Cs(:), astar, da]);
+write_csv(fullfile(root, 'results', sprintf('exp16_dayahead%s.csv', tag)), ...
+    [{'C', 'alpha_star'}, S(:, 3)', cellfun(@(x) ['full_' x], S(:, 3)', 'UniformOutput', false)], [Cs(:), astar, da, sh]);
 %% commitment packages
 [~, jb] = min(da, [], 1);
 DA = dayahead_commit(ctx, 'coupled'); SE = dayahead_commit(ctx, 'single');

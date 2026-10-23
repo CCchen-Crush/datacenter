@@ -1,4 +1,4 @@
-function DA = dayahead_commit(ctx, mode, Smode)
+function DA = dayahead_commit(ctx, mode, Smode, rho)
 %DAYAHEAD_COMMIT  Day-ahead DR commitment of the AIDC-IES.
 %   mode = 'coupled' : two-stage stochastic MILP over the whole day; commitments C_k are first-stage
 %                      decisions shared by all scenarios, the second stage is the joint
@@ -6,7 +6,10 @@ function DA = dayahead_commit(ctx, mode, Smode)
 %        = 'single'  : conventional single-event capability assessment - each event is assessed
 %                      alone from the nominal state, ignoring the other events
 %   Smode = 'scenario' (default) or 'expected'.
-if nargin < 3, Smode = 'scenario'; end
+%   rho   = reliability target of the coupled model: every event delivered in full in scenarios of total
+%           probability >= rho (scenario chance constraint, default 0 = expected cost only)
+if nargin < 3 || isempty(Smode), Smode = 'scenario'; end
+if nargin < 4 || isempty(rho), rho = 0; end
 par = ctx.par; K = numel(ctx.ev);
 c = ctx; c.fmode = Smode; c.da = true;
 sc = make_scen(ctx.inp, par, ctx.base, 1, par.Tsim, c);
@@ -18,11 +21,12 @@ sc.inf(1, :) = sc.inf(1, 1); sc.fix(1, :) = sc.fix(1, 1); sc.pv(1, :) = sc.pv(1,
 amode = 'scenario'; if sc.S == 1, amode = 'ce'; end
 act = event_activity(ctx, 1, sc.S, amode);
 opt = struct('milp', true, 'visible', any(act, 2), 'active', act, 'terminal', true, 'Eref_end', ctx.Eref(end), ...
-             'Sref_end', ctx.Sref(end), 'Cmax', 15);
+             'Sref_end', ctx.Sref(end), 'Cmax', 15, 'rho', 0);
 DA.C = zeros(K, 1); DA.mode = mode;
 switch mode
     case 'coupled'
         ev = ctx.ev; for k = 1:K, ev(k).mode = 'commit'; end
+        opt.rho = rho;
         [P, ix] = build_model(par, st, sc, ev, opt);
         sol = solve_milp(P, ctx.solver);
         if ~sol.ok, error('dayahead_commit:infeasible', 'coupled day-ahead model not solved'); end
