@@ -703,24 +703,24 @@ def fig9_substitution(lo=1.0):
             if not np.isnan(xn):
                 bound = np.isclose(xn, D["JR-D"][:, 0].min())        # JR-D exceeds c already at the smallest resource tested
                 ax.annotate("", xy=(conv(xn), c), xytext=(conv(base), c), arrowprops=dict(arrowstyle="-|>", color=COL["JR-D"], lw=1.0, mutation_scale=8))
-                ax.text((conv(xn) + conv(base)) / 2, c + 0.18, ("≥ " if bound else "") + f"−{conv(base) - conv(xn):.1f} {unit}", ha="center", va="bottom",
+                ax.text((conv(xn) + conv(base)) / 2, c + 0.18, ("≥ " if bound else "") + f"−{conv(base) - conv(xn):.{2 if unit == 'MW' else 1}f} {unit}", ha="center", va="bottom",
                         fontsize=6.6, color=COL["JR-D"], bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85))
                 res[unit] = (conv(base), c, conv(xn), bound)
         ax.set_xlabel(xl); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)" if k == 0 else ""); ax.set_ylim(0, 9)
         ax.legend(loc="lower right", bbox_to_anchor=(1.0, 0.12) if k == 0 else (1.0, 0.16), fontsize=6.0); panel(ax, "ab"[k], x=-0.18)
     if "MWh" in res:
-        axs[0].text(19.0, 8.05, "baseline erosion:\nlarger BESS lowers\nthe evening baseline", fontsize=5.8, ha="center", va="bottom", color="#555555")
+        axs[0].text(19.0, 7.9, "baseline erosion:\nlarger BESS lowers\nthe evening baseline", fontsize=5.8, ha="center", va="bottom", color="#555555")
     ax = axs[2]; items = []
     if "MWh" in res: items.append(("Battery saved", res["MWh"][0] - res["MWh"][2], "MWh", COL["JR-D"], res["MWh"][3]))
     if "MW" in res: items.append(("Connection saved", -(res["MW"][0] - res["MW"][2]), "MW", "#e07b2a", res["MW"][3]))
     for lab, v, u, c, bound in items:
         ax.bar(0, v, 0.55, color=c, alpha=0.5 if bound else 0.85, hatch="///" if bound else None, edgecolor=c, lw=0.5)
-        txt = ("≥ " if bound else "") + f"{abs(v):.1f} {u}" + (f"\n≈ {abs(v) * BESS_COST:.1f} M CNY" if u == "MWh" else "")
+        txt = ("≥ " if bound else "") + f"{abs(v):.{2 if u == 'MW' else 1}f} {u}" + (f"\n≈ {abs(v) * BESS_COST:.1f} M CNY" if u == "MWh" else "")
         ax.text(0.35, v / 2, f"{lab}\n{txt}", ha="left", va="center", fontsize=6.2)
     if G and "JR-M" in G and "JR-D" in G:
         gm, gd = G["JR-M"], G["JR-D"]; top = gm[np.argmax(gm[:, 0])]
         axs[1].text(0.03, 0.735, f"JR-M at γ = {top[0]:.2f}: {top[1]:.2f} MW\n< JR-D at γ = {gd[0, 0]:.2f}: {gd[0, 1]:.2f} MW", transform=axs[1].transAxes,
-                    fontsize=5.8, va="top", color="#555555")
+                    fontsize=5.8, va="top", color="#555555", bbox=dict(boxstyle="round,pad=0.1", fc="white", ec="none", alpha=0.85))
     ax.axhline(0, color="black", lw=0.6); ax.set_xlim(-0.5, 2.4); ax.set_xticks([])
     ax.set_title("Saved by cross-event foresight\n(same firm capacity as JR-M)", fontsize=7.0)
     ax.set_ylabel("Battery (MWh, +) / connection (MW, −)"); panel(ax, "c", x=-0.32)
