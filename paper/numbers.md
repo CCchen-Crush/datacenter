@@ -353,6 +353,14 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | gap3.00_g1.10 |      81 |      4 |    100 |    100 |
 | gap3.00_g1.20 |      81 |      4 |    100 |    100 |
 
+## Sensitivity: lag bounds and BESS power (share of days with full delivery, %)
+
+| cfgname   |   IR-O* |   IR-P |   JR-D |   JR-M |
+|:----------|--------:|-------:|-------:|-------:|
+| lag0.50   |      85 |     12 |     96 |     19 |
+| lag0.75   |      85 |     12 |    100 |     46 |
+| lag1.25   |      85 |     12 |    100 |    100 |
+
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size (S2, connection fixed)
 
 | cfg    |   IR-O* |   JR-D |   JR-M |
@@ -409,9 +417,10 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Pause/resume overhead (S2, connection fixed)
 
-| cfg     |   JR-D |
-|:--------|-------:|
-| ovh0.02 |   7.75 |
+| cfg     |   IR-O* |   JR-D |   JR-M |
+|:--------|--------:|-------:|-------:|
+| ovh0.02 |     nan |   7.75 |   4.75 |
+| ovh0.05 |     nan |   7.5  |   4.75 |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Two-event firm region (S2): firm C2 for a fixed first-event commitment C1
 
