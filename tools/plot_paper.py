@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Figures of the Applied Energy manuscript (English, vector PDF/SVG + PNG preview) from matlab/results.
 
-Usage: python3 tools/plot_paper.py [fig ...]      e.g.  python3 tools/plot_paper.py 3 5
-Fig. 1 system and recovery channel | 2 typical-day recovery | 3 reliability curves | 4 two-event region |
-5 strategy comparison | 6 sensitivity | 7 ablation | 8 multi-scenario statistics
+Usage: python3 tools/plot_paper.py [fig ...]      e.g.  python3 tools/plot_paper.py 5 9 S7
+Fig. 1 system and recovery channel | 2 framework | 3 typical-day power balance | 4 backlogs and storage |
+5 reliability curves | 6 two-event region | 7 coordination vs foresight | 8 sensitivity | 9 substitution curves |
+10 distributionally robust commitment | 11 recovery-energy Sankey | 12 IES contribution | 13 capacity-service Pareto |
+14 economics; S1-S7 supplementary
 """
 import sys
 import numpy as np
@@ -52,7 +54,7 @@ def fig3():
     hh, ll = axs[0, 0].get_legend_handles_labels()
     fig.subplots_adjust(top=0.9)
     fig.legend(hh, ll, loc="upper center", bbox_to_anchor=(0.5, 0.995), ncol=4, handlelength=2.6, columnspacing=1.6)
-    save(fig, "Fig3_reliable_capacity")
+    save(fig, "Fig5_reliable_capacity")
 
 
 # ------------------------------------------------------------------ Fig. 5 strategy comparison
@@ -82,40 +84,10 @@ def endogenous_points(scen="S1", tag="_S1", rho=1.0):
     return pts
 
 
-def fig5(C0=7.0):
-    nd = rd("exp17_nodr.csv")
-    tabs = [(load_capacity(t), s) for t, s in CAP_TAGS]; tabs = [(d, s) for d, s in tabs if d is not None]
-    if not tabs or nd is None: return
-    nd = nd.set_index("realisation")
-    fig = plt.figure(figsize=(DOUBLE_COL, 3.5)); gs = fig.add_gridspec(1, 2, width_ratios=[1.55, 1], wspace=0.3)
-    ax = fig.add_subplot(gs[0, 0])
-    x0 = 0; ticks = []; tl = []; groups = []
-    for d, s in tabs:
-        xs = x0
-        for n in ORDER:
-            q = d[(d.name == n) & np.isclose(d.C, C0)].set_index("realisation")
-            if q.empty: continue
-            ref = nd.reindex(q.index); up = 0; dn = 0
-            for c, lab, colr in DCOST:
-                v = (-q[c].mean() if c == "dr_pay" else (q[c] - ref[c]).mean()) / 1e3
-                if v >= 0: ax.bar(x0, v, 0.7, bottom=up, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); up += v
-                else: ax.bar(x0, v, 0.7, bottom=dn, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); dn += v
-            net = (q.net_cost_adj - ref.net_cost_adj).mean() / 1e3
-            ax.plot([x0 - 0.38, x0 + 0.38], [net, net], color="black", lw=1.8, solid_capstyle="butt", label="Net change (− benefit)" if x0 == 0 else None)
-            ax.text(x0, up + 0.8, f"{100 * q.all_full.mean():.0f}%", ha="center", va="bottom", fontsize=6.4, color=COL[n], fontweight="bold")
-            ticks.append(x0); tl.append(n); x0 += 1
-        groups.append(((xs + x0 - 1) / 2, s)); x0 += 0.7
-    ax.axhline(0, color="black", lw=0.6)
-    ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.5, rotation=90)
-    for xm, s in groups: ax.text(xm, 1.01, s, transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=8)
-    ax.set_ylabel("Daily cost change vs no DR (10$^3$ CNY)")
-    ax.set_title(f"Fixed commitment, C = {C0:g} MW", fontsize=8, pad=13)
-    ax.set_ylim(top=ax.get_ylim()[1] + 3)
-    panel(ax, "a", x=-0.1, y=1.06)
-    hh, ll = ax.get_legend_handles_labels()
-    fig.legend(hh, ll, loc="lower center", ncol=8, bbox_to_anchor=(0.5, -0.1), fontsize=6.6, handlelength=1.4, columnspacing=0.9)
-    # (b) endogenous protocol: reliability-benefit plane
-    ax = fig.add_subplot(gs[0, 1]); pts = endogenous_points()
+def figS7():
+    fig = plt.figure(figsize=(SINGLE_COL * 1.15, 3.0))
+    # endogenous protocol (exp16 packages): reliability-benefit plane
+    ax = fig.add_subplot(111); pts = endogenous_points()
     place = {"Back-test, JR-D": (99, 49.5, "right"), "Perfect-recourse MILP, JR-D": (64, 46.5, "right"),
              "Back-test, IR-O*": (64, 41.0, "right"), "Back-test, JR-M": (97, 31.0, "center"),
              "Single-event capability, IR-O*": (4, 26.0, "left"), "Back-test, IR-P": (62, 22.0, "left"),
@@ -132,109 +104,8 @@ def fig5(C0=7.0):
     ax.legend(loc="lower right", fontsize=6.2, handletextpad=0.3, borderaxespad=0.3)
     ax.set_xlim(-8, 108); ax.set_ylim(-3, 55)
     ax.set_xlabel("Days with full delivery, out of sample (%)"); ax.set_ylabel("Daily benefit vs no DR (10$^3$ CNY)")
-    ax.set_title("Endogenous commitment, S1", fontsize=8, pad=13); panel(ax, "b", x=-0.2, y=1.06)
-    save(fig, "Fig5_strategy_comparison")
-
-
-# ------------------------------------------------------------------ Fig. 8 multi-scenario statistics
-def fig8():
-    data = [(load_capacity(t), s) for t, s in CAP_TAGS]
-    data = [(d, s) for d, s in data if d is not None]
-    if not data: return
-    C0 = 7.0
-    fig = plt.figure(figsize=(DOUBLE_COL, 3.3)); gs = fig.add_gridspec(1, 2, width_ratios=[1.25, 1], wspace=0.28)
-    ax = fig.add_subplot(gs[0, 0])
-    pos = 0; ticks = []; tl = []; D = []
-    for d, s in data:
-        P = d[(d.name == "JR-D") & np.isclose(d.C, C0)].set_index("realisation")
-        for n in ["IR-O*", "IR-P", "JR-M"]:
-            B = d[(d.name == n) & np.isclose(d.C, C0)].set_index("realisation")
-            D.append((pos, n, ((P.net_cost_adj - B.net_cost_adj) / 1e3).dropna().values)); pos += 1
-        pos += 0.6
-    allv = np.concatenate([v for _, _, v in D]); lo = np.percentile(allv, 3); hi = max(np.percentile(allv, 99.5), 0); pad = 0.1 * (hi - lo)
-    for pos, n, diff in D:
-        if True:
-            vc = np.clip(diff, lo - pad, None)
-            vp = ax.violinplot(vc, [pos], widths=0.8, showextrema=False)
-            for b in vp["bodies"]: b.set_facecolor(COL[n]); b.set_alpha(0.35); b.set_edgecolor(COL[n])
-            ax.boxplot(vc, positions=[pos], widths=0.18, showfliers=False, patch_artist=True,
-                       boxprops=dict(facecolor="white", lw=0.6), medianprops=dict(color=COL[n], lw=1.4), whiskerprops=dict(lw=0.6), capprops=dict(lw=0.6))
-            nb = int((diff < lo - pad).sum())
-            if nb: ax.text(pos, lo - pad * 0.6, f"{nb} day{'s' if nb > 1 else ''} ↓", ha="center", fontsize=6, color="#555555")
-            ticks.append(pos); tl.append(f"{[s for _, s in data][int(pos // 3.6)]}\nvs {n}")
-    ax.axhline(0, color="black", lw=0.6); ax.set_ylim(lo - pad, hi + pad)
-    ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.5); ax.set_ylabel("Daily cost, JR-D − benchmark (10$^3$ CNY)")
-    ax.set_title(f"Paired daily cost differences, C = {C0:g} MW", fontsize=8)
-    panel(ax, "a", x=-0.1)
-    # ridgeline: worst-event delivery ratio across test days
-    ax = fig.add_subplot(gs[0, 1]); d, s = data[min(1, len(data) - 1)]
-    q = d[np.isclose(d.C, C0)].copy()
-    q["ratio"] = q[["red_E1", "red_E2", "red_E3"]].min(axis=1) / C0
-    grid = np.linspace(0.3, 1.25, 300)
-    for k, n in enumerate(ORDER):
-        v = q[q.name == n].ratio.dropna().values
-        bw = 0.06; dens = np.exp(-0.5 * ((grid[:, None] - v[None, :]) / bw) ** 2).sum(axis=1); dens = dens / dens.max() * 0.85
-        ax.fill_between(grid, k, k + dens, color=COL[n], alpha=0.55, lw=0); ax.plot(grid, k + dens, color=COL[n], lw=0.8)
-        ax.text(0.31, k + 0.12, n, fontsize=7.5, color=COL[n])
-    ax.axvline(0.98, color="black", lw=0.7, ls="--"); ax.axvline(0.8, color="#888888", lw=0.6, ls=":")
-    ax.text(0.98, len(ORDER) + 0.05, "full", ha="center", fontsize=7); ax.text(0.8, len(ORDER) + 0.05, "valid", ha="center", fontsize=7)
-    ax.set_yticks([]); ax.set_xlabel("Worst-event delivery ratio min$_k$ $R_k$/C"); ax.set_xlim(0.3, 1.25); ax.set_ylim(0, len(ORDER) + 0.4)
-    ax.set_title(f"{SCEN[s]}, C = {C0:g} MW", fontsize=8); panel(ax, "b", x=-0.04)
-    save(fig, "Fig8_multi_scenario")
-
-
-# ------------------------------------------------------------------ Fig. 2 typical-day recovery mechanism
-FIG2_CASE = ""          # suffix of the typical-day case of exp15 (e.g. "_r21"); set by the environment variable FIG2_CASE
-
-
-def fig2():
-    import os
-    suf = os.environ.get("FIG2_CASE", FIG2_CASE)
-    cases = [("short", "Short interval (30 min)"), ("long", "Long interval (3 h)")]
-    S = [("IROs", "IR-O*"), ("JRM", "JR-M"), ("JRD", "JR-D")]
-    D = {c: {n: rd(f"ts15_{c}{suf}_{f}.csv") for f, n in S} for c, _ in cases}
-    if any(v is None for c in D for v in D[c].values()): return
-    fig, axs = plt.subplots(4, 2, figsize=(DOUBLE_COL, 7.4), sharex="col"); fig.subplots_adjust(hspace=0.12, wspace=0.22)
-    for j, (c, title) in enumerate(cases):
-        ev = EVENTS[c]; J = D[c]["JR-D"]; I = D[c]["IR-O*"]; h = J.hour
-        a = axs[0, j]; shade(a, ev)
-        a.plot(h, J.base, color="black", lw=0.9, ls="--", label="DR baseline")
-        a.axhline(J.Pcap.iloc[0], color="#b22222", lw=0.8, label="Connection limit")
-        for n in ["IR-O*", "JR-M", "JR-D"]:
-            a.plot(h, D[c][n].pg, color=COL[n], ls=LS[n], lw=1.3, label=n)
-        a.set_ylabel("Grid import (MW)"); a.set_title(title, fontsize=9); panel(a, "ae"[j], x=-0.13)
-        a = axs[1, j]; shade(a, ev)
-        cl = ["#9ecae1", "#4292c6", "#08519c"]
-        a.stackplot(h, J.B1 / 1e3, J.B2 / 1e3, J.B3 / 1e3, colors=cl, labels=["C1 (L = 0.5 h), JR-D", "C2 (L = 1.5 h), JR-D", "C3 (L = 3 h), JR-D"], alpha=0.9, lw=0)
-        a.plot(h, (I.B1 + I.B2 + I.B3) / 1e3, color=COL["IR-O*"], ls="--", lw=1.2, label="Total backlog, IR-O*")
-        a.set_ylabel("Backlog (10$^3$ GPU·h)"); panel(a, "bf"[j], x=-0.13)
-        a = axs[2, j]; shade(a, ev)
-        a.bar(h, J.pdis - J.pch, width=0.22, color=np.where(J.pdis - J.pch >= 0, "#1f5fa8", "#8fb3d9"), label="BESS discharge (+) / charge (−), JR-D")
-        a2 = a.twinx(); a2.grid(False)
-        for n in ["IR-O*", "JR-D"]:
-            a2.plot(h, D[c][n].E, color=COL[n], ls=LS[n], lw=1.3, label=f"BESS energy, {n}")
-        a.set_ylabel("BESS power (MW)"); a2.set_ylabel("BESS energy (MWh)"); panel(a, "cg"[j], x=-0.13)
-        if j == 0:
-            hh, ll = a.get_legend_handles_labels(); h2, l2 = a2.get_legend_handles_labels()
-            a.legend(hh + h2, ll + l2, loc="lower left", fontsize=6.5)
-        a = axs[3, j]; shade(a, ev)
-        for k, (n, sgn) in enumerate([("JR-D", 1), ("IR-O*", -1)]):
-            q = D[c][n]
-            phi = 1.05 + 1.0 / q.cop
-            pdyn = 8.4 / 8 / 1000 * 0.75
-            catch = np.maximum((q.y1 + q.y2 + q.y3) - (q.a1 + q.a2 + q.a3), 0) * pdyn * phi
-            rech = q.pch + q.qtc / q.cop
-            out = np.ones(len(h), bool)
-            for s0, e0 in ev: out &= ~((h >= s0) & (h < e0))
-            a.fill_between(h, 0, sgn * catch * out, color="#e07b2a" if sgn > 0 else "#f3b98a", step="post", lw=0, label=f"Compute catch-up, {n}")
-            a.fill_between(h, sgn * catch * out, sgn * (catch + rech) * out, color="#1f5fa8" if sgn > 0 else "#8fb3d9", step="post", lw=0, label=f"Storage recharge, {n}")
-        a.axhline(0, color="black", lw=0.6)
-        a.text(0.01, 0.93, "JR-D", transform=a.transAxes, fontsize=7.5, va="top"); a.text(0.01, 0.06, "IR-O*", transform=a.transAxes, fontsize=7.5)
-        a.set_ylabel("Recovery power (MW)"); a.set_xlabel("Hour of day"); panel(a, "dh"[j], x=-0.13)
-        if j == 0: a.legend(loc="upper right", fontsize=6.3, ncol=2)
-        for a in axs[:, j]: a.set_xlim(15, 26)
-    axs[0, 0].legend(loc="lower left", fontsize=6.5, ncol=2); axs[1, 0].legend(loc="upper right", fontsize=6.5)
-    save(fig, "Fig2_recovery_mechanism" + (os.environ.get("FIG2_OUT", "") if suf else ""))
+    ax.set_title("Endogenous commitment, S1", fontsize=8)
+    save(fig, "FigS7_endogenous_plane")
 
 
 # ------------------------------------------------------------------ Fig. 4 two-event reliability region
@@ -262,71 +133,7 @@ def fig4(rho=0.9):
         ax.set_xlim(Cg.min() - 0.5, Cg.max() + 0.5); ax.set_ylim(Cg.min() - 0.5, Cg.max() + 0.5)
         ax.set_title(f"{lab}, reliability ≥ {100 * rho:.0f} %", fontsize=8.5); panel(ax, "ab"[j])
     axs[0, 0].legend(loc="lower left")
-    save(fig, "Fig4_two_event_region")
-
-
-# ------------------------------------------------------------------ Fig. 6 sensitivity
-def fig6():
-    d = rd("exp14_tau_gamma.csv"); s = rd("exp14_tau_gamma_strategies.csv"); cfg = rd("exp14_tau_gamma_cfg.csv")
-    if d is None: return
-    d["name"] = d.strategy.map(dict(zip(s["index"], s["label"]))); lab = dict(zip(cfg["cfg"], cfg["label"]))
-    d["gap"] = d.cfg.map(lambda i: float(lab[i].split("_")[0][3:])); d["gamma"] = d.cfg.map(lambda i: float(lab[i].split("_")[1][1:]))
-    g = d.groupby(["gap", "gamma", "name"]).all_full.mean().unstack("name")
-    gain_ir = 100 * (g["JR-D"] - g[["IR-O*", "IR-P"]].max(axis=1)); gain_m = 100 * (g["JR-D"] - g["JR-M"])
-    sd = rd("exp14_single.csv"); ss = rd("exp14_single_strategies.csv"); sc = rd("exp14_single_cfg.csv")
-    fig = plt.figure(figsize=(DOUBLE_COL, 3.0)); gsp = fig.add_gridspec(1, 4, width_ratios=[1, 1, 0.8, 0.8], wspace=0.45)
-    for k, (Z, title) in enumerate([(gain_ir, "JR-D − best independent (pp)"), (gain_m, "JR-D − JR-M (pp)")]):
-        ax = fig.add_subplot(gsp[0, k]); M = Z.unstack("gap"); ax.grid(False)
-        im = ax.imshow(M.values, origin="lower", aspect="auto", cmap="Blues", vmin=0, vmax=max(5, np.nanmax(M.values)))
-        for i in range(M.shape[0]):
-            for jj in range(M.shape[1]):
-                v = M.values[i, jj]; ax.text(jj, i, f"{v:.0f}", ha="center", va="center", fontsize=7, color="white" if v > 0.6 * np.nanmax(M.values) else "black")
-        ax.set_xticks(range(M.shape[1])); ax.set_xticklabels([f"{x:g}" for x in M.columns]); ax.set_yticks(range(M.shape[0])); ax.set_yticklabels([f"{x:.2f}" for x in M.index])
-        ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Connection margin γ" if k == 0 else ""); ax.set_title(title, fontsize=8); panel(ax, "ab"[k], x=-0.25)
-    if sd is not None:
-        sd["name"] = sd.strategy.map(dict(zip(ss["index"], ss["label"]))); lab2 = dict(zip(sc["cfg"], sc["label"]))
-        sd["cfgname"] = sd.cfg.map(lab2)
-        for k, (key, xlab, conv, b0) in enumerate([("lag", "Lag-bound scale of $L_c$", lambda x: float(x[3:]), 1.0), ("bess", "BESS power (MW)", lambda x: float(x[4:]), 6.0)]):
-            ax = fig.add_subplot(gsp[0, 2 + k]); q = sd[sd.cfgname.str.startswith(key)].copy(); q["x"] = q.cfgname.map(conv)
-            gb = q.groupby(["x", "name"]).all_full.mean().unstack("name") * 100
-            b = d[(d.gap == 1.0) & np.isclose(d.gamma, 1.10)].groupby("name").all_full.mean() * 100
-            gb.loc[b0] = b; gb = gb.sort_index()
-            for n in ORDER:
-                if n in gb: ax.plot(gb.index, gb[n], color=COL[n], ls=LS[n], marker=MK[n], ms=3.5, mfc="white", lw=1.3, label=n)
-            ax.set_xlabel(xlab); ax.set_ylabel("Full delivery (%)" if k == 0 else ""); ax.set_ylim(-3, 104); panel(ax, "cd"[k], x=-0.3)
-        fig.axes[-2].legend(loc="lower right", fontsize=6.5)
-    save(fig, "Fig6_sensitivity")
-
-
-# ------------------------------------------------------------------ Fig. 7 ablation
-def fig7(rho=0.95):
-    a = rd("exp14_ablation.csv"); s1 = load_capacity("_S1")
-    if a is None or s1 is None: return
-    cfg = rd("exp14_ablation_cfg.csv"); names = dict(zip(cfg["cfg"], cfg["label"])); a["config"] = a.cfg.map(names)
-    a["C"] = a.C1
-    cap = {}
-    for c in a.config.unique():
-        sh = a[a.config == c].groupby("C").all_full.mean(); cap[c] = c_rho(sh, rho)
-    for n in ORDER:
-        cap[n] = c_rho(s1[s1.name == n].groupby("C").all_full.mean(), rho)
-    steps = [("BESS only", cap.get("BESS_only")), ("Compute only", cap.get("compute_only")), ("Compute + BESS", cap.get("compute_BESS")),
-             ("+ TES, independent (best IR)", np.nanmax([cap["IR-O*"], cap["IR-P"]])), ("+ joint, event-by-event (JR-M)", cap["JR-M"]),
-             ("+ cross-event foresight (JR-D)", cap["JR-D"])]
-    fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.62, 2.9))
-    prev = 0
-    for k, (lab, v) in enumerate(steps):
-        v = 0 if v is None or np.isnan(v) else v
-        colr = "#8fb3d9" if k < 3 else ("#e07b2a" if k == 3 else ("#c4508a" if k == 4 else "#1f5fa8"))
-        if k < 3:
-            ax.bar(k, v, 0.6, color=colr, edgecolor="black", lw=0.4)
-        else:
-            ax.bar(k, v - prev, 0.6, bottom=prev, color=colr, edgecolor="black", lw=0.4)
-            ax.plot([k - 1.3, k + 0.3], [prev, prev], color="#555555", lw=0.6, ls=":")
-        ax.text(k, v + 0.12, f"{v:.1f}", ha="center", fontsize=7.5)
-        if k >= 2: prev = v
-    ax.set_xticks(range(len(steps))); ax.set_xticklabels([s for s, _ in steps], rotation=18, ha="right", fontsize=7)
-    ax.set_ylabel(f"Firm capacity $C_{{{rho}}}^{{firm}}$ (MW)"); ax.set_title("S1, full delivery of every event", fontsize=8.5)
-    save(fig, "Fig7_ablation")
+    save(fig, "Fig6_two_event_region")
 
 
 # ------------------------------------------------------------------ Fig. 1 system and recovery channel
@@ -509,7 +316,7 @@ def figS6():
     save(fig, "FigS6_shadow_prices")
 
 
-FIGS = {"1": fig1, "2": fig2, "3": fig3, "4": fig4, "5": fig5, "6": fig6, "7": fig7, "8": fig8, "S1": figS1, "S2": figS2, "S3": figS3, "S4": figS4, "S5": figS5, "S6": figS6}
+FIGS = {"S1": figS1, "S2": figS2, "S3": figS3, "S4": figS4, "S5": figS5, "S6": figS6, "S7": figS7}
 
 
 
@@ -544,7 +351,6 @@ def fig13(rho=0.95):
     save(fig, "Fig13_capacity_service_pareto")
 
 
-FIGS["13"] = fig13
 
 
 # ------------------------------------------------------------------ Fig. 2 framework: day-ahead DRO commitment + intraday joint recovery
@@ -577,7 +383,6 @@ def fig2_framework():
     save(fig, "Fig2_framework")
 
 
-FIGS["2f"] = fig2_framework
 
 
 # ------------------------------------------------------------------ Fig. 11 recovery energy Sankey
@@ -648,7 +453,6 @@ def fig11(case="short_r21", gap=(18.0, 18.5), after=(19.5, 21.5)):
     save(fig, "Fig11_recovery_sankey")
 
 
-FIGS["11"] = fig11
 
 
 # ------------------------------------------------------------------ Fig. 3 typical-day power balance and recovery channel
@@ -735,8 +539,6 @@ def fig4_states(suf="_r21"):
     save(fig, "Fig4_backlog_storage")
 
 
-FIGS["3t"] = fig3_typical
-FIGS["4s"] = fig4_states
 
 
 # ------------------------------------------------------------------ Fig. 7 value of coordination and of cross-event foresight vs interval
@@ -777,7 +579,6 @@ def fig7_decomp():
     save(fig, "Fig7_value_decomposition")
 
 
-FIGS["7d"] = fig7_decomp
 
 
 # ------------------------------------------------------------------ Fig. 9 substitution curves: battery energy and connection capacity
@@ -943,9 +744,6 @@ def fig12_ies(case="short_r21", lo=1.0):
     save(fig, "Fig12_ies_contribution")
 
 
-FIGS["9s"] = fig9_substitution
-FIGS["10c"] = fig10_calibration
-FIGS["12i"] = fig12_ies
 
 
 # ------------------------------------------------------------------ Fig. 8 sensitivity: interval x connection margin, lag bounds
@@ -999,7 +797,80 @@ def fig8_sensitivity():
     save(fig, "Fig8_sensitivity")
 
 
-FIGS["8s"] = fig8_sensitivity
+
+
+# ------------------------------------------------------------------ Fig. 14 economics and multi-day statistics
+def _cost_decomp(ax, tabs, nd, C0):
+    x0 = 0; ticks = []; tl = []; groups = []
+    for d, s in tabs:
+        xs = x0
+        for n in ORDER:
+            q = d[(d.name == n) & np.isclose(d.C, C0)].set_index("realisation")
+            if q.empty: continue
+            ref = nd.reindex(q.index); up = 0; dn = 0
+            for c, lab, colr in DCOST:
+                v = (-q[c].mean() if c == "dr_pay" else (q[c] - ref[c]).mean()) / 1e3
+                if v >= 0: ax.bar(x0, v, 0.7, bottom=up, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); up += v
+                else: ax.bar(x0, v, 0.7, bottom=dn, color=colr, edgecolor="white", lw=0.3, label=lab if x0 == 0 else None); dn += v
+            net = (q.net_cost_adj - ref.net_cost_adj).mean() / 1e3
+            ax.plot([x0 - 0.38, x0 + 0.38], [net, net], color="black", lw=1.8, solid_capstyle="butt", label="Net change (− benefit)" if x0 == 0 else None)
+            ax.text(x0, up + 0.8, f"{100 * q.all_full.mean():.0f}%", ha="center", va="bottom", fontsize=6.2, color=COL[n], fontweight="bold")
+            ticks.append(x0); tl.append(n); x0 += 1
+        groups.append(((xs + x0 - 1) / 2, s)); x0 += 0.7
+    ax.axhline(0, color="black", lw=0.6); ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.4)
+    for xm, s in groups: ax.text(xm, 1.01, SCEN[s], transform=ax.get_xaxis_transform(), ha="center", va="bottom", fontsize=7.2)
+    ax.set_ylabel("Daily cost change vs no DR (10$^3$ CNY)"); ax.set_ylim(top=ax.get_ylim()[1] + 3)
+
+
+def fig14_economics(C0=7.0):
+    nd = rd("exp17_nodr.csv")
+    tabs = [(load_capacity(t), s) for t, s in CAP_TAGS]; tabs = [(d, s) for d, s in tabs if d is not None]
+    if not tabs or nd is None: return
+    nd = nd.set_index("realisation")
+    fig = plt.figure(figsize=(DOUBLE_COL, 6.0)); gs = fig.add_gridspec(2, 2, height_ratios=[1.05, 1], width_ratios=[1.25, 1], hspace=0.62, wspace=0.26)
+    ax = fig.add_subplot(gs[0, :]); _cost_decomp(ax, tabs, nd, C0)
+    ax.set_title(f"Fixed commitment C = {C0:g} MW: cost components relative to no DR (labels: days with full delivery)", fontsize=7.8, pad=14)
+    panel(ax, "a", x=-0.06, y=1.08)
+    hh, ll = ax.get_legend_handles_labels(); ax.legend(hh, ll, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=8, fontsize=6.0, handlelength=1.2, columnspacing=0.7)
+    ax = fig.add_subplot(gs[1, 0]); pos = 0; ticks = []; tl = []; D = []
+    for d, s in tabs:
+        P = d[(d.name == "JR-D") & np.isclose(d.C, C0)].set_index("realisation")
+        for n in ["IR-O*", "IR-P", "JR-M"]:
+            B = d[(d.name == n) & np.isclose(d.C, C0)].set_index("realisation")
+            D.append((pos, n, s, ((P.net_cost_adj - B.net_cost_adj) / 1e3).dropna().values)); pos += 1
+        pos += 0.6
+    allv = np.concatenate([v for *_, v in D]); lo = np.percentile(allv, 3); hi = max(np.percentile(allv, 99.5), 0); pad = 0.1 * (hi - lo)
+    for pos, n, s, diff in D:
+        vc = np.clip(diff, lo - pad, None)
+        vp = ax.violinplot(vc, [pos], widths=0.8, showextrema=False)
+        for b in vp["bodies"]: b.set_facecolor(COL[n]); b.set_alpha(0.35); b.set_edgecolor(COL[n])
+        ax.boxplot(vc, positions=[pos], widths=0.18, showfliers=False, patch_artist=True, boxprops=dict(facecolor="white", lw=0.6),
+                   medianprops=dict(color=COL[n], lw=1.4), whiskerprops=dict(lw=0.6), capprops=dict(lw=0.6))
+        nb = int((diff < lo - pad).sum())
+        if nb: ax.text(pos, lo - pad * 0.6, f"{nb}↓", ha="center", fontsize=6, color="#555555")
+        ticks.append(pos); tl.append(f"{s}\n{n}")
+    ax.axhline(0, color="black", lw=0.6); ax.set_ylim(lo - pad, hi + pad); ax.set_xticks(ticks); ax.set_xticklabels(tl, fontsize=6.0)
+    ax.set_ylabel("JR-D − benchmark (10$^3$ CNY/day)"); ax.set_title("Paired daily differences over 26 days", fontsize=7.8)
+    panel(ax, "b", x=-0.16, y=1.06)
+    ax = fig.add_subplot(gs[1, 1]); d, s = tabs[min(1, len(tabs) - 1)]
+    q = d[np.isclose(d.C, C0)].copy(); q["ratio"] = q[["red_E1", "red_E2", "red_E3"]].min(axis=1) / C0
+    grid = np.linspace(0.3, 1.25, 300)
+    for k, n in enumerate(ORDER):
+        v = q[q.name == n].ratio.dropna().values
+        dens = np.exp(-0.5 * ((grid[:, None] - v[None, :]) / 0.06) ** 2).sum(axis=1); dens = dens / dens.max() * 0.85
+        ax.fill_between(grid, k, k + dens, color=COL[n], alpha=0.55, lw=0); ax.plot(grid, k + dens, color=COL[n], lw=0.8)
+        ax.text(0.31, k + 0.12, n, fontsize=7.2, color=COL[n])
+    ax.axvline(0.98, color="black", lw=0.7, ls="--"); ax.axvline(0.8, color="#888888", lw=0.6, ls=":")
+    ax.text(0.98, len(ORDER) + 0.05, "full", ha="center", fontsize=6.6); ax.text(0.8, len(ORDER) + 0.05, "valid", ha="center", fontsize=6.6)
+    ax.set_yticks([]); ax.set_xlabel("Worst-event delivery ratio min$_k$ $\\bar r_k$/C"); ax.set_xlim(0.3, 1.25); ax.set_ylim(0, len(ORDER) + 0.4)
+    ax.set_title(f"{SCEN[s]}, C = {C0:g} MW", fontsize=7.8); panel(ax, "c", x=-0.04)
+    save(fig, "Fig14_economics")
+
+
+
+
+FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig3, "6": fig4, "7": fig7_decomp, "8": fig8_sensitivity,
+             "9": fig9_substitution, "10": fig10_calibration, "11": fig11, "12": fig12_ies, "13": fig13, "14": fig14_economics})
 
 
 if __name__ == "__main__":
