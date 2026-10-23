@@ -313,6 +313,17 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | 0.95 | JR-M | 8.04 / 7.75 | 7.5 | 0.066 | 6 | 0.000 | 7.5 | 0.088 | 6 | 100 | 77 | 35.8 |
 | 0.95 | JR-D | 8.25 / 8.25 | 8 | 0.000 | 8 | 0.000 | 8 | 0.013 | 7 | 100 | 81 | 44.8 |
 
+## Distributionally robust commitment (Section 4.1, Proposition 3), S2: 14 historical days -> 26 test days
+
+Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
+
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.90 | IR-O* | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
+| 0.90 | IR-P | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
+| 0.95 | IR-O* | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.95 | IR-P | 3.75 / 0.75 | <1 | 0.327 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+
 ## Sensitivity: interval x connection margin (share of days with full delivery, %)
 
 | cfgname       |   IR-O* |   IR-P |   JR-D |   JR-M |
@@ -368,10 +379,12 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Event interval
 
-| cfg   |   IR-O* |   JR-D |   JR-M |
-|:------|--------:|-------:|-------:|
-| tau15 |     nan |   7.5  |    3.5 |
-| tau60 |     nan |   7.75 |  nan   |
+| cfg    |   IR-O* |   JR-D |   JR-M |
+|:-------|--------:|-------:|-------:|
+| tau120 |     nan |   8    |   7.75 |
+| tau15  |     nan |   7.5  |   3.5  |
+| tau180 |     nan |   7.75 | nan    |
+| tau60  |     nan |   7.75 |   6.75 |
 
 ## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): IES devices (S2, JR-D, connection fixed)
 
@@ -389,5 +402,14 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | BESS_only    |  nan   |
 | compute_BESS |    7.5 |
 | compute_only |    3   |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Two-event firm region (S2): firm C2 for a fixed first-event commitment C1
+
+| cfg   |   JR-D |   JR-M |
+|:------|-------:|-------:|
+| C1_2  |   8    |    5.5 |
+| C1_4  |   8    |    5   |
+| C1_7  |   7.75 |    4   |
+| C1_8  |   7.75 |  nan   |
 
 Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the gamma, ies, resources and overhead sets.

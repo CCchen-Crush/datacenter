@@ -552,6 +552,9 @@ def fig4_states(suf="_r21"):
 
 # ------------------------------------------------------------------ Fig. 7 value of coordination and of cross-event foresight vs interval
 def fig7_decomp():
+    """Firm capacity versus the event interval (Exp20 'tau' + the 30-min base case of 'bess'): coordination value
+    JR-M - IR-O* and cross-event foresight value JR-D - JR-M. A strategy below the search bracket (NaN) is drawn just under
+    it and its value counts as a lower bound; a configuration that has not been run is left out."""
     from paper_style import exp20
     t = exp20("tau"); b = exp20("bess")
     if t is None and b is None: return
@@ -563,38 +566,42 @@ def fig7_decomp():
                 q = d[(d.cfg == cfg) & (d.strategy == n)]
                 if not q.empty: rows.append((tau, n, float(q.C_rho.iloc[0])))
     if not rows: return
-    T = pd.DataFrame(rows, columns=["tau", "name", "C"]).pivot(index="tau", columns="name", values="C").sort_index()
+    R = pd.DataFrame(rows, columns=["tau", "name", "C"])
+    T = R.pivot(index="tau", columns="name", values="C").sort_index()
+    ran = R.assign(v=1).pivot(index="tau", columns="name", values="v").reindex(T.index).notna()
     lo = 1.0                                              # lower end of the search bracket
-    Tv = T.fillna(lo - 0.25)                              # below the bracket: plotted just under it
-    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.9), gridspec_kw=dict(width_ratios=[1.25, 1], wspace=0.3))
-    ax = axs[0]
-    if {"IR-O*", "JR-M"} <= set(T.columns): ax.fill_between(T.index, Tv["IR-O*"], Tv["JR-M"], color="#c4508a", alpha=0.12, lw=0, label="Coordination value")
-    if {"JR-M", "JR-D"} <= set(T.columns): ax.fill_between(T.index, Tv["JR-M"], Tv["JR-D"], color="#1f5fa8", alpha=0.15, lw=0, label="Cross-event foresight value")
+    Tv = T.where(~(T.isna() & ran), lo - 0.25)            # below the bracket: drawn just under it; not run: NaN
+    full = T.index[ran.all(axis=1)] if set(["IR-O*", "JR-M", "JR-D"]) <= set(ran.columns) else T.index[:0]
+    fig, axs = plt.subplots(1, 2, figsize=(DOUBLE_COL, 2.95), gridspec_kw=dict(width_ratios=[1.25, 1], wspace=0.3))
+    ax = axs[0]; F = Tv.loc[full]
+    if len(F):
+        ax.fill_between(F.index, F["IR-O*"], F["JR-M"], color="#c4508a", alpha=0.12, lw=0, label="Coordination value")
+        ax.fill_between(F.index, F["JR-M"], F["JR-D"], color="#1f5fa8", alpha=0.15, lw=0, label="Cross-event foresight value")
     for n in ["IR-O*", "JR-M", "JR-D"]:
-        if n in T: ax.plot(T.index, Tv[n], color=COL[n], ls=LS[n], marker=MK[n], ms=4, mfc="white", lw=1.4, label=n)
-    ax.axhline(7.98, color="#555555", lw=0.7, ls=(0, (4, 3))); ax.text(T.index.max(), 8.05, "single-event capability of event 2", ha="right", fontsize=6.4, color="#555555")
-    ax.axhline(lo, color="#aaaaaa", lw=0.5, ls=":"); ax.text(T.index.min(), lo - 0.5, "below search range", fontsize=6.2, color="#888888")
+        if n in Tv:
+            v = Tv[n].dropna(); ax.plot(v.index, v.values, color=COL[n], ls=LS[n], marker=MK[n], ms=4, mfc="white", lw=1.4,
+                                       label=n + (" (< 1 MW)" if T[n].isna().all() else ""))
+    ax.axhline(7.98, color="#555555", lw=0.7, ls=(0, (4, 3))); ax.text(T.index.max(), 8.12, "≈ single-event capability (8 MW)", ha="right", fontsize=6.4, color="#555555")
+    ax.axhline(lo, color="#aaaaaa", lw=0.5, ls=":")
     ax.set_xscale("log", base=2); ax.set_xticks(T.index); ax.set_xticklabels([f"{x:g}" for x in T.index])
     ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); ax.set_ylim(0, 9)
-    ax.legend(loc="lower right", fontsize=6.4, ncol=2); panel(ax, "a", x=-0.12)
-    ax = axs[1]; x = np.arange(len(T.index)); wb = 0.6
-    # IR-O* below the search bracket: the coordination value is at least JR-M - lo (hatched lower bound)
-    below = T["IR-O*"].isna().values if "IR-O*" in T else np.zeros(len(x), bool)
-    coord = (T["JR-M"] - T["IR-O*"].fillna(lo)).values if "IR-O*" in T else np.zeros(len(x))
-    fore = (T["JR-D"] - T["JR-M"]).values
-    for i in range(len(x)):
-        ax.bar(x[i], coord[i], wb, color="#c4508a", alpha=0.45 if below[i] else 0.75, hatch="///" if below[i] else None, edgecolor="#c4508a",
-               lw=0.4, label="Coordination (JR-M − IR-O*)" if i == 0 else None)
-    ax.bar(x, fore, wb, bottom=np.maximum(coord, 0), color="#1f5fa8", alpha=0.85, label="Foresight (JR-D − JR-M)")
-    for i in range(len(x)):
-        ax.text(x[i], max(coord[i], 0) + fore[i] + 0.12, f"+{fore[i]:.2f}", ha="center", fontsize=6.6, color="#1f5fa8")
-        ax.text(x[i], coord[i] / 2, ("≥" if below[i] else "") + f"{coord[i]:.1f}", ha="center", va="center", fontsize=6.0, color="#6d1f4b")
-    if below.any(): ax.text(0.02, 0.97, "hatched: IR-O* below 1 MW, lower bound", transform=ax.transAxes, fontsize=5.8, va="top", color="#6d1f4b")
-    ax.axhline(0, color="black", lw=0.6); ax.set_xticks(x); ax.set_xticklabels([f"{v:g}" for v in T.index])
-    ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Capacity gain (MW)"); ax.legend(loc="upper right", fontsize=6.4); panel(ax, "b", x=-0.14)
+    ax.legend(loc="center right", bbox_to_anchor=(1.0, 0.36), fontsize=6.2, ncol=1); panel(ax, "a", x=-0.12)
+    ax = axs[1]; x = np.arange(len(full)); wb = 0.6
+    if len(full):
+        below = T.loc[full, "IR-O*"].isna().values
+        coord = (T.loc[full, "JR-M"] - T.loc[full, "IR-O*"].fillna(lo)).values
+        fore = (T.loc[full, "JR-D"] - T.loc[full, "JR-M"]).values
+        for i in range(len(x)):
+            ax.bar(x[i], coord[i], wb, color="#c4508a", alpha=0.45 if below[i] else 0.75, hatch="///" if below[i] else None, edgecolor="#c4508a",
+                   lw=0.4, label="Coordination, JR-M − IR-O* (hatched: lower bound)" if i == 0 else None)
+        ax.bar(x, fore, wb, bottom=np.maximum(coord, 0), color="#1f5fa8", alpha=0.85, label="Cross-event foresight, JR-D − JR-M")
+        for i in range(len(x)):
+            ax.text(x[i], max(coord[i], 0) + fore[i] + 0.12, f"+{fore[i]:.2f}", ha="center", fontsize=6.6, color="#1f5fa8")
+            ax.text(x[i], coord[i] / 2, ("≥" if below[i] else "") + f"{coord[i]:.2f}", ha="center", va="center", fontsize=6.0, color="#6d1f4b")
+        ax.set_ylim(0, max(coord + fore) + 2.4)
+    ax.axhline(0, color="black", lw=0.6); ax.set_xticks(x); ax.set_xticklabels([f"{v:g}" for v in full])
+    ax.set_xlabel("Event interval τ (h)"); ax.set_ylabel("Capacity gain (MW)"); ax.legend(loc="upper left", fontsize=6.0); panel(ax, "b", x=-0.14)
     save(fig, "Fig7_value_decomposition")
-
-
 
 
 # ------------------------------------------------------------------ Fig. 9 substitution curves: battery energy and connection capacity
