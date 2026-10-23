@@ -14,6 +14,10 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 | S2 | full | 95% | <3 | <3 | 4.5 | 7.5 | > +4.5 | > 150 % | +3.0 [+2.5, +3.0] |
 | S2 | 80 % | 90% | <3 | <3 | 6 | 9 | > +6.0 | > 200 % | +3.0 [+3.0, +4.5] |
 | S2 | 80 % | 95% | <3 | <3 | 5.5 | 9 | > +6.0 | > 200 % | +3.5 [+3.0, +4.5] |
+| S3 | full | 90% | <8 | <8 | <8 | <8 | > +nan | > nan % | > +nan |
+| S3 | full | 95% | <8 | <8 | <8 | <8 | > +nan | > nan % | > +nan |
+| S3 | 80 % | 90% | <8 | <8 | <8 | 8.5 | > +0.5 | > 6 % | > +0.5 |
+| S3 | 80 % | 95% | <8 | <8 | <8 | <8 | > +nan | > nan % | > +nan |
 
 ## Full-delivery share by commitment (%, 26 test days)
 
@@ -35,6 +39,15 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x'
 | IR-P   |    85 |    77 |    62 |    50 |    54 |    50 |    38 |    38 |    27 |    23 |    19 |     0 |     0 |
 | JR-M   |   100 |   100 |   100 |   100 |    92 |    73 |    35 |    27 |    15 |     0 |     0 |     0 |     0 |
 | JR-D   |   100 |   100 |   100 |   100 |   100 |   100 |   100 |   100 |   100 |   100 |    81 |     0 |     0 |
+
+**S3: three events (stress)**
+
+| name   |   8.0 |   8.5 |   9.0 |
+|:-------|------:|------:|------:|
+| IR-O*  |     4 |     0 |     0 |
+| IR-P   |     0 |     0 |     0 |
+| JR-M   |     8 |     0 |     0 |
+| JR-D   |    27 |     0 |     0 |
 
 ## Fixed-commitment comparison (module 1, protocol 1; means over 26 test days)
 
@@ -213,3 +226,71 @@ Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 16; SE: single
 | RA|JR-D | 8.18/7.98 | 85 | 99.6 | 210.7 | 44.7 |
 | SE|IR-O* | 8.18/7.98 | 27 | 95.8 | 218.2 | 37.2 |
 | SE|IR-P | 8.18/7.98 | 0 | 75.2 | 253.6 | 1.8 |
+
+## Distributionally robust commitment (Section 4.1, Proposition 3), S1: 14 historical days -> 26 test days
+
+Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
+
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18a) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 18) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0.90 | IR-O* | 1.46 / 0.75 | <1 | 0.121 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.90 | IR-P | 1.46 / 0.75 | <1 | 0.121 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.90 | JR-M | 1.25 / 1.25 | 1 | 0.000 | 1 | 0.000 | 1 | 0.025 | 1 | nan | nan | nan |
+| 0.90 | JR-D | 1.25 / 1.25 | 1 | 0.000 | 1 | 0.000 | 1 | 0.025 | 1 | nan | nan | nan |
+| 0.95 | IR-O* | 1.46 / 0.75 | <1 | 0.121 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.95 | IR-P | 1.46 / 0.75 | <1 | 0.121 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
+| 0.95 | JR-M | 1.25 / 1.25 | 1 | 0.000 | 1 | 0.000 | 1 | 0.013 | 1 | nan | nan | nan |
+| 0.95 | JR-D | 1.25 / 1.25 | 1 | 0.000 | 1 | 0.000 | 1 | 0.013 | 1 | nan | nan | nan |
+
+## Sensitivity: interval x connection margin (share of days with full delivery, %)
+
+| cfgname       |   IR-O* |   IR-P |   JR-D |   JR-M |
+|:--------------|--------:|-------:|-------:|-------:|
+| gap0.25_g1.00 |      46 |     15 |     96 |      0 |
+| gap0.25_g1.05 |      69 |     15 |    100 |      0 |
+| gap0.25_g1.10 |      73 |     31 |    100 |      0 |
+| gap0.25_g1.20 |      58 |     27 |    100 |      0 |
+| gap0.50_g1.00 |      54 |     15 |    100 |     31 |
+| gap0.50_g1.05 |      85 |     15 |    100 |     23 |
+| gap0.50_g1.10 |      81 |     27 |    100 |     15 |
+| gap0.50_g1.20 |      62 |     23 |    100 |      8 |
+| gap1.00_g1.00 |      85 |     12 |    100 |     88 |
+| gap1.00_g1.05 |      58 |     12 |    100 |     92 |
+| gap1.00_g1.10 |      85 |     12 |    100 |     92 |
+| gap1.00_g1.20 |      73 |     12 |    100 |    100 |
+| gap2.00_g1.00 |      46 |      4 |    100 |     96 |
+| gap2.00_g1.05 |      85 |      4 |    100 |     96 |
+| gap2.00_g1.10 |      88 |      8 |    100 |     96 |
+| gap2.00_g1.20 |      88 |      8 |    100 |    100 |
+| gap3.00_g1.00 |      54 |      0 |    100 |     96 |
+| gap3.00_g1.05 |      54 |      4 |    100 |    100 |
+| gap3.00_g1.10 |      81 |      4 |    100 |    100 |
+| gap3.00_g1.20 |      81 |      4 |    100 |    100 |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size (S2, connection fixed)
+
+| cfg    |   IR-O* |   JR-D |
+|:-------|--------:|-------:|
+| bess0  |     nan |   3.75 |
+| bess12 |     nan |   6.75 |
+| bess3  |     nan |   6    |
+| bess9  |     nan |   7.5  |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): BESS size, JR-M (S2, connection fixed)
+
+| cfg    |   JR-M |
+|:-------|-------:|
+| bess0  |   3.75 |
+| bess12 |   4.75 |
+| bess3  |   4.5  |
+| bess9  |   5.25 |
+
+## Firm capacity C_0.95 by bisection (tolerance 0.25 MW): Resource ablation (S2, JR-D, connection fixed)
+
+| cfg          |   JR-D |
+|:-------------|-------:|
+| BESS_only    |  nan   |
+| compute_BESS |    7.5 |
+| compute_only |    3   |
+
+Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the gamma, ies, resources and overhead sets.

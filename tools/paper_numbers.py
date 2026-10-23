@@ -54,6 +54,18 @@ def capacity_section():
                 else:
                     lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5]); dM = f"{v['JR-D'] - v['JR-M']:+.1f} [{lo2:+.1f}, {hi2:+.1f}]"
                 print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | {dC} | {I} | {dM} |")
+    h("Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
+    print("| Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |\n|---|---|---|---|---|---|")
+    for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
+        d = load_capacity(tag)
+        if d is None: continue
+        tab, _ = capacity_table(d, "all_full", rhos=(0.95,), B=B); cmin = d.C.min(); cells = []
+        for n in ORDER:
+            v = tab[n][0][0.95]; bs = tab[n][1][0.95]
+            if np.isnan(v): cells.append(f"<{cmin:g}"); continue
+            lo, hi = np.nanpercentile(np.where(np.isnan(bs), cmin - 0.5, bs), [2.5, 97.5])
+            cells.append(f"{v:g} [{lo:g}, {hi:g}]")
+        print(f"| {s} | " + " | ".join(cells) + f" | {cmin:g}–{d.C.max():g} |")
     h("Full-delivery share by commitment (%, 26 test days)")
     for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
         d = load_capacity(tag)

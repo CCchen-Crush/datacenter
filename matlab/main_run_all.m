@@ -236,7 +236,7 @@ if any(RUN == 20)
             end
         case 'gamma'         % connection margin: substitution curve (gamma 1.10 = base, in 'bess')
             for g = [1.00 1.05 1.20 1.30]
-                cf(end+1) = struct('name', sprintf('g%.2f', g), 'scen', E20_SCEN, 'mods', struct('gamma', g), 'S', {[SD; SI]}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
+                cf(end+1) = struct('name', sprintf('g%.2f', g), 'scen', E20_SCEN, 'mods', struct('gamma', g), 'S', {[SD; SM; SI]}, 'lo', 1, 'hi', 16); %#ok<SAGROW>
             end
         case 'ies'           % contribution of the IES devices to the firm capacity of JR-D
             cf(1) = struct('name', 'noGT', 'scen', E20_SCEN, 'mods', struct('gt_on', false, 'keep_Pcap', true), 'S', {SD}, 'lo', 1, 'hi', 12);
