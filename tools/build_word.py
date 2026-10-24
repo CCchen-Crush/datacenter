@@ -142,23 +142,26 @@ end
 """
 
 # ------------------------------------------------------------------ Markdown of the Word manuscript
-ALGORITHM_MD5 = "adfcce69c5d1f277bf87da3b609ddfc6"     # code block of Algorithm 1 that ALGORITHM reproduces
-ALGORITHM = r"""| | **Algorithm 1** |
+ALGORITHM_MD5 = "b4871702c3a960e2306a62efec78d839"     # code block of Algorithm 1 that ALGORITHM reproduces
+ALGORITHM = r"""| | **Algorithm 1** Recovery-aware commitment and cross-event joint recovery |
 |---|------------------------------------------------------------------------------------------|
-| | **Input:** historical days $\Omega^{DA}$, operating days $\Omega$, commitment grid $\mathcal G$, reliability $\rho$, event set $\mathcal K$, horizon $H$, plant parameters |
-| | **Output:** commitment $C^*$, firm capacity $\hat C^{firm}_\rho$, closed-loop trajectories |
-| 1 | **Day-ahead recovery-aware commitment** (Eqs. (15)–(19)) |
-| 2 | &emsp;for $C\in\mathcal G$ in increasing order and every day $d\in\Omega^{DA}$ that delivered all smaller $C$: run the closed loop (steps 7–12) → cost $J_d(C)$ and full delivery; capability $\xi_d$ (15) |
-| 3 | &emsp;$\varepsilon\leftarrow\varepsilon_N$ (18); $C^{DRO}_\rho\leftarrow\max\{C:\ \Phi_\rho(C)\ge\varepsilon\}$ (17); $C^*\leftarrow\arg\min\{\bar J(C):\ C\le C^{DRO}_\rho\}$ (19) |
-| 4 | **Firm capacity on the operating days** (SAA, Eq. (13)) |
-| 5 | &emsp;for every $C\in\mathcal G$ and $\omega\in\Omega$: run the closed loop (steps 7–12) with commitment $C$ |
-| 6 | &emsp;$\hat C^{firm}_\rho\leftarrow$ largest $C$ whose full-delivery share is at least $\rho$ for all $C'\le C$; bootstrap confidence intervals over days |
-| 7 | **Intraday operation** (every $\Delta t$ = 15 min) |
-| 8 | &emsp;measure $\mathbf x_t=(B_{1..3,t},E_t,S_t)$, the gas-engine state, the event status and the loads |
-| 9 | &emsp;correct the forecasts with the latest observed errors (or build the scenario tree, JR-S) |
-| 10 | &emsp;solve the joint recovery MILP (2)–(11) over $t,\dots,t+H$ with all confirmed events |
-| 11 | &emsp;apply the first-step decisions; replay the plant (storage → TES → compute throttling) |
-| 12 | &emsp;update the backlogs by earliest-deadline-first execution and the settlement records |
+| | **Input:** historical days $\Omega^{DA}$ ($N$ days), operating days $\Omega$, commitment grid $\mathcal G$ (step $\Delta_{\mathcal G}$), reliability $\rho$, event set $\mathcal K$, horizon $T_H$, plant parameters (Table A1) |
+| | **Output:** cost-optimal commitment $C^*$, firm capacity $\hat C^{firm}_\rho$, closed-loop trajectories |
+| | **Stage I — Day-ahead recovery-aware commitment** (Section 4.1) |
+| 1 | **for** $C\in\mathcal G$ in increasing order and every day $d\in\Omega^{DA}$ that delivered all smaller $C$ **do** |
+| 2 | &emsp;run Stage III on day $d$ with commitment $C$ → cost $J_d(C)$ and full delivery of every event |
+| 3 | capability $\xi_d$ of every day (16); empirical distribution $\hat P_N$; radius $\varepsilon\leftarrow\varepsilon_N$ (20) |
+| 4 | **for** $C\in\mathcal G$ **do** sort the margins $\delta_d(C)$, $d\in\mathcal D_C$; $q(C)\leftarrow n(C)-\rho N$; margin $\Phi_\rho(C)$ (18)–(19) |
+| 5 | $C^{DRO}_\rho\leftarrow\max\{C\in\mathcal G:\ q(C)\ge0,\ \Phi_\rho(C)\ge\varepsilon\}$ (17); $C^*\leftarrow\arg\min\{\bar J(C):\ C\le C^{DRO}_\rho\}$ (21) |
+| | **Stage II — Firm capacity on the operating days** (Section 3.6) |
+| 6 | **for** every $C\in\mathcal G$ and $\omega\in\Omega$ **do** run Stage III with commitment $C$ |
+| 7 | $\hat C^{firm}_\rho\leftarrow$ largest $C$ whose full-delivery share is at least $\rho$ for all $C'\le C$ (14); bootstrap confidence intervals over days |
+| | **Stage III — Intraday cross-event joint recovery MPC** (Section 4.2), every $\Delta t$ = 15 min |
+| 8 | measure $\mathbf x_t=(B_{1..3,t},E_t,S_t)$, the gas-engine state, the event status and the loads |
+| 9 | correct the forecasts with the latest observed errors (JR-S: build the scenario tree) |
+| 10 | solve the joint recovery MILP (2)–(12) over $t,\dots,t+T_H$ with all confirmed events |
+| 11 | apply the first-step decisions; replay the plant (storage → TES → compute throttling) |
+| 12 | update the backlogs by earliest-deadline-first execution and the settlement (11) |
 | 13 | **return** $C^*$, $\hat C^{firm}_\rho$ and the trajectories |"""
 
 PH = lambda text: "[" + text + ']{custom-style="Placeholder"}'
@@ -231,10 +234,10 @@ def column_widths(block, text=453.5, pad=12.0):
     return "\n".join(rows)
 
 
-def two_lines_11(block):
-    """Objective (11) in two aligned lines: it is wider than the text."""
+def two_lines_12(block):
+    """Objective (12) in two aligned lines: it is wider than the text."""
     for a, b in [("$$J=", "$$\\begin{aligned}J=&"), ("\\Big]\\Delta t-\\sum_k", "\\Big]\\Delta t\\\\&-\\sum_k"),
-                 ("J^{term}, \\tag{11}$$", "J^{term},\\end{aligned} \\tag{11}$$")]:
+                 ("J^{term}, \\tag{12}$$", "J^{term},\\end{aligned} \\tag{12}$$")]:
         assert block.count(a) == 1, a; block = block.replace(a, b)
     return block
 
@@ -274,8 +277,8 @@ def manuscript_md(src):
             b = column_widths(ALGORITHM)
         elif b.startswith("|"):
             b = column_widths(b)
-        elif "\\tag{11}" in b:
-            b = two_lines_11(b)
+        elif "\\tag{12}" in b:
+            b = two_lines_12(b)
         elif b.startswith("**Table "):
             b = div("Table Caption", b)
         elif b.startswith("## Appendix A."):
@@ -310,7 +313,7 @@ def fix_table(m):
     t = m.group(0)
     head = "<w:tblHeader" in t
     g = [int(x) for x in re.findall(r'<w:gridCol w:w="(\d+)"', t)]
-    g = [1814, TEXT_W - 1814] if not head and len(g) == 2 else [round(x * TEXT_W / sum(g)) for x in g]   # nomenclature 20/80 %
+    g = [2268, TEXT_W - 2268] if not head and len(g) == 2 else [round(x * TEXT_W / sum(g)) for x in g]   # nomenclature 25/75 %
     g[-1] += TEXT_W - sum(g)
     t = re.sub(r"<w:tblGrid>.*?</w:tblGrid>", "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{x}"/>' for x in g) + "</w:tblGrid>", t, count=1, flags=re.S)
     nil = "".join(f'<w:{s} w:val="nil"/>' for s in ("top", "left", "bottom", "right", "insideH", "insideV"))
@@ -365,6 +368,7 @@ def sanitize(files):
     doc = files["word/document.xml"].decode()
     doc = re.sub(r"<w:pPr>(.*?)</w:pPr>", lambda m: "<w:pPr>" + _first(m.group(1), r"<w:pStyle [^>]*/>") + "</w:pPr>", doc, flags=re.S)
     doc = re.sub(r"<w:tblPr>(.*?)</w:tblPr>", lambda m: "<w:tblPr>" + _after_tblw(m.group(1)) + "</w:tblPr>", doc, flags=re.S)
+    doc = literal_runs(doc)
     for parent in ("m:rPr", "m:dPr", "m:mcPr"): doc = reorder(doc, parent)
     files["word/document.xml"] = doc.encode()
     num = files["word/numbering.xml"].decode()
@@ -374,6 +378,18 @@ def sanitize(files):
     if 'Extension="png"' not in ct:
         ct = ct.replace('<Default Extension="xml"', '<Default Extension="png" ContentType="image/png" /><Default Extension="xml"', 1)
     files["[Content_Types].xml"] = ct.encode()
+
+
+LONE_OP = re.compile(r"(<m:(sup|sub)>)<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?<m:t>([*+∗′−])</m:t></m:r>(</m:\2>)", re.S)
+KEYWORD = re.compile(r"<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?<m:t>(sup|inf)</m:t></m:r>", re.S)
+
+
+def literal_runs(doc):
+    """Literal (m:lit) runs for an operator alone in a script (c*, x+) and for the operator names sup and inf. Word draws
+    them unchanged; importers that re-parse the run text as a formula language (LibreOffice) otherwise read an operator
+    without operand or a keyword."""
+    doc = LONE_OP.sub(lambda m: f"{m.group(1)}<m:r><m:rPr><m:lit />{m.group(3) or ''}</m:rPr><m:t>{m.group(4)}</m:t></m:r>{m.group(5)}", doc)
+    return KEYWORD.sub(lambda m: f"<m:r><m:rPr><m:lit />{m.group(1) or ''}</m:rPr><m:t>{m.group(2)}</m:t></m:r>", doc)
 
 
 def _first(ppr, pat):

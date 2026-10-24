@@ -354,7 +354,7 @@ def figS7():
     if d is None: return
     fig, axs = plt.subplots(2, 1, figsize=(SINGLE_COL * 1.4, 3.6), sharex=True); fig.subplots_adjust(hspace=0.15)
     a = axs[0]; shade(a, EVENTS["S1"]); a.step(d.hour, d.price, where="post", color="black", lw=0.8, ls="--", label="TOU price")
-    a.plot(d.hour, d.lambda_el, color=COL["JR-D"], lw=1.3, label="Recovery-channel price λ (electric balance dual)")
+    a.plot(d.hour, d.lambda_el, color=COL["JR-D"], lw=1.3, label="Recovery-channel price $\\lambda^{el}_t$ (electric balance dual)")
     a.set_ylabel("CNY/MWh"); a.legend(fontsize=6.3, loc="upper left"); a.set_ylim(0, max(2500, float(np.nanpercentile(d.lambda_el, 97)) * 1.1)); panel(a, "a", x=-0.12)
     a = axs[1]; shade(a, EVENTS["S1"])
     for k, c in zip([1, 2, 3], ["#9ecae1", "#4292c6", "#08519c"]): a.plot(d.hour, d[f"cost_B{k}"], color=c, lw=1.3, label=f"Backlog value C{k}")
@@ -411,13 +411,13 @@ def fig2_framework():
     _box(ax, 0.21, 0.6, 0.17, 0.22, "Closed-loop back-test\nof the intraday controller,\n$C\\in\\mathcal{G}$ until first failure", B, fs=6.0)
     _box(ax, 0.42, 0.6, 0.15, 0.22, "Capability per day\n$\\xi_d$ = largest $C$\nfully delivered\n(empirical $\\hat P_N$)", B, fs=6.0)
     _box(ax, 0.61, 0.6, 0.17, 0.22, "Wasserstein ball\n$\\mathcal{B}_\\varepsilon(\\hat P_N)$:\n$\\inf_Q Q(\\xi\\geq C)\\geq\\rho$\n(Proposition 3)", P, fs=6.0)
-    _box(ax, 0.82, 0.6, 0.155, 0.22, "Commitment $C^*$:\nleast back-tested cost,\n$C^*\\leq C^{DRO}_{\\rho}(\\varepsilon_N)$ (19)\nsubmitted to the operator", O, fs=6.1)
+    _box(ax, 0.82, 0.6, 0.155, 0.22, "Commitment $C^*$:\nleast back-tested cost,\n$C^*\\leq C^{DRO}_{\\rho}(\\varepsilon_N)$ (21)\nsubmitted to the operator", O, fs=6.1)
     for x0, x1 in [(0.17, 0.21), (0.38, 0.42), (0.57, 0.61), (0.78, 0.82)]:
         _arr(ax, (x0, 0.71), (x1, 0.71), K)
-    ax.text(0.695, 0.585, "radius $\\varepsilon_N$: expected estimation\nerror (18); leave-one-out check", fontsize=5.6, ha="center", va="top", color="#5b3c8c")
+    ax.text(0.695, 0.585, "radius $\\varepsilon_N$: expected estimation\nerror (20); leave-one-out check", fontsize=5.6, ha="center", va="top", color="#5b3c8c")
     _box(ax, 0.03, 0.12, 0.17, 0.22, "Measure state $\\mathbf{x}_t$:\nbacklogs $B_{1..3}$, SOC $E_t$,\ncold $S_t$, gas engine,\nevent confirmations", "#f2f2f2", fs=6.0)
     _box(ax, 0.25, 0.12, 0.2, 0.22, "Forecasts corrected by\nthe latest errors (JR-D)\nor scenario tree (JR-S)", B, fs=6.0)
-    _box(ax, 0.5, 0.12, 0.22, 0.22, "Cross-event joint recovery\nMILP (2)-(11), 18-h horizon,\nall confirmed events:\nwhich debt to repay first", G, fs=6.0)
+    _box(ax, 0.5, 0.12, 0.22, 0.22, "Cross-event joint recovery\nMILP (2)-(12), 18-h horizon,\nall confirmed events:\nwhich debt to repay first", G, fs=6.0)
     _box(ax, 0.77, 0.12, 0.2, 0.22, "Apply first step; plant\nreplay (storage, TES,\ncompute throttling, EDF);\nsettlement records", "#f2f2f2", fs=6.0)
     for x0, x1 in [(0.2, 0.25), (0.45, 0.5), (0.72, 0.77)]:
         _arr(ax, (x0, 0.23), (x1, 0.23), K)

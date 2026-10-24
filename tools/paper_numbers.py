@@ -29,7 +29,7 @@ h_ = h
 
 def capacity_section():
     h("Firm consecutive DR capacity (module 2)")
-    print("C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x' = below the lowest commitment "
+    print("C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 14); '<x' = below the lowest commitment "
           "of the grid; CIs: block bootstrap over the 26 test days.\n")
     print("| Scenario | rule | rho | IR-O* | IR-P | JR-M | JR-D | dC vs best IR [95% CI] | I_rho | dC vs JR-M [95% CI] |")
     print("|---|---|---|---|---|---|---|---|---|---|")
@@ -120,7 +120,7 @@ def endogenous_section(rhos=(0.0, 0.8, 1.0)):
         show = pd.concat([show.round(1), t[["full_" + n for n in ORDER]]], axis=1)
         print("Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-delivery share by uniform commitment:\n")
         print(show.to_markdown() + "\n")
-        print("Reliability-constrained back-test commitment (Eq. 19) and out-of-sample operation on the 26 test days:\n")
+        print("Reliability-constrained back-test commitment (Eq. 21) and out-of-sample operation on the 26 test days:\n")
         print("| rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |")
         print("|---|---|---|---|---|---|---|---|---|")
         for rho in rhos:
@@ -134,7 +134,7 @@ def endogenous_section(rhos=(0.0, 0.8, 1.0)):
                 ben = (nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3
                 print(f"| {rho:g} | {n} | {Cs:g} | {t.loc[Cs, n] / 1e3:.1f} | {t.loc[Cs, 'full_' + n]:.1f} | {100 * q.all_full.mean():.0f} | "
                       f"{q.fulfil_rate_pct.mean():.1f} | {q.net_cost_adj.mean() / 1e3:.1f} | {ben:.1f} |")
-        print("\nModel-based commitments (RA: perfect-recourse two-stage MILP, Eq. 20; SE: single-event capability) and back-test "
+        print("\nModel-based commitments (RA: perfect-recourse two-stage MILP, Eq. 22; SE: single-event capability) and back-test "
               "packages as run in exp16:\n")
         print("| package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |"); print("|---|---|---|---|---|---|")
         for k, g in d.groupby("pkg", sort=False):
@@ -183,8 +183,8 @@ def dro_section(rhos=(0.90, 0.95)):
         print("Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest "
               "capability); C* is chosen among commitments with all days available.\n")
         grid = np.sort(h.C.unique())
-        print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18) | DRO C | eps LOO (MW) | DRO C (LOO) | "
-              "margin Phi at DRO C (MW) | C* (Eq. 19) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
+        print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | "
+              "margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
         print("|---" * 13 + "|")
         for rho in rhos:
             for n in ORDER:
