@@ -2,7 +2,7 @@
 
 ## Firm consecutive DR capacity (module 2)
 
-C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 13); '<x' = below the lowest commitment of the grid; CIs: block bootstrap over the 26 test days.
+C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 14); '<x' = below the lowest commitment of the grid; CIs: block bootstrap over the 26 test days.
 
 | Scenario | rule | rho | IR-O* | IR-P | JR-M | JR-D | dC vs best IR [95% CI] | I_rho | dC vs JR-M [95% CI] |
 |---|---|---|---|---|---|---|---|---|---|
@@ -269,7 +269,7 @@ Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-d
 | 8.5 |   202.1 |  234.1 |  205.3 |  200.3 |          0   |         0   |         0   |           0 |
 | 9   |   205.1 |  249.7 |  208.4 |  203.3 |          0   |         0   |         0   |           0 |
 
-Reliability-constrained back-test commitment (Eq. 19) and out-of-sample operation on the 26 test days:
+Reliability-constrained back-test commitment (Eq. 21) and out-of-sample operation on the 26 test days:
 
 | rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|---|---|---|
@@ -286,7 +286,7 @@ Reliability-constrained back-test commitment (Eq. 19) and out-of-sample operatio
 | 1 | JR-M | 7 | 202.5 | 1.0 | 92 | 99.7 | 218.1 | 37.3 |
 | 1 | JR-D | 7 | 197.7 | 1.0 | 100 | 100.0 | 210.6 | 44.8 |
 
-Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 20; SE: single-event capability) and back-test packages as run in exp16:
+Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 22; SE: single-event capability) and back-test packages as run in exp16:
 
 | package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|
@@ -302,7 +302,7 @@ Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 20; SE: single
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 19) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.04 / 0.75 | <1 | 0.911 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 4.93 / 0.75 | <1 | 0.899 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
@@ -317,7 +317,7 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 18) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 19) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.145 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
@@ -454,3 +454,54 @@ Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the g
 | 3 | 85 | 81 | 100 |
 | 5 | 88 | 65 | 100 |
 | 7 | 100 | 81 | 100 |
+
+## Benefit versus the commitment (Fig. 15; means over 26 test days, k CNY/day relative to no DR)
+
+
+**S1: two events, 1-h interval**
+
+| C (MW) | JR-D revenue | JR-D delay change | JR-D shortfall | JR-D benefit | JR-D full % | best other benefit | JR-D largest |
+|---|---|---|---|---|---|---|---|
+| 1 | 7.20 | -0.43 | 0.00 | 8.94 | 100 | 8.45 | yes |
+| 1.5 | 10.79 | -0.43 | 0.00 | 12.53 | 100 | 11.87 | yes |
+| 2 | 14.39 | -0.42 | 0.00 | 16.13 | 100 | 15.27 | yes |
+| 2.5 | 17.99 | -0.42 | 0.00 | 19.72 | 100 | 18.64 | yes |
+| 3 | 21.60 | -0.36 | 0.00 | 23.26 | 100 | 21.96 | yes |
+| 3.5 | 25.20 | -0.25 | 0.00 | 26.69 | 100 | 25.19 | yes |
+| 4 | 28.78 | -0.11 | 0.00 | 30.03 | 100 | 28.11 | yes |
+| 4.5 | 32.37 | +0.21 | 0.00 | 33.24 | 100 | 30.59 | yes |
+| 5 | 35.95 | +0.65 | 0.00 | 36.32 | 100 | 32.66 | yes |
+| 5.5 | 39.50 | +1.32 | 0.00 | 39.17 | 100 | 34.38 | yes |
+| 6 | 43.09 | +2.28 | 0.00 | 41.80 | 100 | 35.83 | yes |
+| 6.5 | 46.65 | +3.62 | 0.00 | 43.98 | 100 | 37.47 | yes |
+| 7 | 48.30 | +4.41 | 0.00 | 44.83 | 100 | 40.32 | yes |
+| 7.5 | 48.28 | +4.41 | 0.00 | 44.83 | 100 | 36.88 | yes |
+| 8 | 48.30 | +4.41 | 0.23 | 44.61 | 81 | 35.35 | yes |
+| 8.5 | 48.30 | +4.41 | 2.70 | 42.14 | 0 | 36.76 | yes |
+| 9 | 48.29 | +4.41 | 5.71 | 39.12 | 0 | 31.60 | yes |
+
+- peak benefit of JR-D: 44.83 at C = 7, 7.5 MW; JR-D largest of the four controllers at 17/17 commitments
+
+**S2: two events, 30-min interval**
+
+| C (MW) | JR-D revenue | JR-D delay change | JR-D shortfall | JR-D benefit | JR-D full % | best other benefit | JR-D largest |
+|---|---|---|---|---|---|---|---|
+| 1 | 7.20 | -0.41 | 0.00 | 8.94 | 100 | 8.27 | yes |
+| 1.5 | 10.80 | -0.41 | 0.00 | 12.53 | 100 | 11.59 | yes |
+| 2 | 14.40 | -0.40 | 0.00 | 16.13 | 100 | 14.86 | yes |
+| 2.5 | 18.00 | -0.40 | 0.00 | 19.72 | 100 | 18.07 | yes |
+| 3 | 21.60 | -0.32 | 0.00 | 23.22 | 100 | 21.17 | yes |
+| 3.5 | 25.20 | -0.17 | 0.00 | 26.62 | 100 | 24.05 | yes |
+| 4 | 28.79 | +0.08 | 0.00 | 29.91 | 100 | 26.42 | yes |
+| 4.5 | 32.36 | +0.53 | 0.00 | 32.99 | 100 | 28.36 | yes |
+| 5 | 35.92 | +1.27 | 0.00 | 35.79 | 100 | 29.70 | yes |
+| 5.5 | 39.46 | +2.32 | 0.00 | 38.29 | 100 | 33.18 | yes |
+| 6 | 42.99 | +3.64 | 0.00 | 40.52 | 100 | 34.58 | yes |
+| 6.5 | 46.50 | +5.36 | 0.00 | 42.31 | 100 | 37.85 | yes |
+| 7 | 48.36 | +6.40 | 0.00 | 43.14 | 100 | 38.51 | yes |
+| 7.5 | 48.33 | +6.39 | 0.02 | 43.10 | 100 | 34.91 | yes |
+| 8 | 48.33 | +6.39 | 0.24 | 42.88 | 81 | 31.16 | yes |
+| 8.5 | 48.34 | +6.40 | 2.66 | 40.46 | 0 | 34.90 | yes |
+| 9 | 48.31 | +6.38 | 5.69 | 37.42 | 0 | 26.64 | yes |
+
+- peak benefit of JR-D: 43.14 at C = 7, 7.5 MW; JR-D largest of the four controllers at 17/17 commitments

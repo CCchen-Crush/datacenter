@@ -19,7 +19,7 @@
 
 ## 0 一句话现状
 
-模型、全部实验（exp1–exp20）、作图、取数和论文全文均已完成并推送（分支 `claude/ae-reliable-capacity`）。主要结论：JR-D 可靠容量 S1/S2 7.5 MW、S3 6.5 MW，独立基准 1 MW 都不可靠；预见价值 15 min 4.0 MW → 3 h 0；预见价值相当于 9.3 MWh 电池（5.6 百万元），加接网也换不来；成本最优鲁棒承诺 7 MW 样本外 100% 足额，完美追索两阶段承诺只有 85%；两事件可靠可行域中 JR-D 接近物理能力边界，JR-M 低 2.6–4.3 MW，而完美信息下三种控制器的物理能力相同。
+模型、全部实验（exp1–exp20）、作图、取数和论文全文均已完成并推送（分支 `claude/ae-reliable-capacity`）；2026-10-24 已按 Zhang (2026)（Applied Energy 425:128499）的版式与语言完成全面包装和润色（见 `docs/修改进度.md` 末两行），并新增 Fig. 15。主要结论：JR-D 可靠容量 S1/S2 7.5 MW、S3 6.5 MW，独立基准 1 MW 都不可靠；预见价值 15 min 4.0 MW → 3 h 0；预见价值相当于 9.3 MWh 电池（5.6 百万元），加接网也换不来；成本最优鲁棒承诺 7 MW 样本外 100% 足额，完美追索两阶段承诺只有 85%；两事件可靠可行域中 JR-D 接近物理能力边界，JR-M 低 2.6–4.3 MW，而完美信息下三种控制器的物理能力相同。
 
 ## 1 文档与代码索引
 
@@ -71,9 +71,9 @@
 
 ### 2.3 作图、取数与论文
 
-- `tools/plot_paper.py`：Fig. 1–8 与 Fig. S1–S6，英文、Liberation Serif（Times 等宽替代）、PDF/SVG/PNG 输出到 `paper/figures/`。Fig. 1（系统与恢复通道示意）已生成。其余图的版式已用旧数据试画并调好（置信带、ΔC 标注、裁剪轴标注、山脊图、小提琴图等）。
+- `tools/plot_paper.py`：Fig. 1–15、Fig. S1–S7 与 Graphical Abstract，英文、Liberation Serif（Times 等宽替代）、PDF/SVG/PNG 输出到 `paper/figures/`；共用样式在 `tools/paper_style.py`（粗体子图标题、带框图例、通过色觉校验的策略配色）。
 - `tools/paper_numbers.py`：输出论文要用的全部数字（C_ρ、ΔC_ρ、I_ρ 及按测试日区组自助法的 95% 区间；固定承诺对比表；内生承诺表；敏感性、消融汇总）到 `paper/numbers.md`。
-- `paper/manuscript.md`：Highlights、符号表（三级）、引言（背景 → 三段综述 → 缺口 → 三条编号贡献）、第 2–4 节（模型、可靠容量定义、命题、方法、Algorithm 1）、Table 2（✓/✕ 情景矩阵）、附录 A 参数表。
+- `paper/manuscript.md`：Highlights、符号表（三级）、引言（背景 → 三段综述 → 缺口 → 三条编号贡献）、第 2–4 节（模型、可靠容量定义、命题、方法、Algorithm 1 = Table 1）、Table 2（✓/× 情景矩阵）、附录 A 完整参数表。
 
 ## 3 实验运行（换容器后必须重跑）
 
@@ -185,10 +185,10 @@ cd tools && /tmp/venv/bin/python plot_paper.py       # 全部图；也可只画�
 
 ## 6 下一步清单（按顺序）
 
-1. **通读全文**：2026-10-23 晚已完成逐项核数（第 5–6 节每个数字对照 `matlab/results/` 重新计算；修正了 W₁ = 0.81 MW、JR-D 在 8 MW 失败的 5 天的描述、接网当量 ≥ 1.46 MW、恢复通道 4.8/5.3 MW 为两个时段平均、燃气机组 14:00–22:00 满发、α* 范围 0.2–0.9 等），图号、表号、公式号和文献号均已按首次引用顺序编排（公式：半径 (18)、承诺 (19)、完美追索 MILP (20)），术语与 IR-O\* 转义已统一。剩余只有英文润色。
+1. **通读全文**：2026-10-23 晚已完成逐项核数（第 5–6 节每个数字对照 `matlab/results/` 重新计算；修正了 W₁ = 0.81 MW、JR-D 在 8 MW 失败的 5 天的描述、接网当量 ≥ 1.46 MW、恢复通道 4.8/5.3 MW 为两个时段平均、燃气机组 14:00–22:00 满发、α* 范围 0.2–0.9 等），图号、表号、公式号和文献号均已按首次引用顺序编排（2026-10-24 重排后公式为 (1)–(22)：设备约束 (10)、结算 (11)、目标 (12)、可靠容量 (13)–(14)、命题 2 (15)、能力 (16)、鲁棒容量 (17)、对偶 (18)、裕度 (19)、半径 (20)、承诺 (21)、完美追索 MILP (22)），术语与 IR-O\* 转义已统一，英文已按对标论文风格润色。
 2. **参考文献**：已合并为 38 条、按首次引用顺序编号（未引用的旧条目已删去；中文文献已译为英文并注明 in Chinese）。2026-10-23 已用 Crossref / arXiv 核对：[14]、[15]、[20]、[21] 已补全作者、完整标题和卷号，[10] 补页码，[4]、[11]–[13]、[16]、[19]、[24]、[33] 标题与作者一致。仍需人工核对的只有 [17]、[18]（中文期刊，Crossref 未收录，请对照中文原文核对英文译名与卷期页码）。
-3. **图题**：Fig. 1–14、S1–S7 的图题已写在 `paper/manuscript.md` 的 “Figure captions” 一节，图号按首次引用顺序编排（2026-10-23 晚调整：桑基图改为 Fig. 5，原 Fig. 5–10 顺延为 6–11；补充图依次为 S1 完美信息能力域、S2 承诺方法、S3 调用不确定、S4 反弹、S5 命题 1、S6 命题 2、S7 影子价格；`tools/plot_paper.py` 的函数名与输出文件名同步）；表格已按首次引用顺序编号（Table 1 场景、2 算法、3 场景矩阵、4 可靠容量、5 日前承诺）。
-4. **投稿格式（Word，已完成）**：`python3 tools/build_word.py` 由 `paper/manuscript.md` 生成 `paper/word/` 下的 manuscript.docx（A4、Times New Roman 12 pt、双倍行距、连续行号、页码；Word 原生公式，编号右对齐；图放在首次引用段落之后；三线表，列宽按内容；Algorithm 1 为带公式的表格）、highlights.docx、supplementary_material.docx（Fig. S1–S7）和 graphical_abstract.pdf/png/tif（13 × 5 cm，`plot_paper.py GA`）。三个 docx 均通过 OOXML schema 校验；公式经 pandoc 反向解析与源文一致。**作者需填写**黄色底纹占位：作者与单位、通讯作者、CRediT、利益冲突声明、生成式 AI 使用声明（Elsevier 要求）、致谢/基金、数据可用性。注意：LibreOffice 打开时个别公式显示“¿”（其 OMML 导入的已知问题），Word 中显示正常。改 Markdown 后重跑 build_word.py 即可同步；若改了 Algorithm 1 的代码块，脚本会提示同步 `ALGORITHM`。
+3. **图题**：Fig. 1–15、S1–S7 的图题已写在 `paper/manuscript.md` 的 “Figure captions” 一节，图号按首次引用顺序编排（2026-10-23 晚调整：桑基图改为 Fig. 5，原 Fig. 5–10 顺延为 6–11；补充图依次为 S1 完美信息能力域、S2 承诺方法、S3 调用不确定、S4 反弹、S5 命题 1、S6 命题 2、S7 影子价格；`tools/plot_paper.py` 的函数名与输出文件名同步）；表格已按首次引用顺序编号（2026-10-24 起：Table 1 Algorithm 1、2 ✓/× 情景矩阵、3 事件场景、4 可靠容量、5 日前承诺、A1 完整参数表）。新增 Fig. 15（收益随承诺）引用于 5.8。作图需带 matplotlib 的 Python（本容器系统 matplotlib 编译于 Python 3.12，与 python3.13 不匹配，可用 `python3 -m venv venv && venv/bin/pip install numpy pandas scipy matplotlib tabulate` 后以 `PY=venv/bin/python tools/refresh.sh` 运行）。
+4. **投稿格式（Word，已完成）**：`python3 tools/build_word.py` 由 `paper/manuscript.md` 生成 `paper/word/` 下的 manuscript.docx（A4、Times New Roman 12 pt、双倍行距、连续行号、页码；Word 原生公式，编号右对齐；图放在首次引用段落之后；三线表，列宽按内容；Algorithm 1 为带公式的表格）、highlights.docx、supplementary_material.docx（Fig. S1–S7）和 graphical_abstract.pdf/png/tif（13 × 5 cm，`plot_paper.py GA`）。三个 docx 均通过 OOXML schema 校验；公式经 pandoc 反向解析与源文一致。**作者需填写**黄色底纹占位：作者与单位、通讯作者、CRediT、利益冲突声明、生成式 AI 使用声明（Elsevier 要求）、致谢/基金、数据可用性。LibreOffice 打开时仅目标函数 (12) 的两行对齐处显示一个“¿”（其 OMML 矩阵导入的已知问题），Word 中显示正常；其余“¿”已通过脚本把上下标中的单独运算符和 sup/inf 写成 literal 运行消除。改 Markdown 后重跑 build_word.py 即可同步；若改了 Algorithm 1 的代码块，脚本会提示同步 `ALGORITHM`。
 5. **可选补充**：S2 的完美追索两阶段承诺（exp16 目前只有 S1）；若审稿人追问半径选取，可在补充材料给出留一交叉验证半径的对照（`paper/numbers.md` 中 “eps LOO” 列已算好：S1 JR-M 0、S2 JR-M 0.015 MW → 4.5 MW）。
 6. **复现**：换容器后若需重跑，用 `tools/jobs/batch7.txt`（约 4 小时，4 核）以及 checkpoint、batch2/3/5b/5c 中已完成的部分；结果用 `PY=python3 tools/refresh.sh` 汇总。
 

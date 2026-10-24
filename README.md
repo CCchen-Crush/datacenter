@@ -34,7 +34,7 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 | System-level insight | Equivalent battery energy and connection capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 10 |
 | Commitment | Distributionally robust firm capacity (Proposition 3) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 5 |
 | Integrated energy system | Who provides the recovery channel; device contribution | `exp15` time series, `exp20` (ies, resources) | Fig. 5, 12 |
-| Users and economics | Service quality, costs, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, S3 |
+| Users and economics | Service quality, costs, benefit versus commitment, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, 15, S3 |
 | Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8, Fig. 9d |
 | Supplementary | Physical capability regions, rebound policy, shadow prices | `exp13_region`, `exp8_rebound`, `exp5_shadow` | Fig. S1, S4, S7 |
 
@@ -51,7 +51,7 @@ tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commit
                                                     # connection margin, IES devices, interval, two-event region,
                                                     # hindsight split, overhead, lag bounds, JR-S, supplementary
 # collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
-PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-14, S1-S7
+PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-15, S1-S7
 python3 tools/plot_paper.py GA                      # graphical abstract (13 x 5 cm)
 python3 tools/build_word.py                         # Word files for the submission in paper/word/ (pandoc >= 3)
 ```
