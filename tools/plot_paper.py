@@ -182,8 +182,8 @@ def fig7_region(lo=1.0):
 
 
 # ------------------------------------------------------------------ Fig. 1 system and recovery channel
-def _box(ax, x, y, w, h, text, fc, ec="#333333", fs=7, bold=False):
-    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.012,rounding_size=0.015", fc=fc, ec=ec, lw=0.7))
+def _box(ax, x, y, w, h, text, fc, ec="#333333", fs=7, bold=False, pad=0.012):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=f"round,pad={pad},rounding_size=0.015", fc=fc, ec=ec, lw=0.7))
     ax.text(x + w / 2, y + h / 2, text, ha="center", va="center", fontsize=fs, fontweight="bold" if bold else "normal")
 
 
@@ -192,36 +192,76 @@ def _arr(ax, p, q, color, ls="-", lw=1.1, style="-|>", rad=0.0):
                                  connectionstyle=f"arc3,rad={rad}", shrinkA=1, shrinkB=1))
 
 
+def _frame(ax, x, y, w, h, title, color, fc, tx=0.5):
+    """Subsystem frame with its name along the bottom edge (centred at the fraction tx of the width)."""
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0.004,rounding_size=0.018", fc=fc, ec=color, lw=0.9))
+    ax.text(x + tx * w, y + 0.012, title, ha="center", va="bottom", fontsize=6.2, fontweight="bold", color=color)
+
+
 def fig1():
-    fig = plt.figure(figsize=(DOUBLE_COL, 3.6)); gs = fig.add_gridspec(1, 2, width_ratios=[1.15, 1], wspace=0.2)
-    ax = fig.add_subplot(gs[0, 0]); ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.06, 1.0); ax.axis("off")
-    E, Cc, Hh, W = "#1f5fa8", "#2aa7c9", "#c0392b", "#7a5cb8"
-    _box(ax, 0.00, 0.83, 0.40, 0.13, "Day-ahead recovery-aware\ncommitment $C_k$: closed-loop\nback-test at reliability $\\rho$", "#eef3fa", fs=5.6)
-    _box(ax, 0.44, 0.83, 0.56, 0.13, "Intraday cross-event joint recovery MPC\n$y_{c,t}$, BESS, TES, gas engine", "#eef3fa", fs=5.9)
-    _box(ax, 0.00, 0.53, 0.17, 0.15, "Utility grid\n$P^{grid}_t \\leq P^{cap}$", "#f2f2f2", fs=6.0)
-    _box(ax, 0.00, 0.30, 0.17, 0.12, "DR operator\n(Jiangsu rules)", "#fff7e6", fs=6.0)
-    _box(ax, 0.23, 0.58, 0.14, 0.09, "PV", "#fff3cc", fs=6.2)
-    _box(ax, 0.23, 0.40, 0.14, 0.12, "Gas engine\n(CCHP)", "#fde3d6", fs=6.0)
-    _box(ax, 0.23, 0.18, 0.14, 0.12, "BESS\nSOC $E_t$", "#dce9f7", fs=6.0)
-    _box(ax, 0.43, 0.04, 0.17, 0.11, "Absorption\nchiller", "#e3f4f8", fs=6.0)
-    _box(ax, 0.43, 0.20, 0.17, 0.11, "Electric chiller\nCOP($T_t$)", "#e3f4f8", fs=6.0)
-    _box(ax, 0.66, 0.04, 0.14, 0.11, "TES\n$S_t$", "#e3f4f8", fs=6.0)
-    ax.add_patch(FancyBboxPatch((0.43, 0.38), 0.57, 0.36, boxstyle="round,pad=0.012,rounding_size=0.02", fc="#f6f1fb", ec=W, lw=0.8))
-    ax.text(0.715, 0.70, "GPU cluster (16 000 GPUs)", ha="center", fontsize=6.4, fontweight="bold", color=W)
-    _box(ax, 0.445, 0.53, 0.125, 0.12, "Inference\n+ Flex-0\n(fixed)", "white", ec=W, fs=5.4)
-    for k, (lab, L) in enumerate([("C1", "0.5 h"), ("C2", "1.5 h"), ("C3", "3 h")]):
-        _box(ax, 0.585 + 0.137 * k, 0.53, 0.125, 0.12, f"{lab} queue\n$L_c$ = {L}", "white", ec=W, fs=5.4)
-    ax.text(0.715, 0.435, "backlog $B_{c,t}$: deadline-bound debt", ha="center", fontsize=5.8, color=W, style="italic")
-    _arr(ax, (0.17, 0.61), (0.43, 0.61), E); _arr(ax, (0.37, 0.625), (0.43, 0.625), E)
-    _arr(ax, (0.37, 0.46), (0.43, 0.46), E); _arr(ax, (0.37, 0.24), (0.43, 0.40), E, rad=-0.15)
-    _arr(ax, (0.17, 0.56), (0.23, 0.27), E, rad=-0.25)
-    _arr(ax, (0.30, 0.40), (0.47, 0.15), Hh, rad=0.2)
-    _arr(ax, (0.60, 0.09), (0.66, 0.09), Cc, ls="--"); _arr(ax, (0.56, 0.31), (0.62, 0.38), Cc, ls="--"); _arr(ax, (0.74, 0.15), (0.78, 0.38), Cc, ls="--")
-    _arr(ax, (0.085, 0.42), (0.085, 0.53), "#b8860b", style="<|-|>")
-    _arr(ax, (0.12, 0.83), (0.085, 0.68), "#555555", ls=":"); _arr(ax, (0.72, 0.83), (0.72, 0.74), "#555555", ls=":")
-    for k, (c, l, ls_) in enumerate([(E, "electricity", "-"), (Cc, "cooling", "--"), (Hh, "heat", "-"), (W, "computing", "-")]):
-        ax.plot([0.02 + 0.25 * k, 0.07 + 0.25 * k], [-0.01, -0.01], color=c, ls=ls_, lw=1.2); ax.text(0.08 + 0.25 * k, -0.01, l, fontsize=5.8, va="center")
-    panel(ax, "a", x=0.0, y=0.98)
+    fig = plt.figure(figsize=(DOUBLE_COL, 3.95))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.42, 1], wspace=0.13, left=0.005, right=0.99, top=0.93, bottom=0.11)
+    ax = fig.add_subplot(gs[0, 0]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    E, Hh, Cc, K, Dg, W = "#1f5fa8", "#c0392b", "#1b9fc4", "#6d6d6d", "#b8860b", "#7a5cb8"
+    bx = dict(pad=0.006)
+    # dispatch layer: DR operator, day-ahead commitment, intraday controller
+    _box(ax, 0.01, 0.89, 0.205, 0.10, "DR operator\n(Jiangsu rules)", "#fff6e0", ec=Dg, fs=5.9, **bx)
+    _box(ax, 0.275, 0.89, 0.33, 0.10, "Day-ahead recovery-aware commitment $C_k$\n(closed-loop capability, Wasserstein-robust)", "#f4effb", ec=W, fs=5.6, **bx)
+    _box(ax, 0.665, 0.89, 0.325, 0.10, "Intraday cross-event joint recovery MPC\n(15-min step, 18-h horizon)", "#f4effb", ec=W, fs=5.6, **bx)
+    _arr(ax, (0.268, 0.925), (0.222, 0.925), Dg, style="<|-|>"); ax.text(0.245, 0.945, "$C_k$", ha="center", va="bottom", fontsize=5.7, color="#8a6508")
+    _arr(ax, (0.612, 0.925), (0.658, 0.925), W); ax.text(0.635, 0.945, "$C_k$", ha="center", va="bottom", fontsize=5.7, color=W)
+    # AC bus
+    yb = 0.845; ax.plot([0.015, 0.985], [yb, yb], color=E, lw=2.4, solid_capstyle="round", zorder=3)
+    ax.text(0.30, yb + 0.008, "AC bus", ha="left", va="bottom", fontsize=5.6, color=E, fontweight="bold")
+    # subsystems (frame name along the bottom edge)
+    _frame(ax, 0.010, 0.555, 0.335, 0.250, "Energy supply", "#8c6d1f", "#fffaf0")
+    _frame(ax, 0.360, 0.555, 0.325, 0.250, "Conversion and storage", "#b4561c", "#fff5ef", tx=0.66)
+    _frame(ax, 0.730, 0.355, 0.260, 0.450, "Computing (16 000 GPUs)", W, "#f8f4fc")
+    _frame(ax, 0.360, 0.020, 0.630, 0.280, "Cooling supply", "#167f9e", "#f0f9fc")
+    _box(ax, 0.030, 0.615, 0.135, 0.12, "Utility grid\n$P^{grid}_t\\leq P^{cap}$", "white", fs=5.8, **bx)
+    _box(ax, 0.190, 0.615, 0.135, 0.12, "PV\n8 MWp", "white", fs=5.8, **bx)
+    _box(ax, 0.380, 0.615, 0.135, 0.12, "Gas engine\n3 MW (CCHP)", "white", fs=5.8, **bx)
+    _box(ax, 0.535, 0.615, 0.135, 0.12, "BESS\n6 MW / 12 MWh", "white", fs=5.8, **bx)
+    _box(ax, 0.748, 0.67, 0.224, 0.075, "Inference + Flex 0 (fixed)", "white", ec=W, fs=5.6, **bx)
+    for k, (lab, L) in enumerate([("C1", "0.5"), ("C2", "1.5"), ("C3", "3")]):
+        _box(ax, 0.748 + 0.0785 * k, 0.525, 0.066, 0.11, f"{lab}\n$L_c$={L} h", "white", ec=W, fs=5.4, **bx)
+    ax.text(0.86, 0.445, "backlog $B_{c,t}$:\ndeadline-bound debt", ha="center", va="center", fontsize=5.5, color=W, style="italic")
+    _box(ax, 0.380, 0.085, 0.140, 0.12, "Absorption\nchiller", "white", ec="#167f9e", fs=5.8, **bx)
+    _box(ax, 0.590, 0.085, 0.150, 0.12, "Electric chillers\nCOP($T_t$)", "white", ec="#167f9e", fs=5.8, **bx)
+    _box(ax, 0.815, 0.085, 0.160, 0.12, "Chilled-water\nTES 10 MWh$_{th}$", "white", ec="#167f9e", fs=5.8, **bx)
+    # electricity: sources inject into the bus, the computing load and the electric chillers draw from it
+    for x0 in (0.12, 0.2575, 0.4475):
+        _arr(ax, (x0, 0.741), (x0, yb - 0.004), E, lw=1.0)
+    _arr(ax, (0.6025, 0.741), (0.6025, yb - 0.004), E, lw=1.0, style="<|-|>")
+    _arr(ax, (0.80, yb - 0.004), (0.80, 0.751), E, lw=1.0); ax.text(0.808, 0.79, "$P^{IT}_t$", fontsize=5.6, color=E, va="center")
+    ax.plot([0.7075, 0.7075], [yb, 0.25], color=E, lw=1.0); _arr(ax, (0.7075, 0.252), (0.7075, 0.211), E, lw=1.0)
+    ax.text(0.70, 0.43, "$Q^{EC}_t/\\mathrm{COP}_t$", fontsize=5.4, color=E, rotation=90, va="center", ha="right")
+    # heat and cooling
+    _arr(ax, (0.4475, 0.609), (0.4475, 0.211), Hh, lw=1.1); ax.text(0.453, 0.43, "recovered heat\n$k^hP^{GT}_t$", fontsize=5.4, color=Hh, va="center")
+    _arr(ax, (0.955, 0.355), (0.955, 0.30), Hh, lw=1.1); ax.text(0.948, 0.328, "IT heat $\\theta P^{IT}_t$", fontsize=5.3, color=Hh, ha="right", va="center")
+    ax.plot([0.45, 0.895], [0.25, 0.25], color=Cc, lw=1.0, ls=(0, (3, 1.6)))
+    for x0 in (0.45, 0.665, 0.895):
+        ax.plot([x0, x0], [0.211, 0.25], color=Cc, lw=1.0, ls=(0, (3, 1.6)))
+    _arr(ax, (0.80, 0.25), (0.80, 0.355), Cc, ls=(0, (3, 1.6)), lw=1.0); ax.text(0.793, 0.328, "cooling", fontsize=5.3, color=Cc, ha="right", va="center")
+    # control and settlement
+    _arr(ax, (0.92, 0.884), (0.92, 0.751), K, ls=":", lw=0.9); _arr(ax, (0.69, 0.884), (0.63, 0.741), K, ls=":", lw=0.9)
+    _arr(ax, (0.05, 0.884), (0.05, 0.741), Dg, lw=0.9, style="<|-|>")
+    ax.text(0.058, 0.79, "metered $P^{grid}_t$", fontsize=5.1, color="#8a6508", va="center")
+    # closed loop and flow key
+    ax.text(0.015, 0.495, "Closed computing–energy–thermal loop", fontsize=5.9, fontweight="bold", color="#333333", va="top")
+    steps = ["deferrable work sets the IT power $P^{IT}_t$", "IT heat $\\theta P^{IT}_t$ sets the cooling load",
+             "chiller power and recovered heat\nreturn to the AC bus", "grid import within $P^{cap}$ is settled\nagainst the baseline $P^{base}_t$"]
+    yy = 0.445
+    for k, t in enumerate(steps, 1):
+        ax.text(0.03, yy, f"{k}", fontsize=5.4, ha="center", va="top", color="white", fontweight="bold",
+                bbox=dict(boxstyle="circle,pad=0.12", fc="#555555", ec="none"))
+        ax.text(0.055, yy + 0.004, t, fontsize=5.5, va="top", color="#333333", linespacing=1.05)
+        yy -= 0.058 if "\n" not in t else 0.085
+    for k, (c, lab, ls_) in enumerate([(E, "electricity", "-"), (Hh, "heat", "-"), (Cc, "cooling", (0, (3, 1.6))), (K, "control", ":"), (Dg, "settlement", "-")]):
+        y0 = 0.13 - 0.025 * k
+        ax.plot([0.03, 0.08], [y0, y0], color=c, lw=1.2, ls=ls_); ax.text(0.09, y0, lab, fontsize=5.5, va="center")
+    panel(ax, "a", x=0.0, y=1.012)
+    # (b) two consecutive events and the recovery channel between them
     ax = fig.add_subplot(gs[0, 1]); t = np.linspace(16, 22, 600)
     base = 9.6 + 0.25 * np.sin((t - 16) / 1.7)
     ev = [(17, 18), (18.75, 19.75)]
@@ -236,16 +276,17 @@ def fig1():
     ax.plot(t, pg, color=COL["JR-D"], lw=1.6, label="Grid import $P^{grid}_t$")
     for a0, b0 in ev: ax.axvspan(a0, b0, color="#1f5fa8", alpha=0.08, lw=0)
     tg = t[gap]; bg = base[gap]; top = pg[gap]; mid = bg + 0.55 * (top - bg)
-    ax.fill_between(tg, bg, mid, color="#e07b2a", alpha=0.55, lw=0, label="Compute catch-up (backlog)")
+    ax.fill_between(tg, bg, mid, color="#c0392b", alpha=0.55, lw=0, label="Compute catch-up (backlog)")
     ax.fill_between(tg, mid, top, color="#1f5fa8", alpha=0.35, lw=0, label="Storage recharge (SOC deficit)")
     ax.annotate("one recovery channel,\ntwo heterogeneous debts", xy=(18.4, 13.3), xytext=(19.95, 13.0), fontsize=6.2, ha="left", va="center",
                 arrowprops=dict(arrowstyle="-|>", lw=0.7, color="#333333"))
-    yb = base[np.argmin(np.abs(t - 17.5))] - 6.0
-    ax.text(17.5, yb + 0.45, "$R_1 \\geq C_1$", ha="center", fontsize=6.4); ax.text(19.25, yb + 0.45, "$R_2 \\geq C_2$ ?", ha="center", fontsize=6.4)
+    yb2 = base[np.argmin(np.abs(t - 17.5))] - 6.0
+    ax.text(17.5, yb2 + 0.45, "$R_1 \\geq C_1$", ha="center", fontsize=6.4); ax.text(19.25, yb2 + 0.45, "$R_2 \\geq C_2$ ?", ha="center", fontsize=6.4)
     ax.annotate("", xy=(18.0, 2.4), xytext=(18.75, 2.4), arrowprops=dict(arrowstyle="<|-|>", lw=0.7)); ax.text(18.37, 2.75, "τ", ha="center", fontsize=6.6)
-    ax.set_xlim(16, 22); ax.set_ylim(1.5, 16.2); ax.set_xlabel("Hour of day"); ax.set_ylabel("Power (MW)")
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=5.8, ncol=2, columnspacing=0.8, handlelength=1.8)
-    panel(ax, "b", x=-0.16, y=1.0)
+    ax.set_xlim(16, 22); ax.set_ylim(1.5, 19.6); ax.set_yticks(range(2, 17, 2)); ax.set_xlabel("Hour of day"); ax.set_ylabel("Power (MW)")
+    ax.set_title("Consecutive DR events and the recovery channel", fontsize=7.6)
+    ax.legend(loc="upper center", fontsize=5.6, ncol=2, handlelength=1.6, columnspacing=0.9)
+    panel(ax, "b", x=-0.15, y=1.0)
     save(fig, "Fig1_system_recovery_channel")
 
 
@@ -401,35 +442,46 @@ def fig13(rho=0.95):
 
 
 # ------------------------------------------------------------------ Fig. 2 framework: day-ahead DRO commitment + intraday joint recovery
+def _layer(ax, y0, h, title, color, fc):
+    """Layer frame with a coloured title strip along its top edge."""
+    ax.add_patch(FancyBboxPatch((0.005, y0), 0.99, h, boxstyle="round,pad=0.003,rounding_size=0.012", fc=fc, ec=color, lw=0.9))
+    ax.add_patch(FancyBboxPatch((0.005, y0 + h - 0.07), 0.99, 0.07, boxstyle="round,pad=0.003,rounding_size=0.012", fc=color, ec=color, lw=0.9))
+    ax.text(0.018, y0 + h - 0.035, title, fontsize=7.0, fontweight="bold", va="center", color="white")
+
+
+def _step(ax, x, y, w, h, text, fc, ec, tag, fs=6.6):
+    """Step box with a badge naming the lines of Algorithm 1 (Table 1)."""
+    _box(ax, x, y, w, h, text, fc, ec=ec, fs=fs, pad=0.006)
+    ax.text(x + w - 0.004, y + h + 0.002, tag, fontsize=5.0, ha="right", va="center", color="white", fontweight="bold",
+            bbox=dict(boxstyle="round,pad=0.18,rounding_size=0.25", fc=ec, ec="none"))
+
+
 def fig2_framework():
-    fig, ax = plt.subplots(figsize=(DOUBLE_COL, 3.7)); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
-    B, O, G, P, K = "#eef3fa", "#fdf0e6", "#eaf5ec", "#f3eefa", "#333333"
-    for y0, h, lab in [(0.53, 0.44, "Day-ahead layer (once per day)"), (0.03, 0.46, "Intraday layer (every 15 min)")]:
-        ax.add_patch(FancyBboxPatch((0.005, y0), 0.99, h, boxstyle="round,pad=0.004,rounding_size=0.01", fc="#fafafa", ec="#bbbbbb", lw=0.6, ls="--"))
-        ax.text(0.015, y0 + h - 0.03, lab, fontsize=7.2, fontweight="bold", va="top", color="#444444")
-    _box(ax, 0.02, 0.6, 0.15, 0.22, "Historical days\n$\\Omega^{DA}$ (14 weekdays):\nloads, weather,\ninference", "#f2f2f2", fs=6.0)
-    _box(ax, 0.21, 0.6, 0.17, 0.22, "Closed-loop back-test\nof the intraday controller,\n$C\\in\\mathcal{G}$ until first failure", B, fs=6.0)
-    _box(ax, 0.42, 0.6, 0.15, 0.22, "Capability per day\n$\\xi_d$ = largest $C$\nfully delivered\n(empirical $\\hat P_N$)", B, fs=6.0)
-    _box(ax, 0.61, 0.6, 0.17, 0.22, "Wasserstein ball\n$\\mathcal{B}_\\varepsilon(\\hat P_N)$:\n$\\inf_Q Q(\\xi\\geq C)\\geq\\rho$\n(Proposition 3)", P, fs=6.0)
-    _box(ax, 0.82, 0.6, 0.155, 0.22, "Commitment $C^*$:\nleast back-tested cost,\n$C^*\\leq C^{DRO}_{\\rho}(\\varepsilon_N)$ (21)\nsubmitted to the operator", O, fs=6.1)
-    for x0, x1 in [(0.17, 0.21), (0.38, 0.42), (0.57, 0.61), (0.78, 0.82)]:
-        _arr(ax, (x0, 0.71), (x1, 0.71), K)
-    ax.text(0.695, 0.585, "radius $\\varepsilon_N$: expected estimation\nerror (20); leave-one-out check", fontsize=5.6, ha="center", va="top", color="#5b3c8c")
-    _box(ax, 0.03, 0.12, 0.17, 0.22, "Measure state $\\mathbf{x}_t$:\nbacklogs $B_{1..3}$, SOC $E_t$,\ncold $S_t$, gas engine,\nevent confirmations", "#f2f2f2", fs=6.0)
-    _box(ax, 0.25, 0.12, 0.2, 0.22, "Forecasts corrected by\nthe latest errors (JR-D)\nor scenario tree (JR-S)", B, fs=6.0)
-    _box(ax, 0.5, 0.12, 0.22, 0.22, "Cross-event joint recovery\nMILP (2)-(12), 18-h horizon,\nall confirmed events:\nwhich debt to repay first", G, fs=6.0)
-    _box(ax, 0.77, 0.12, 0.2, 0.22, "Apply first step; plant\nreplay (storage, TES,\ncompute throttling, EDF);\nsettlement records", "#f2f2f2", fs=6.0)
-    for x0, x1 in [(0.2, 0.25), (0.45, 0.5), (0.72, 0.77)]:
+    fig, ax = plt.subplots(figsize=(DOUBLE_COL, 3.75)); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    fig.subplots_adjust(left=0.005, right=0.995, top=0.995, bottom=0.005)
+    PU, BL, OR, GR, K = "#6a4fa3", "#1f5fa8", "#d98200", "#2e8b57", "#333333"
+    _layer(ax, 0.535, 0.455, "Day-ahead layer: recovery-aware commitment (once per day, Section 4.1)", PU, "#faf8fd")
+    _layer(ax, 0.02, 0.475, "Intraday layer: cross-event joint recovery MPC (every 15 min, Section 4.2)", BL, "#f7fafd")
+    _step(ax, 0.02, 0.58, 0.15, 0.25, "Historical days\n$\\Omega^{DA}$ (14 weekdays):\nloads, weather,\ninference", "#f2f2f2", "#7a7a7a", "input")
+    _step(ax, 0.215, 0.58, 0.165, 0.25, "Closed-loop back-test\nof the intraday controller,\n$C\\in\\mathcal{G}$ until first failure", "#efeaf8", PU, "lines 1–2")
+    _step(ax, 0.425, 0.58, 0.15, 0.25, "Capability per day\n$\\xi_d$, Eq. (16):\nempirical $\\hat P_N$,\nradius $\\varepsilon_N$ (20)", "#efeaf8", PU, "line 3")
+    _step(ax, 0.62, 0.58, 0.165, 0.25, "Wasserstein ball $\\mathcal{B}_\\varepsilon(\\hat P_N)$:\nLP dual (18), sorted\nmargins, $\\Phi_\\rho(C)\\geq\\varepsilon$ (19)", "#efeaf8", PU, "line 4")
+    _step(ax, 0.83, 0.58, 0.15, 0.25, "Commitment $C^*$ (21):\nleast back-tested cost\nbelow $C^{DRO}_\\rho(\\varepsilon_N)$ (17)", "#fdf1e3", OR, "line 5")
+    for x0, x1 in [(0.176, 0.209), (0.386, 0.419), (0.581, 0.614), (0.791, 0.824)]:
+        _arr(ax, (x0, 0.705), (x1, 0.705), K)
+    _step(ax, 0.02, 0.105, 0.17, 0.25, "Measure state $\\mathbf{x}_t$:\nbacklogs $B_{1..3,t}$, SOC $E_t$,\ncold $S_t$, gas engine,\nevent confirmations", "#f2f2f2", "#7a7a7a", "line 8")
+    _step(ax, 0.245, 0.105, 0.19, 0.25, "Forecasts corrected by\nthe latest errors (JR-D)\nor scenario tree (JR-S)", "#e8f0fa", BL, "line 9")
+    _step(ax, 0.49, 0.105, 0.22, 0.25, "Cross-event joint recovery\nMILP (2)–(12), 18-h horizon,\nall confirmed events:\nwhich debt to repay first", "#e7f4ec", GR, "line 10")
+    _step(ax, 0.765, 0.105, 0.215, 0.25, "Apply first step; plant\nreplay (storage, TES,\ncompute throttling, EDF);\nsettlement (11)", "#f2f2f2", "#7a7a7a", "lines 11–12")
+    for x0, x1 in [(0.196, 0.239), (0.441, 0.484), (0.716, 0.759)]:
         _arr(ax, (x0, 0.23), (x1, 0.23), K)
-    _arr(ax, (0.87, 0.115), (0.115, 0.115), "#555555", ls="--", rad=-0.12)
-    ax.text(0.49, 0.045, "$t\\leftarrow t+\\Delta t$", fontsize=6.4, ha="center", color="#555555")
-    _arr(ax, (0.9, 0.6), (0.7, 0.34), "#e07b2a", lw=1.2)
-    ax.text(0.845, 0.455, "commitments $C_k$,\nterminal SOC\nreferences", fontsize=5.8, ha="left", va="center", color="#b35a1a")
-    _arr(ax, (0.56, 0.34), (0.3, 0.6), "#1f5fa8", ls=":", lw=1.0)
-    ax.text(0.37, 0.455, "the same controller\nis back-tested", fontsize=5.8, ha="right", va="center", color="#1f5fa8")
+    _arr(ax, (0.87, 0.099), (0.105, 0.099), "#555555", ls="--", rad=-0.1)
+    ax.text(0.49, 0.062, "$t\\leftarrow t+\\Delta t$", fontsize=6.4, ha="center", color="#555555")
+    _arr(ax, (0.905, 0.574), (0.66, 0.361), OR, lw=1.3)
+    ax.text(0.765, 0.392, "commitments $C_k$,\nterminal SOC references", fontsize=6.2, ha="left", va="center", color="#9c5d00")
+    _arr(ax, (0.60, 0.361), (0.34, 0.574), BL, ls=":", lw=1.1)
+    ax.text(0.515, 0.392, "the same controller\nis back-tested", fontsize=6.2, ha="right", va="center", color=BL)
     save(fig, "Fig2_framework")
-
-
 
 
 # ------------------------------------------------------------------ Fig. 5 recovery energy Sankey

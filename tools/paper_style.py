@@ -16,12 +16,15 @@ plt.rcParams.update({
     "mathtext.fontset": "stix", "font.size": 8.5, "axes.titlesize": 9, "axes.labelsize": 8.5,
     "legend.fontsize": 7.5, "xtick.labelsize": 7.5, "ytick.labelsize": 7.5,
     "axes.linewidth": 0.6, "axes.edgecolor": "#3b3b3b", "axes.grid": True, "grid.color": "#e3e3e3",
-    "grid.linewidth": 0.5, "grid.linestyle": "-", "axes.axisbelow": True, "legend.frameon": False,
+    "grid.linewidth": 0.5, "grid.linestyle": "-", "axes.axisbelow": True, "axes.titleweight": "bold", "axes.titlepad": 4.0,
+    "legend.frameon": True, "legend.fancybox": False, "legend.edgecolor": "#bdbdbd", "legend.framealpha": 0.95,
+    "legend.borderpad": 0.45, "patch.linewidth": 0.5,
     "xtick.direction": "in", "ytick.direction": "in", "xtick.major.width": 0.6, "ytick.major.width": 0.6,
     "figure.dpi": 150, "savefig.bbox": "tight", "savefig.pad_inches": 0.02, "pdf.fonttype": 42, "svg.fonttype": "none",
 })
-# fixed colour per strategy (muted, print- and colour-blind-safe pairs)
-COL = {"JR-D": "#1f5fa8", "IR-O*": "#e07b2a", "IR-P": "#3a9a5b", "JR-M": "#c4508a", "JR-S": "#7a5cb8",
+# fixed colour per strategy; the four of ORDER pass the all-pairs colour-vision checks (worst CVD dE 7.4, JR-D/JR-M, which
+# also differ in marker and line style)
+COL = {"JR-D": "#1f5fa8", "IR-O*": "#d98200", "IR-P": "#1baf7a", "JR-M": "#c4508a", "JR-S": "#7a5cb8",
        "JR-oracle": "#5c5c5c", "NoDR": "#9a9a9a", "SE": "#b8860b", "RA": "#1f5fa8"}
 MK = {"JR-D": "o", "IR-O*": "s", "IR-P": "^", "JR-M": "v", "JR-S": "D", "JR-oracle": "x"}
 LS = {"JR-D": "-", "IR-O*": "--", "IR-P": "-.", "JR-M": ":"}
@@ -67,6 +70,12 @@ def shade(ax, ev, color="#1f5fa8", alpha=0.08):
 
 def panel(ax, letter, x=-0.14, y=1.04):
     ax.text(x, y, f"({letter})", transform=ax.transAxes, fontsize=9, fontweight="bold", va="bottom")
+
+
+def bottom_legend(fig, handles, labels, ncol, y=0.0, fs=6.8, **kw):
+    """Framed legend shared by all panels, centred below them."""
+    return fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, y), ncol=ncol, fontsize=fs, handlelength=1.8,
+                      columnspacing=1.2, **kw)
 
 
 def load_capacity(tag):
