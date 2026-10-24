@@ -98,7 +98,7 @@ To the best of our knowledge, few studies have examined how the heterogeneous re
 2. **Firm consecutive DR capacity and its distributionally robust commitment.** The firm capacity $C^{firm}_\rho$ is defined as the largest uniform commitment delivered in full in every event with probability $\rho$, together with its multi-event reliability region. The commitment is computed from the closed-loop capability of the controller on historical days with a 1-Wasserstein ambiguity set; Proposition 3 gives its exact solution by sorting and shows that it reduces to the sample-average capacity for a zero radius. A perfect-recourse two-stage model, in contrast, overstates the deliverable capacity because it measures physical capability.
 3. **A recovery-aware coordinated scheduling framework with a system-level validation.** The day-ahead commitment is coupled with an intraday cross-event joint recovery MPC. The framework is validated against tuned and price-coordinated independent recovery and event-by-event joint recovery under fixed and endogenous commitments, three event scenarios and 26 operating days. The validation separates the value of coordination from the value of cross-event foresight, converts the capacity gain into equivalent battery energy and connection capacity, quantifies the contribution of the gas engine, cold storage and absorption chiller, and identifies the conditions under which joint recovery pays off.
 
-The remainder of the paper is organized as follows. Section 2 describes the system and the consecutive DR problem. Section 3 develops the cross-event recovery model and the firm capacity. Section 4 presents the recovery-aware coordinated scheduling framework. Section 5 reports the case studies and Section 6 concludes.
+The remainder of the paper is organised as follows. Section 2 describes the system and the consecutive DR problem. Section 3 develops the cross-event recovery model and the firm capacity. Section 4 presents the recovery-aware coordinated scheduling framework. Section 5 reports the case studies and Section 6 concludes.
 
 ## 2. System description and problem formulation
 
@@ -109,6 +109,15 @@ The AIDC (Fig. 1a) hosts 16 000 H100-class GPUs in 2 000 eight-GPU nodes. Its in
 ### 2.2 Consecutive demand response and recovery debts
 
 A DR operator confirms events $k\in\mathcal K$ with commitments $C_k$. Under the Jiangsu rules [6] an event is valid when the average reduction against the five-day baseline reaches 80 % of the commitment; payment is proportional to the reduction up to 120 % of the commitment and a shortfall is assessed at $\kappa$ times the event price. Three event scenarios are studied (Table 1): **S1**, two agreed one-hour events at 17:00 and 19:00 (the rule-compliant base case); **S2**, the same two events with the interval shortened to 30 min; and **S3**, a high-stress extension with a third, rapid peak-shaving event at 21:00 announced 3 h ahead.
+
+**Table 1.** Event scenarios.
+
+| Scenario | Events (h) | Notice | Price coefficient | Purpose |
+|---|---|---|---|---|
+| S1 | 17–18, 19–20 | day-ahead | 1.0 | base case (Jiangsu: ≤ 2 agreed events, ≤ 2 h per day) |
+| S2 | 17–18, 18.5–19.5 | day-ahead | 1.0 | short interval τ = 30 min (15 min–3 h in Section 5.4) |
+| S3 | 17–18, 19–20, 21–22 | day-ahead, day-ahead, 3 h | 1.0, 1.0, 1.4 | high stress: additional rapid peak-shaving call |
+| S4 | S1–S3 on the 26 operating days; in S4-U the third event of S3 is called with probability 0.6 and confirmed 1 h ahead (coefficient 1.6) | | | statistics, economics, event-call uncertainty |
 
 During event $k$ the AIDC defers class-$c$ work and discharges storage. At the end of the event it holds the recovery state $\mathbf x_{e_k}=(B_{1},B_{2},B_{3},E,S)$: the backlogs are deadline-bound computing debts, and the deficits $\bar E-E$ and $\bar S-S$ are lossy storage debts. Both are repaid between events by importing power above the baseline, so both compete for the recovery channel
 $$H_k=\sum_{t=e_k+1}^{s_{k+1}-1}\big(P^{cap}-P^{base}_t\big)^+\Delta t. \tag{1}$$
@@ -145,7 +154,7 @@ where $\delta$ is a planning margin above the 80 % threshold and the big-M terms
 
 ### 3.4 Objective
 
-The operator minimizes the comprehensive cost
+The operator minimises the comprehensive cost
 $$J=\sum_t\Big[\pi_tP^{grid}_t+\frac{c^{gas}}{\eta^{GT}}P^{GT}_t+c^{deg}(P^{ch}_t+P^{dis}_t)+c^{jct}\sum_cB_{c,t}+c^{late}\sum_cv_{c,t}\Big]\Delta t-\sum_k\pi_kD_kR_k+\sum_k\kappa\pi_kD_ks_k+J^{term}, \tag{11}$$
 i.e. electricity, gas, storage degradation, delay of deferred work, shortfall assessment minus DR revenue. The terminal term $J^{term}$ values the backlog left at the end of the window at its energy cost and the storage deficit at its recharge cost, so that no strategy can move cost outside the evaluation window.
 
@@ -203,7 +212,7 @@ Every 15 min the controller solves (2)–(11) over an 18-h horizon with the meas
 
 ```
 Algorithm 1  Recovery-aware commitment and cross-event joint recovery
-Input : historical days Ω_DA, test realisations Ω, commitment grid G, reliability ρ,
+Input : historical days Ω_DA, operating days Ω, commitment grid G, reliability ρ,
         event set K, horizon H, plant parameters
 Output: commitment C*, firm capacity Ĉ_ρ, closed-loop trajectories
  1  Day-ahead recovery-aware commitment (Eqs. (15)–(19))
@@ -259,15 +268,6 @@ The AIDC of Section 2.1 operates under the Jiangsu two-part TOU tariff and DR ru
 The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 16 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event, on 14 of them upwards (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors. Every strategy is simulated in closed loop on every day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
 
 The event scenarios are listed in Table 1. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3. All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 3). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.9), so that the benchmark always operates in its best day-ahead configuration.
-
-**Table 1.** Event scenarios.
-
-| Scenario | Events (h) | Notice | Price coefficient | Purpose |
-|---|---|---|---|---|
-| S1 | 17–18, 19–20 | day-ahead | 1.0 | base case (Jiangsu: ≤ 2 agreed events, ≤ 2 h per day) |
-| S2 | 17–18, 18.5–19.5 | day-ahead | 1.0 | short interval τ = 30 min (15 min–3 h in Section 5.4) |
-| S3 | 17–18, 19–20, 21–22 | day-ahead, day-ahead, 3 h | 1.0, 1.0, 1.4 | high stress: additional rapid peak-shaving call |
-| S4 | S1–S3 on the 26 operating days; in S4-U the third event of S3 is called with probability 0.6 and confirmed 1 h ahead (coefficient 1.6) | | | statistics, economics, event-call uncertainty |
 
 ### 5.2 Recovery mechanism on a typical day
 

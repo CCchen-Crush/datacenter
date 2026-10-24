@@ -53,9 +53,9 @@ def exp20(name):
     return d
 
 
-def save(fig, name):
+def save(fig, name, dpi=300):
     for ext in ("pdf", "svg", "png"):
-        fig.savefig(os.path.join(FIG, f"{name}.{ext}"), dpi=300 if ext == "png" else None)
+        fig.savefig(os.path.join(FIG, f"{name}.{ext}"), dpi=dpi if ext == "png" else None)
     plt.close(fig)
     print("wrote", name)
 

@@ -52,6 +52,8 @@ tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commit
                                                     # hindsight split, overhead, lag bounds, JR-S, supplementary
 # collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
 PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-14, S1-S7
+python3 tools/plot_paper.py GA                      # graphical abstract (13 x 5 cm)
+python3 tools/build_word.py                         # Word files for the submission in paper/word/ (pandoc >= 3)
 ```
 
 `tools/collect_results.py` merges the parts of a run copy (`DCDR_RUN_RESULTS`, default `/home/user/dev/matlab/results`)
@@ -77,7 +79,9 @@ matlab/src/set_scenario.m     event scenarios S1, S2-<min>, S3
 matlab/experiments/           exp1 ... exp20 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection)
 matlab/results/               all result CSVs (see docs/实验结果_AE.md)
 tools/                        job queue, merge, numbers and figure scripts
-paper/                        manuscript draft, numbers, figures
+paper/                        manuscript (Markdown source), numbers, figures
+paper/word/                   submission files: manuscript.docx, highlights.docx, supplementary_material.docx,
+                              graphical_abstract.{pdf,png,tif} (built by tools/build_word.py)
 ```
 
 ## Data licences and citations

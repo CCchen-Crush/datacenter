@@ -6,7 +6,7 @@ Fig. 1 system and recovery channel | 2 framework | 3 typical-day power balance |
 5 recovery-energy Sankey | 6 reliability curves | 7 two-event region | 8 coordination vs foresight | 9 sensitivity |
 10 substitution curves | 11 distributionally robust commitment | 12 IES contribution | 13 capacity-service Pareto |
 14 economics | S1 perfect-information regions | S2 commitment methods | S3 call uncertainty | S4 rebound policy |
-S5 Proposition 1 | S6 Proposition 2 | S7 shadow prices
+S5 Proposition 1 | S6 Proposition 2 | S7 shadow prices | GA graphical abstract (13 x 5 cm)
 """
 import sys
 import numpy as np
@@ -962,9 +962,63 @@ def fig14_economics(C0=7.0):
 
 
 
+# ------------------------------------------------------------------ graphical abstract (Elsevier: 13 x 5 cm, readable at that size)
+def graphical_abstract():
+    fig = plt.figure(figsize=(13 / 2.54, 5 / 2.54))
+    # problem: the debts of the first event compete for one recovery channel before the second
+    ax = fig.add_axes([0.02, 0.05, 0.31, 0.72]); t = np.linspace(16.6, 21.4, 500)
+    base = 9.6 + 0.2 * np.sin((t - 16) / 1.7); ev = [(17, 18), (18.75, 19.75)]; cap = 14.9
+    pg = base.copy()
+    for a, b in ev: pg = np.where((t >= a) & (t < b), base - 6.0, pg)
+    gap = (t >= 18) & (t < 18.75)
+    pg = np.where(gap, base + (cap - 0.15 - base) * (1 - np.exp(-(t - 18) * 14)), pg)
+    pg = np.where(t >= 19.75, base + 3.0 * np.exp(-(t - 19.75) * 1.4), pg)
+    for a, b in ev: ax.axvspan(a, b, color=COL["JR-D"], alpha=0.09, lw=0)
+    ax.plot(t, base, color="black", lw=0.6, ls="--"); ax.axhline(cap, color="#b22222", lw=0.8); ax.plot(t, pg, color=COL["JR-D"], lw=1.1)
+    tg, bg, top = t[gap], base[gap], pg[gap]; mid = bg + 0.55 * (top - bg)
+    ax.fill_between(tg, bg, mid, color="#e07b2a", alpha=0.7, lw=0); ax.fill_between(tg, mid, top, color=COL["JR-D"], alpha=0.45, lw=0)
+    ax.text(17.5, 2.9, "event 1", ha="center", fontsize=6.2); ax.text(19.25, 2.9, "event 2", ha="center", fontsize=6.2)
+    ax.text(16.7, cap + 0.45, "connection limit", ha="left", fontsize=6, color="#b22222")
+    ax.text(21.35, 7.6, "baseline", ha="right", fontsize=6)
+    ax.annotate("backlog\n+ battery", xy=(18.5, 12.2), xytext=(20.2, 13.1), fontsize=6.2, va="center",
+                arrowprops=dict(arrowstyle="-|>", lw=0.6, color="#333333", mutation_scale=6))
+    ax.set_xlim(16.6, 21.4); ax.set_ylim(2.0, 16.6); ax.axis("off")
+    fig.text(0.175, 0.93, "Two debts, one recovery channel", ha="center", va="center", fontsize=7, fontweight="bold")
+    # method: day-ahead robust commitment from the closed-loop capability + intraday cross-event joint recovery
+    ax = fig.add_axes([0.345, 0.03, 0.265, 0.80]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
+    _box(ax, 0.03, 0.56, 0.94, 0.38, "Day ahead: closed-loop capability\n→ Wasserstein-robust\ncommitment", "#f3eefa", ec="#7a5cb8", fs=6.1)
+    _box(ax, 0.03, 0.06, 0.94, 0.33, "Intraday: cross-event\njoint recovery MPC", "#eef3fa", ec=COL["JR-D"], fs=6.1)
+    _arr(ax, (0.36, 0.56), (0.36, 0.39), "#e07b2a", lw=1.0); ax.text(0.30, 0.475, "$C_k$", ha="right", va="center", fontsize=6.4, color="#b35a14")
+    _arr(ax, (0.66, 0.39), (0.66, 0.56), COL["JR-D"], lw=0.9, ls="--"); ax.text(0.71, 0.475, "back-test", ha="left", va="center", fontsize=5.9, color=COL["JR-D"])
+    fig.text(0.478, 0.93, "Recovery-aware scheduling", ha="center", va="center", fontsize=7, fontweight="bold")
+    # result: firm consecutive DR capacity (exp12, 26 operating days, reliability 95 %)
+    ax = fig.add_axes([0.675, 0.15, 0.315, 0.60]); names, x, wd = ["IR-O*", "JR-M", "JR-D"], np.arange(3), 0.26
+    for k, n in enumerate(names):
+        vals = []
+        for tag, _ in CAP_TAGS:
+            d = load_capacity(tag); vals.append(c_rho(d[d.name == n].groupby("C").all_full.mean(), 0.95) if d is not None else np.nan)
+        for i, v in enumerate(vals):
+            xx = x[i] + (k - 1) * wd
+            if np.isnan(v):
+                ax.bar(xx, 0.5, wd * 0.92, color=COL[n], alpha=0.35, hatch="////", edgecolor=COL[n], lw=0.4)
+                ax.text(xx, 0.75, "<1", ha="center", va="bottom", fontsize=5.6, color=COL[n])
+            else:
+                ax.bar(xx, v, wd * 0.92, color=COL[n], alpha=0.9, lw=0)
+                ax.text(xx, v + 0.2, f"{v:g}", ha="center", va="bottom", fontsize=5.8, color=COL[n], fontweight="bold" if n == "JR-D" else "normal")
+    ax.set_xticks(x); ax.set_xticklabels(["S1", "S2", "S3"], fontsize=6.2); ax.set_ylim(0, 9.4); ax.set_yticks([0, 4, 8])
+    ax.tick_params(labelsize=6, length=2); ax.set_ylabel("MW", fontsize=6.2, labelpad=1)
+    for s in ("top", "right"): ax.spines[s].set_visible(False)
+    hs = [plt.Rectangle((0, 0), 1, 1, color=COL[n], alpha=0.9) for n in names]
+    fig.legend(hs, ["Independent", "Event-by-event", "Cross-event"], fontsize=5.6, loc="center", bbox_to_anchor=(0.832, 0.825),
+               ncol=3, frameon=False, handlelength=0.8, handletextpad=0.3, columnspacing=0.8)
+    fig.text(0.832, 0.93, "Firm consecutive DR capacity", ha="center", va="center", fontsize=7, fontweight="bold")
+    fig.text(0.832, 0.025, "full delivery on 95 % of 26 operating days", ha="center", va="bottom", fontsize=5.4, color="#555555")
+    with plt.rc_context({"savefig.bbox": "standard"}): save(fig, "GraphicalAbstract", dpi=600)      # exactly 13 x 5 cm
+
+
 FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig5_sankey, "6": fig6_capacity, "7": fig7_region,
              "8": fig8_decomp, "9": fig9_sensitivity, "10": fig10_substitution, "11": fig11_calibration, "12": fig12_ies, "13": fig13,
-             "14": fig14_economics})
+             "14": fig14_economics, "GA": graphical_abstract})
 
 
 if __name__ == "__main__":
