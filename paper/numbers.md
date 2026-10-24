@@ -2,7 +2,7 @@
 
 ## Firm consecutive DR capacity (module 2)
 
-C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 14); '<x' = below the lowest commitment of the grid; CIs: block bootstrap over the 26 test days.
+C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 34); '<x' = below the lowest commitment of the grid; CIs: block bootstrap over the 26 test days.
 
 | Scenario | rule | rho | IR-O* | IR-P | JR-M | JR-D | dC vs best IR [95% CI] | I_rho | dC vs JR-M [95% CI] |
 |---|---|---|---|---|---|---|---|---|---|
@@ -19,7 +19,7 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 14); '<x'
 | S3 | 80 % | 90% | <1 | <1 | 5.5 | 8.5 | > +7.5 | > 750 % | +3.0 [+2.0, +3.0] |
 | S3 | 80 % | 95% | <1 | <1 | 5 | 7.5 | > +6.5 | > 650 % | +2.5 [+2.0, +3.0] |
 
-## Table 4: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
+## Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
 
 | Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |
 |---|---|---|---|---|---|
@@ -269,7 +269,7 @@ Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-d
 | 8.5 |   202.1 |  234.1 |  205.3 |  200.3 |          0   |         0   |         0   |           0 |
 | 9   |   205.1 |  249.7 |  208.4 |  203.3 |          0   |         0   |         0   |           0 |
 
-Reliability-constrained back-test commitment (Eq. 21) and out-of-sample operation on the 26 test days:
+Reliability-constrained back-test commitment (Eq. 55) and out-of-sample operation on the 26 test days:
 
 | rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|---|---|---|
@@ -286,7 +286,7 @@ Reliability-constrained back-test commitment (Eq. 21) and out-of-sample operatio
 | 1 | JR-M | 7 | 202.5 | 1.0 | 92 | 99.7 | 218.1 | 37.3 |
 | 1 | JR-D | 7 | 197.7 | 1.0 | 100 | 100.0 | 210.6 | 44.8 |
 
-Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 22; SE: single-event capability) and back-test packages as run in exp16:
+Model-based commitments (RA: perfect-recourse two-stage MILP, Eqs. 56-57; SE: single-event capability) and back-test packages as run in exp16:
 
 | package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |
 |---|---|---|---|---|---|
@@ -298,11 +298,11 @@ Model-based commitments (RA: perfect-recourse two-stage MILP, Eq. 22; SE: single
 | SE|IR-O* | 8.18/7.98 | 27 | 95.8 | 218.2 | 37.2 |
 | SE|IR-P | 8.18/7.98 | 0 | 75.2 | 253.6 | 1.8 |
 
-## Distributionally robust commitment (Section 4.1, Proposition 3), S1: 14 historical days -> 26 test days
+## Distributionally robust commitment (Section 4.1, Proposition 4), S1: 14 historical days -> 26 test days
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 53) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 55) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.04 / 0.75 | <1 | 0.911 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 4.93 / 0.75 | <1 | 0.899 | <1 | 0.000 | <1 | nan | <1 | – | – | – |
@@ -313,11 +313,11 @@ Back-test cost J(C) is averaged over the days that delivered every smaller commi
 | 0.95 | JR-M | 8.04 / 7.75 | 7.5 | 0.066 | 6 | 0.000 | 7.5 | 0.088 | 6 | 100 | 77 | 35.8 |
 | 0.95 | JR-D | 8.25 / 8.25 | 8 | 0.000 | 8 | 0.000 | 8 | 0.013 | 7 | 100 | 81 | 44.8 |
 
-## Distributionally robust commitment (Section 4.1, Proposition 3), S2: 14 historical days -> 26 test days
+## Distributionally robust commitment (Section 4.1, Proposition 4), S2: 14 historical days -> 26 test days
 
 Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest capability); C* is chosen among commitments with all days available.
 
-| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
+| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 53) | DRO C | eps LOO (MW) | DRO C (LOO) | margin Phi at DRO C (MW) | C* (Eq. 55) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | 0.90 | IR-O* | 6.96 / 0.75 | <1 | 0.734 | <1 | 0.145 | <1 | nan | <1 | – | – | – |
 | 0.90 | IR-P | 5.82 / 0.75 | <1 | 0.829 | <1 | 0.080 | <1 | nan | <1 | – | – | – |
@@ -505,3 +505,18 @@ Base configuration (bess6 = 6 MW / 12 MWh, gamma 1.10) is the reference of the g
 | 9 | 48.31 | +6.38 | 5.69 | 37.42 | 0 | 26.64 | yes |
 
 - peak benefit of JR-D: 43.14 at C = 7, 7.5 MW; JR-D largest of the four controllers at 17/17 commitments
+
+## Energy efficiency and emissions (Section 5.7.3)
+
+- no DR: mean daily CO2 229.56 t over the 26 test days
+- S1, C = 7 MW, CO2 change vs no DR (t/day, %): IR-O* +0.05 (+0.03 %); IR-P +0.17 (+0.07 %); JR-M +0.38 (+0.17 %); JR-D +0.35 (+0.15 %)
+- S2, C = 7 MW, CO2 change vs no DR (t/day, %): IR-O* +0.03 (+0.02 %); IR-P +0.04 (+0.02 %); JR-M +0.31 (+0.13 %); JR-D +0.28 (+0.12 %)
+
+Electric PUE on the typical day (S2, 7 MW; PUE = [(1+zeta) P_IT + P_aux + Q_EC/COP] / P_IT, energy-weighted):
+
+| run | day | 14-22 h (gas engine) | other hours | absorption chiller share of cooling, 14-22 h | TES net share, 14-22 h | mean chiller COP, 14-22 h / other |
+|---|---|---|---|---|---|---|
+| no DR | 1.253 | 1.217 | 1.271 | 0.195 | 0.078 | 5.16 / 5.33 |
+| IR-O* | 1.253 | 1.217 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |
+| JR-M | 1.253 | 1.216 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |
+| JR-D | 1.253 | 1.217 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |

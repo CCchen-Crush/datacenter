@@ -29,7 +29,7 @@ h_ = h
 
 def capacity_section():
     h("Firm consecutive DR capacity (module 2)")
-    print("C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 14); '<x' = below the lowest commitment "
+    print("C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 34); '<x' = below the lowest commitment "
           "of the grid; CIs: block bootstrap over the 26 test days.\n")
     print("| Scenario | rule | rho | IR-O* | IR-P | JR-M | JR-D | dC vs best IR [95% CI] | I_rho | dC vs JR-M [95% CI] |")
     print("|---|---|---|---|---|---|---|---|---|---|")
@@ -54,7 +54,7 @@ def capacity_section():
                 else:
                     lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5]); dM = f"{v['JR-D'] - v['JR-M']:+.1f} [{lo2:+.1f}, {hi2:+.1f}]"
                 print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | {dC} | {I} | {dM} |")
-    h("Table 4: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
+    h("Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
     print("| Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |\n|---|---|---|---|---|---|")
     for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
         d = load_capacity(tag)
@@ -120,7 +120,7 @@ def endogenous_section(rhos=(0.0, 0.8, 1.0)):
         show = pd.concat([show.round(1), t[["full_" + n for n in ORDER]]], axis=1)
         print("Day-ahead back-test on the day-ahead scenarios: expected cost (k CNY) and full-delivery share by uniform commitment:\n")
         print(show.to_markdown() + "\n")
-        print("Reliability-constrained back-test commitment (Eq. 21) and out-of-sample operation on the 26 test days:\n")
+        print("Reliability-constrained back-test commitment (Eq. 55) and out-of-sample operation on the 26 test days:\n")
         print("| rho | strategy | C* (MW) | day-ahead cost (k) | day-ahead full share | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |")
         print("|---|---|---|---|---|---|---|---|---|")
         for rho in rhos:
@@ -134,7 +134,7 @@ def endogenous_section(rhos=(0.0, 0.8, 1.0)):
                 ben = (nodr.reindex(q.index) - q.net_cost_adj).mean() / 1e3
                 print(f"| {rho:g} | {n} | {Cs:g} | {t.loc[Cs, n] / 1e3:.1f} | {t.loc[Cs, 'full_' + n]:.1f} | {100 * q.all_full.mean():.0f} | "
                       f"{q.fulfil_rate_pct.mean():.1f} | {q.net_cost_adj.mean() / 1e3:.1f} | {ben:.1f} |")
-        print("\nModel-based commitments (RA: perfect-recourse two-stage MILP, Eq. 22; SE: single-event capability) and back-test "
+        print("\nModel-based commitments (RA: perfect-recourse two-stage MILP, Eqs. 56-57; SE: single-event capability) and back-test "
               "packages as run in exp16:\n")
         print("| package | commitment (MW) | all full % | fulfil % | net cost (k) | benefit vs no-DR (k) |"); print("|---|---|---|---|---|---|")
         for k, g in d.groupby("pkg", sort=False):
@@ -179,12 +179,12 @@ def dro_section(rhos=(0.90, 0.95)):
         h = history(scen); t = load_capacity(tag)
         if h is None or t is None: continue
         N = h.day.nunique()
-        h_(f"Distributionally robust commitment (Section 4.1, Proposition 3), {scen}: {N} historical days -> 26 test days")
+        h_(f"Distributionally robust commitment (Section 4.1, Proposition 4), {scen}: {N} historical days -> 26 test days")
         print("Back-test cost J(C) is averaged over the days that delivered every smaller commitment (all days for C <= the smallest "
               "capability); C* is chosen among commitments with all days available.\n")
         grid = np.sort(h.C.unique())
-        print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 20) | DRO C | eps LOO (MW) | DRO C (LOO) | "
-              "margin Phi at DRO C (MW) | C* (Eq. 21) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
+        print("| rho | strategy | capability on historical days: mean / min (MW) | SAA C | eps_N (MW, Eq. 53) | DRO C | eps LOO (MW) | DRO C (LOO) | "
+              "margin Phi at DRO C (MW) | C* (Eq. 55) | test: full % at C* | test: full % at SAA C | benefit at C* (k CNY/day) |")
         print("|---" * 13 + "|")
         for rho in rhos:
             for n in ORDER:
@@ -264,7 +264,53 @@ def commitment_section():
               f"{int((q.benefit.values > b[[n for n in ORDER if n != 'JR-D']].max(axis=1).reindex(q.index).values).sum())}/{len(q)} commitments")
 
 
+def efficiency_section(C0=7.0, zeta=0.05, p_aux=0.3):
+    h("Energy efficiency and emissions (Section 5.7.3)")
+    nd = rd("exp17_nodr.csv")
+    if nd is not None:
+        nd = nd.set_index("realisation")
+        print(f"- no DR: mean daily CO2 {nd.co2_t.mean():.2f} t over the 26 test days")
+        for tag, s in [("_S1", "S1"), ("_S2", "S2")]:
+            d = load_capacity(tag)
+            if d is None: continue
+            q = d[np.isclose(d.C, C0)]; ref = nd.reindex(q.realisation.values)
+            dq = q.assign(dco2=q.co2_t.values - ref.co2_t.values, pct=100 * (q.co2_t.values - ref.co2_t.values) / ref.co2_t.values)
+            g = dq.groupby("name")[["dco2", "pct"]].mean()
+            print(f"- {s}, C = {C0:g} MW, CO2 change vs no DR (t/day, %): " + "; ".join(f"{n} {g.loc[n, 'dco2']:+.2f} ({g.loc[n, 'pct']:+.2f} %)" for n in ORDER))
+    print("\nElectric PUE on the typical day (S2, 7 MW; PUE = [(1+zeta) P_IT + P_aux + Q_EC/COP] / P_IT, energy-weighted):\n")
+    print("| run | day | 14-22 h (gas engine) | other hours | absorption chiller share of cooling, 14-22 h | TES net share, 14-22 h | mean chiller COP, 14-22 h / other |")
+    print("|---|---|---|---|---|---|---|")
+    for f, n in [("NoDR", "no DR"), ("IROs", "IR-O*"), ("JRM", "JR-M"), ("JRD", "JR-D")]:
+        q = rd(f"ts15_short_r21_{f}.csv")
+        if q is None: continue
+        hr = q.hour.values; m = hr < 24; g = m & (hr >= 14) & (hr < 22); o = m & ~g
+        el = (1 + zeta) * q.pit + p_aux + q.qec / q.cop; load = q.qec + q.qac + q.qtd - q.qtc
+        print(f"| {n} | {el[m].sum() / q.pit[m].sum():.3f} | {el[g].sum() / q.pit[g].sum():.3f} | {el[o].sum() / q.pit[o].sum():.3f} | "
+              f"{q.qac[g].sum() / load[g].sum():.3f} | {(q.qtd[g] - q.qtc[g]).sum() / load[g].sum():.3f} | {q.cop[g].mean():.2f} / {q.cop[o].mean():.2f} |")
+
+
+def computation_section():
+    h("Computational performance (Section 4.4, Table 3)")
+    print("Model size at the full 18-h horizon (S1, 7 MW, both events visible; counted from the MILP passed to the solver):")
+    print("JR-D 1 524 variables (2 binary), 604 inequality / 504 equality constraints; JR-S (5 scenarios) 7 620 (10), 3 020 / 2 564;")
+    print("JR-M 1 519 (1), 588 / 504; IR-O*/IR-P IT scheduling LP 656 (0), 368 / 216, then facility MILP 1 524 (2), 604 / 504.\n")
+    print("| run | strategy | days | solver time per closed-loop day: mean / median / max (s) | fallback steps |")
+    print("|---|---|---|---|---|")
+    for tag in ["_S1", "_S2", "_S3"]:
+        d = load_capacity(tag)
+        if d is None: continue
+        for n in ORDER:
+            q = d[d.name == n]
+            if q.empty: continue
+            print(f"| exp12{tag} | {n} | {len(q)} | {q.solve_time_s.mean():.1f} / {q.solve_time_s.median():.1f} / {q.solve_time_s.max():.1f} | {int(q.fallbacks.sum())} |")
+    d = rd("exp4_e3uncertain.csv"); st = rd("exp4_e3uncertain_strategies.csv")
+    if d is not None and st is not None:
+        d["name"] = d.strategy.map(dict(zip(st["index"], st["label"])))
+        for n, q in d.groupby("name", sort=False):
+            print(f"| exp4 (S4-U) | {n} | {len(q)} | {q.solve_time_s.mean():.1f} / {q.solve_time_s.median():.1f} / {q.solve_time_s.max():.1f} | {int(q.fallbacks.sum())} |")
+
+
 if __name__ == "__main__":
     print("# Numbers for the manuscript (generated by tools/paper_numbers.py)")
     capacity_section(); fixed_section(); endogenous_section(); dro_section(); sweep_section(); exp20_section(); hindsight_section()
-    commitment_section()
+    commitment_section(); efficiency_section(); computation_section()

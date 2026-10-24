@@ -115,10 +115,10 @@ def share_band(d, name, col="all_full", B=2000):
     return p.columns.values, p.values.mean(axis=0), np.percentile(bs, 2.5, axis=0), np.percentile(bs, 97.5, axis=0)
 
 
-# ------------------------------------------------------------------ distributionally robust firm capacity (Proposition 3)
+# ------------------------------------------------------------------ distributionally robust firm capacity (Proposition 4)
 def capability(d, name, col="all_full"):
     """Capability xi of one strategy per day: largest commitment C of the grid with full delivery at C and at every
-    smaller C of the grid (monotone definition, as Eq. 13). Returns (lower bound on the grid, grid step); a day that
+    smaller C of the grid (monotone definition, as Eq. 34). Returns (lower bound on the grid, grid step); a day that
     fails at the smallest commitment gets the lower bound grid_min - step."""
     p = d[d.name == name].pivot_table(index=d.columns[1] if "day" not in d.columns else "day", columns="C", values=col)
     if p.empty: return pd.Series(dtype=float), 0.5
