@@ -255,7 +255,7 @@ def parse(src):
     body, tail = rest.split("## Figure captions\n"); caps, refs = tail.split("## References\n")
     caps = dict(re.findall(r"^\*\*Fig\. (S?\d+)\.\*\* (.+)$", caps, re.M))
     refs = [l for l in refs.strip().split("\n") if l.strip()]
-    assert len(caps) == 21 and all(re.match(r"\[\d+\] ", l) for l in refs) and len(refs) == 38
+    assert len(caps) == 22 and all(re.match(r"\[\d+\] ", l) for l in refs) and len(refs) == 38
     return first[2:].strip(), body, caps, refs
 
 
@@ -268,7 +268,7 @@ def manuscript_md(src):
         for m in FIGREF.finditer(b):
             for n in re.findall(r"S?\d+", m.group(2)):
                 if not n.startswith("S"): cited.setdefault(n, i)
-    assert sorted(map(int, cited)) == list(range(1, 15)), sorted(cited)
+    assert sorted(map(int, cited)) == list(range(1, 16)), sorted(cited)
     out = [f'---\ntitle: "{title}"\nlang: en-GB\n---', TITLE_PAGE]
     for i, b in enumerate(blocks):
         if b.startswith("```") and "Algorithm 1" in b:
