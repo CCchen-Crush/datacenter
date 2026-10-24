@@ -4,7 +4,7 @@ Recovery-aware coordinated scheduling of computing workloads and energy storage 
 consecutive demand response (DR) in an AI data-center integrated energy system (AIDC-IES) —
 reproducible MATLAB / GNU Octave study prepared for *Applied Energy*.
 
-* **Manuscript draft:** [`paper/manuscript.md`](paper/manuscript.md) · numbers: [`paper/numbers.md`](paper/numbers.md) · figures: [`paper/figures/`](paper/figures)
+* **Manuscript:** source [`paper/manuscript_source.md`](paper/manuscript_source.md) (symbolic equation and reference keys) → numbered [`paper/manuscript.md`](paper/manuscript.md) · two-column PDF [`paper/latex/manuscript.pdf`](paper/latex/manuscript.pdf) · Word [`paper/word/`](paper/word) · numbers: [`paper/numbers.md`](paper/numbers.md) · figures: [`paper/figures/`](paper/figures)
 * **Research plan:** [`docs/研究方案_AE重构.md`](docs/研究方案_AE重构.md), current direction [`docs/方向调整_v2.md`](docs/方向调整_v2.md) · writing blueprint: [`docs/论文蓝图_AE.md`](docs/论文蓝图_AE.md) · results: [`docs/实验结果_AE.md`](docs/实验结果_AE.md) · theory: [`docs/理论推导.md`](docs/理论推导.md) · handover: [`docs/交接文档_AE.md`](docs/交接文档_AE.md)
 * **Data (derived from public traces):** [`data/`](data), provenance in [`data_prep/README.md`](data_prep/README.md)
 
@@ -28,15 +28,16 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 
 | Module | Question | Experiment | Paper figure |
 |---|---|---|---|
-| Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 5; S5, S6 |
-| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp20` (region), `exp13_region` | Fig. 6, 7, S1; Table 4 |
+| Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 5; S3, S4 |
+| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp20` (region), `exp13_region` | Fig. 6, 7, S1; Table 5 |
 | Value decomposition | Coordination vs cross-event foresight, conditions | `exp20_capacity_configs` (tau), `exp14_sweep` (tau_gamma, single) | Fig. 8, 9 |
-| System-level insight | Equivalent battery energy and connection capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 10 |
-| Commitment | Distributionally robust firm capacity (Proposition 3) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 5 |
-| Integrated energy system | Who provides the recovery channel; device contribution | `exp15` time series, `exp20` (ies, resources) | Fig. 5, 12 |
-| Users and economics | Service quality, costs, benefit versus commitment, multi-day statistics | `exp12`, `exp17_nodr`, `exp4_montecarlo` (JR-S) | Fig. 13, 14, 15, S3 |
-| Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8, Fig. 9d |
-| Supplementary | Physical capability regions, rebound policy, shadow prices | `exp13_region`, `exp8_rebound`, `exp5_shadow` | Fig. S1, S4, S7 |
+| System-level insight | Equivalent battery energy and connection capacity, for every target firm capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 10 |
+| Commitment | Distributionally robust firm capacity (Proposition 4) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 6 |
+| Integrated energy system | Who provides the recovery channel; device contribution; PUE and CO2 | `exp15` time series, `exp20` (ies, resources), `exp17_nodr` | Fig. 5, 12; Section 5.7.3 |
+| Users and economics | Service quality, costs, benefit versus commitment, multi-day statistics | `exp12`, `exp17_nodr` | Fig. 13, 14, 15 |
+| Uncertainty and rebound | Event-call uncertainty (JR-S), post-event rebound as a policy parameter | `exp4_montecarlo`, `exp8_rebound` | Fig. 16; Section 5.9 |
+| Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8.4, Fig. 9d |
+| Supplementary | Physical capability regions, commitment methods, propositions, channel price | `exp13_region`, `exp16`, `exp1`, `exp11`, `exp5_shadow` | Fig. S1-S5 |
 
 ## Reproduce
 
@@ -51,9 +52,14 @@ tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commit
                                                     # connection margin, IES devices, interval, two-event region,
                                                     # hindsight split, overhead, lag bounds, JR-S, supplementary
 # collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
-PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-15, S1-S7
+PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-16, S1-S5
 python3 tools/plot_paper.py GA                      # graphical abstract (13 x 5 cm)
-python3 tools/build_word.py                         # Word files for the submission in paper/word/ (pandoc >= 3)
+# manuscript: edit paper/manuscript_source.md, then
+python3 tools/resolve_manuscript.py                 # numbers equations and references -> paper/manuscript.md, paper/labels.json
+python3 tools/plot_paper.py 2                       # Fig. 2 reads its equation numbers from paper/labels.json
+python3 tools/build_latex.py                        # two-column PDF in paper/latex/ (pdflatex, pandoc >= 3)
+python3 tools/build_word.py                         # two-column Word files in paper/word/ (pandoc >= 3); WORD_LAYOUT=floats
+                                                    # places full-width figures and tables in text boxes at the page top
 ```
 
 `tools/collect_results.py` merges the parts of a run copy (`DCDR_RUN_RESULTS`, default `/home/user/dev/matlab/results`)
@@ -79,8 +85,9 @@ matlab/src/set_scenario.m     event scenarios S1, S2-<min>, S3
 matlab/experiments/           exp1 ... exp20 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection)
 matlab/results/               all result CSVs (see docs/实验结果_AE.md)
 tools/                        job queue, merge, numbers and figure scripts
-paper/                        manuscript (Markdown source), numbers, figures
-paper/word/                   submission files: manuscript.docx, highlights.docx, supplementary_material.docx,
+paper/                        manuscript source and numbered Markdown, labels.json, numbers, figures
+paper/latex/                  two-column PDF and its LaTeX source (built by tools/build_latex.py)
+paper/word/                   Word files: manuscript.docx (two columns), highlights.docx, supplementary_material.docx,
                               graphical_abstract.{pdf,png,tif} (built by tools/build_word.py)
 ```
 

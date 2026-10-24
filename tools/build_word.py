@@ -1,32 +1,45 @@
 #!/usr/bin/env python3
-"""Word files for the Applied Energy submission, built from paper/manuscript.md with pandoc (>= 3).
+"""Word files for the Applied Energy manuscript, built from paper/manuscript.md with pandoc (>= 3).
 
 Usage: python3 tools/build_word.py                          (writes paper/word/)
-  manuscript.docx              title page, highlights, abstract, nomenclature, text with native Word equations
-                               (numbers right-aligned), tables, Algorithm 1, figures at their first citation,
-                               declarations and references; A4, Times New Roman 12 pt, double spacing,
-                               continuous line numbers and page numbers
+  manuscript.docx              two-column layout of a typeset journal article, without line numbers: title, authors,
+                               highlights and an article-information / abstract block across the page, then two
+                               columns with the nomenclature, the text with native Word equations (left-aligned,
+                               numbers at the right edge of the column), tables, figures, declarations and references.
+                               Figures and tables wider than a column span both columns in a one-column section where
+                               they are cited (WORD_LAYOUT=floats: anchored text boxes at the top of a page instead);
+                               A4, Cambria 9.5 pt
   highlights.docx              the highlights as a separate file
-  supplementary_material.docx  Figs. S1-S7 with their captions
+  supplementary_material.docx  Figs. S1-S5 with their captions (one column)
   graphical_abstract.*         copied from paper/figures (python3 tools/plot_paper.py GA)
 Author details and declarations are placeholders shaded in yellow. Figures are taken from paper/figures.
 """
-import glob, hashlib, os, re, shutil, subprocess, tempfile, zipfile
+import glob, math, os, re, shutil, subprocess, tempfile, zipfile
 from PIL import Image, ImageFont
 
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 MD, FIG, OUT = (os.path.join(ROOT, "paper", p) for p in ("manuscript.md", "figures", "word"))
-MAX_W_CM = 15.9                                   # A4 with 2.5 cm margins: 16 cm text width
 FIGREF = re.compile(r"(Figs?\.\s*)((?:S?\d+)(?:[a-f](?:–[a-f])?)?(?:(?:,\s*|\s+and\s+)(?:S?\d+(?:[a-f](?:–[a-f])?)?|[a-f](?:–[a-f])?)(?!\w))*)")
+SHORT_TITLE = "Recovery-aware scheduling for consecutive demand response of AI data centers"
+N_FIG, N_SUPP, N_REF = 16, 5, 51
+LAYOUT = os.environ.get("WORD_LAYOUT", "sections")      # "sections": one-column sections where cited; "floats": text boxes at the top of a page
 
-# ------------------------------------------------------------------ reference document: styles, page, line numbers
-FONT = '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/>'
-SZ = lambda pt: f'<w:sz w:val="{int(2 * pt)}"/><w:szCs w:val="{int(2 * pt)}"/>'
-BORDER = lambda side, sz: f'<w:{side} w:val="single" w:sz="{sz}" w:space="0" w:color="000000"/>'
+# ------------------------------------------------------------------ page geometry (twentieths of a point)
+PAGE_W, PAGE_H, MARG_LR, MARG_TB, GAP = 11906, 16838, 850, 1077, 369
+TEXT_W = PAGE_W - 2 * MARG_LR                     # 18.0 cm
+COL_W = (TEXT_W - GAP) // 2                       # 8.67 cm
+SINGLE_W = PAGE_W - 2 * 1418                      # supplementary material: one column, 2.5 cm margins
+EMU = 635                                         # EMU per twip
+
+# ------------------------------------------------------------------ reference document: styles, page
+FONT = '<w:rFonts w:ascii="Cambria" w:hAnsi="Cambria" w:eastAsia="Cambria" w:cs="Cambria"/>'
+SZ = lambda pt: f'<w:sz w:val="{int(round(2 * pt))}"/><w:szCs w:val="{int(round(2 * pt))}"/>'
+BORDER = lambda side, sz, color="000000": f'<w:{side} w:val="single" w:sz="{sz}" w:space="0" w:color="{color}"/>'
+GRAY = "7F7F7F"
 
 
-def spacing(before=0, after=0, line=480):
-    return f'<w:spacing w:before="{before}" w:after="{after}" w:line="{line}" w:lineRule="auto"/>'
+def spacing(before=0, after=0, line=240, rule="auto"):
+    return f'<w:spacing w:before="{before}" w:after="{after}" w:line="{line}" w:lineRule="{rule}"/>'
 
 
 def style(sid, name, kind="paragraph", based="Normal", nxt=None, ppr="", rpr="", custom=True, extra=""):
@@ -35,70 +48,95 @@ def style(sid, name, kind="paragraph", based="Normal", nxt=None, ppr="", rpr="",
             + (f"<w:pPr>{ppr}</w:pPr>" if ppr else "") + (f"<w:rPr>{rpr}</w:rPr>" if rpr else "") + extra + "</w:style>")
 
 
-STYLES = [
-    style("BodyText", "Body Text", custom=False, ppr=spacing() + '<w:jc w:val="both"/>'),
-    style("FirstParagraph", "First Paragraph", based="BodyText", nxt="BodyText"),
-    style("Compact", "Compact", based="BodyText", ppr='<w:jc w:val="left"/>'),
-    style("Title", "Title", custom=False, nxt="BodyText", ppr="<w:keepNext/>" + spacing(0, 360, 360) + '<w:jc w:val="center"/>',
-          rpr="<w:b/><w:bCs/>" + SZ(16)),
-    style("Subtitle", "Subtitle", custom=False, nxt="BodyText", ppr=spacing(0, 360, 360) + '<w:jc w:val="center"/>', rpr="<w:i/><w:iCs/>" + SZ(12)),
-    style("Author", "Author", nxt="BodyText", ppr=spacing(0, 120, 360) + '<w:jc w:val="center"/>'),
-    style("AbstractTitle", "Abstract Title", based="Normal", nxt="Abstract", ppr="<w:keepNext/>" + spacing(240, 120, 276), rpr="<w:b/><w:bCs/>"),
-    style("Abstract", "Abstract", based="BodyText"),
-    style("Heading1", "Heading 1", custom=False, nxt="BodyText", ppr="<w:keepNext/><w:keepLines/>" + spacing(360, 120, 276) + '<w:outlineLvl w:val="0"/>',
-          rpr="<w:b/><w:bCs/>" + SZ(12)),
-    style("Heading2", "Heading 2", custom=False, nxt="BodyText", ppr="<w:keepNext/><w:keepLines/>" + spacing(240, 120, 276) + '<w:outlineLvl w:val="1"/>',
-          rpr="<w:b/><w:bCs/><w:i/><w:iCs/>" + SZ(12)),
-    style("Heading3", "Heading 3", custom=False, nxt="BodyText", ppr="<w:keepNext/><w:keepLines/>" + spacing(240, 60, 276) + '<w:outlineLvl w:val="2"/>',
-          rpr="<w:i/><w:iCs/>" + SZ(12)),
-    style("Bibliography", "Bibliography", custom=False, nxt="Bibliography", ppr=spacing() + '<w:ind w:left="567" w:hanging="567"/>'),
-    style("Caption", "Caption", custom=False, ppr=spacing(0, 120, 276) + '<w:jc w:val="both"/>', rpr=SZ(11)),
-    style("TableCaption", "Table Caption", based="Caption", ppr="<w:keepNext/>" + spacing(240, 120, 276)),
-    style("FigureCaption", "Figure Caption", based="Caption", ppr=spacing(60, 240, 276)),
-    style("ImageCaption", "Image Caption", based="FigureCaption"),
-    style("Figure", "Figure", ppr="<w:keepNext/>" + spacing(240, 60, 240) + '<w:jc w:val="center"/>'),
-    style("CaptionedFigure", "Captioned Figure", based="Figure"),
-    style("Equation", "Equation", ppr='<w:keepLines/><w:tabs><w:tab w:val="center" w:pos="4535"/><w:tab w:val="right" w:pos="9070"/></w:tabs>'
-          + spacing(120, 120, 276)),
-    style("TableText", "Table Text", ppr=spacing(20, 20, 240) + '<w:jc w:val="left"/>', rpr=SZ(10)),
-    style("Placeholder", "Placeholder", kind="character", based="DefaultParagraphFont", rpr='<w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/>'),
-    style("Hyperlink", "Hyperlink", kind="character", custom=False, based="DefaultParagraphFont", rpr='<w:color w:val="1F4E79"/>'),
-    ('<w:style w:type="table" w:default="1" w:styleId="Table"><w:name w:val="Table"/><w:basedOn w:val="TableNormal"/><w:qFormat/>'
-     '<w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblBorders>' + BORDER("top", 8) + BORDER("bottom", 8) + "</w:tblBorders>"
-     '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="85" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/>'
-     '<w:right w:w="85" w:type="dxa"/></w:tblCellMar></w:tblPr>'
-     '<w:tblStylePr w:type="firstRow"><w:tcPr><w:tcBorders>' + BORDER("bottom", 4) + "</w:tcBorders></w:tcPr></w:tblStylePr></w:style>"),
-]
-DOCDEFAULTS = ("<w:docDefaults><w:rPrDefault><w:rPr>" + FONT + SZ(12) + '<w:lang w:val="en-GB" w:eastAsia="zh-CN" w:bidi="ar-SA"/>'
+def styles(col_w):
+    eq_tabs = f'<w:tabs><w:tab w:val="left" w:pos="284"/><w:tab w:val="right" w:pos="{col_w}"/></w:tabs>'
+    return [
+        style("BodyText", "Body Text", custom=False, ppr=spacing() + '<w:ind w:firstLine="227"/><w:jc w:val="both"/>'),
+        style("FirstParagraph", "First Paragraph", based="BodyText", nxt="BodyText", ppr='<w:ind w:firstLine="0"/>'),
+        style("Compact", "Compact", based="BodyText", ppr='<w:ind w:firstLine="0"/><w:jc w:val="left"/>'),
+        style("Title", "Title", custom=False, nxt="BodyText", ppr="<w:keepNext/>" + spacing(120, 200, 252) + '<w:jc w:val="left"/>', rpr=SZ(16)),
+        style("Subtitle", "Subtitle", custom=False, nxt="BodyText", ppr=spacing(0, 240, 240) + '<w:jc w:val="left"/>', rpr="<w:i/><w:iCs/>" + SZ(11)),
+        style("Author", "Author", nxt="BodyText", ppr=spacing(0, 60, 240) + '<w:jc w:val="left"/>', rpr=SZ(11)),
+        style("Affiliation", "Affiliation", nxt="BodyText", ppr=spacing(0, 40, 240) + '<w:jc w:val="left"/>', rpr=SZ(7.5)),
+        style("FrontHead", "Front Head", nxt="BodyText", ppr="<w:keepNext/>" + spacing(160, 60, 240),
+              rpr='<w:caps/><w:spacing w:val="30"/>' + SZ(7.5)),
+        style("FrontText", "Front Text", based="BodyText", ppr='<w:ind w:firstLine="0"/>' + spacing(0, 0, 240), rpr=SZ(8.5)),
+        style("HighlightItem", "Highlight Item", based="BodyText", ppr='<w:ind w:left="170" w:hanging="170" w:firstLine="0"/><w:jc w:val="left"/>', rpr=SZ(8)),
+        style("Rule", "Rule", ppr=spacing(40, 40, 240) + '<w:pBdr>' + BORDER("bottom", 4, GRAY) + "</w:pBdr>", rpr=SZ(4)),
+        style("Heading1", "Heading 1", custom=False, nxt="FirstParagraph", ppr="<w:keepNext/><w:keepLines/>" + spacing(240, 100, 240) + '<w:outlineLvl w:val="0"/>',
+              rpr="<w:b/><w:bCs/>" + SZ(9.5)),
+        style("Heading2", "Heading 2", custom=False, nxt="FirstParagraph", ppr="<w:keepNext/><w:keepLines/>" + spacing(180, 80, 240) + '<w:outlineLvl w:val="1"/>',
+              rpr="<w:i/><w:iCs/>" + SZ(9.5)),
+        style("Heading3", "Heading 3", custom=False, nxt="FirstParagraph", ppr="<w:keepNext/><w:keepLines/>" + spacing(140, 60, 240) + '<w:outlineLvl w:val="2"/>',
+              rpr="<w:i/><w:iCs/>" + SZ(9.5)),
+        style("Bibliography", "Bibliography", custom=False, nxt="Bibliography", ppr=spacing(0, 20, 240) + '<w:ind w:left="397" w:hanging="397"/><w:jc w:val="left"/>',
+              rpr=SZ(7.5)),
+        style("Caption", "Caption", custom=False, ppr=spacing(0, 0, 240) + '<w:jc w:val="both"/>', rpr=SZ(7.5)),
+        style("TableCaption", "Table Caption", based="Caption", ppr="<w:keepNext/>" + spacing(120, 60, 240) + '<w:jc w:val="left"/>'),
+        style("FigureCaption", "Figure Caption", based="Caption", ppr=spacing(60, 0, 240)),
+        style("FigureCaptionCentered", "Figure Caption Centered", based="FigureCaption", ppr='<w:jc w:val="center"/>'),
+        style("ImageCaption", "Image Caption", based="FigureCaption"),
+        style("Figure", "Figure", ppr="<w:keepNext/>" + spacing(0, 0, 240) + '<w:jc w:val="center"/>'),
+        style("CaptionedFigure", "Captioned Figure", based="Figure"),
+        style("Equation", "Equation", ppr='<w:keepLines/>' + eq_tabs + spacing(80, 80, 240)),
+        style("TableText", "Table Text", ppr=spacing(10, 10, 240) + '<w:jc w:val="left"/>', rpr=SZ(7.5)),
+        style("TableNote", "Table Note", based="BodyText", ppr='<w:ind w:firstLine="0"/>' + spacing(40, 0, 240), rpr=SZ(7)),
+        style("NomHead", "Nomenclature Head", based="BodyText", nxt="BodyText", ppr="<w:keepNext/>" + '<w:ind w:firstLine="0"/>' + spacing(100, 20, 240),
+              rpr="<w:i/><w:iCs/>" + SZ(8.5)),
+        style("FootnoteText", "Footnote Text", custom=False, ppr=spacing(0, 0, 240), rpr=SZ(7.5)),
+        style("Placeholder", "Placeholder", kind="character", based="DefaultParagraphFont", rpr='<w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/>'),
+        style("Hyperlink", "Hyperlink", kind="character", custom=False, based="DefaultParagraphFont", rpr='<w:color w:val="1F6FB4"/>'),
+        ('<w:style w:type="table" w:default="1" w:styleId="Table"><w:name w:val="Table"/><w:basedOn w:val="TableNormal"/><w:qFormat/>'
+         '<w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblBorders>' + BORDER("top", 6) + BORDER("bottom", 6) + "</w:tblBorders>"
+         '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="57" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/>'
+         '<w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+         '<w:tblStylePr w:type="firstRow"><w:tcPr><w:tcBorders>' + BORDER("bottom", 4) + "</w:tcBorders></w:tcPr></w:tblStylePr></w:style>"),
+    ]
+
+
+DOCDEFAULTS = ("<w:docDefaults><w:rPrDefault><w:rPr>" + FONT + SZ(9.5) + '<w:lang w:val="en-GB" w:eastAsia="zh-CN" w:bidi="ar-SA"/>'
                "</w:rPr></w:rPrDefault><w:pPrDefault><w:pPr>" + spacing() + "</w:pPr></w:pPrDefault></w:docDefaults>")
-SECTPR = ('<w:sectPr><w:footerReference w:type="default" r:id="rIdPageFooter"/><w:pgSz w:w="11906" w:h="16838"/>'
-          '<w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418" w:header="709" w:footer="709" w:gutter="0"/>'
-          '<w:lnNumType w:countBy="1" w:distance="284" w:restart="continuous"/><w:cols w:space="708"/></w:sectPr>')
-FOOTER = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-          '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-          'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:p><w:pPr><w:suppressLineNumbers/>'
-          + spacing(0, 0, 240) + '<w:jc w:val="center"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
-          '<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>'
-          '<w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>')
 
 
-def reference_docx(path):
+def sectpr(cols, marg_lr, kind="continuous", hdr=True, title_pg=False):
+    refs = ('<w:headerReference w:type="default" r:id="rIdPageHeader"/><w:footerReference w:type="default" r:id="rIdPageFooter"/>'
+            '<w:footerReference w:type="first" r:id="rIdPageFooter"/>' if hdr else '<w:footerReference w:type="default" r:id="rIdPageFooter"/>')
+    return (f'<w:sectPr>{refs}<w:type w:val="{kind}"/><w:pgSz w:w="{PAGE_W}" w:h="{PAGE_H}"/>'
+            f'<w:pgMar w:top="{MARG_TB}" w:right="{marg_lr}" w:bottom="{MARG_TB}" w:left="{marg_lr}" w:header="567" w:footer="510" w:gutter="0"/>'
+            + (f'<w:cols w:num="2" w:space="{GAP}"/>' if cols == 2 else '<w:cols w:space="708"/>') + ("<w:titlePg/>" if title_pg else "") + "</w:sectPr>")
+
+
+FIRST_SECTION = sectpr(1, MARG_LR, kind="nextPage", title_pg=True)          # title block across the page (ends with a paragraph-level sectPr)
+PART = lambda body: ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + body)
+NS_W = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"')
+FOOTER = PART(f'<w:ftr {NS_W}><w:p><w:pPr>' + spacing(0, 0, 240) + '<w:jc w:val="center"/><w:rPr>' + SZ(8) + '</w:rPr></w:pPr>'
+              '<w:r><w:rPr>' + SZ(8) + '</w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr>' + SZ(8) + '</w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'
+              '<w:r><w:rPr>' + SZ(8) + '</w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr>' + SZ(8) + '</w:rPr><w:t>1</w:t></w:r>'
+              '<w:r><w:rPr>' + SZ(8) + '</w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>')
+HEADER = PART(f'<w:hdr {NS_W}><w:p><w:pPr>' + spacing(0, 0, 240) + '<w:jc w:val="left"/></w:pPr>'
+              '<w:r><w:rPr><w:i/><w:iCs/>' + SZ(7.5) + f'</w:rPr><w:t>{SHORT_TITLE}</w:t></w:r></w:p></w:hdr>')
+
+
+def reference_docx(path, journal=True):
     subprocess.run(["pandoc", "-o", path, "--print-default-data-file", "reference.docx"], check=True)
     with zipfile.ZipFile(path) as z: files = {n: z.read(n) for n in z.namelist()}
     st = files["word/styles.xml"].decode()
     st = re.sub(r"<w:docDefaults>.*?</w:docDefaults>", DOCDEFAULTS, st, count=1, flags=re.S)
-    for new in STYLES:
+    for new in styles(COL_W if journal else SINGLE_W):
         sid = re.search(r'w:styleId="([^"]+)"', new).group(1)
         pat = re.compile(r'<w:style [^>]*w:styleId="%s">.*?</w:style>' % re.escape(sid), re.S)
         st = pat.sub(lambda m: new, st, count=1) if pat.search(st) else st.replace("</w:styles>", new + "</w:styles>")
     files["word/styles.xml"] = st.encode()
     doc = files["word/document.xml"].decode(); assert "<w:sectPr />" in doc
-    files["word/document.xml"] = doc.replace("<w:sectPr />", SECTPR).encode()
-    files["word/footer1.xml"] = FOOTER.encode()
-    rel = ('<Relationship Id="rIdPageFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" '
-           'Target="footer1.xml"/>')
+    final = sectpr(2, MARG_LR) if journal else sectpr(1, 1418, kind="nextPage", hdr=False)
+    files["word/document.xml"] = doc.replace("<w:sectPr />", final).encode()
+    files["word/footer1.xml"] = FOOTER.encode(); files["word/header1.xml"] = HEADER.encode()
+    rel = ('<Relationship Id="rIdPageFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
+           '<Relationship Id="rIdPageHeader" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>')
     files["word/_rels/document.xml.rels"] = files["word/_rels/document.xml.rels"].decode().replace("</Relationships>", rel + "</Relationships>").encode()
-    ct = '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
+    ct = ('<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
+          '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>')
     files["[Content_Types].xml"] = files["[Content_Types].xml"].decode().replace("</Types>", ct + "</Types>").encode()
     write_zip(path, files)
 
@@ -110,7 +148,7 @@ def write_zip(path, files):
 
 # ------------------------------------------------------------------ numbered equations (pandoc drops \tag)
 LUA = r"""
--- display equation with \tag{n}: equation at the centre tab, "(n)" at the right tab (paragraph style Equation)
+-- display equation with \tag{n}: equation after the first tab (left-aligned), "(n)" at the right tab (paragraph style Equation)
 local function blank(x) return x.t == 'Space' or x.t == 'SoftBreak' or x.t == 'LineBreak' end
 local function tab() return pandoc.RawInline('openxml', '<w:r><w:tab/></w:r>') end
 function Para(el)
@@ -142,32 +180,8 @@ end
 """
 
 # ------------------------------------------------------------------ Markdown of the Word manuscript
-ALGORITHM_MD5 = "b4871702c3a960e2306a62efec78d839"     # code block of Algorithm 1 that ALGORITHM reproduces
-ALGORITHM = r"""| | **Algorithm 1** Recovery-aware commitment and cross-event joint recovery |
-|---|------------------------------------------------------------------------------------------|
-| | **Input:** historical days $\Omega^{DA}$ ($N$ days), operating days $\Omega$, commitment grid $\mathcal G$ (step $\Delta_{\mathcal G}$), reliability $\rho$, event set $\mathcal K$, horizon $T_H$, plant parameters (Table A1) |
-| | **Output:** cost-optimal commitment $C^*$, firm capacity $\hat C^{firm}_\rho$, closed-loop trajectories |
-| | **Stage I — Day-ahead recovery-aware commitment** (Section 4.1) |
-| 1 | **for** $C\in\mathcal G$ in increasing order and every day $d\in\Omega^{DA}$ that delivered all smaller $C$ **do** |
-| 2 | &emsp;run Stage III on day $d$ with commitment $C$ → cost $J_d(C)$ and full delivery of every event |
-| 3 | capability $\xi_d$ of every day (16); empirical distribution $\hat P_N$; radius $\varepsilon\leftarrow\varepsilon_N$ (20) |
-| 4 | **for** $C\in\mathcal G$ **do** sort the margins $\delta_d(C)$, $d\in\mathcal D_C$; $q(C)\leftarrow n(C)-\rho N$; margin $\Phi_\rho(C)$ (18)–(19) |
-| 5 | $C^{DRO}_\rho\leftarrow\max\{C\in\mathcal G:\ q(C)\ge0,\ \Phi_\rho(C)\ge\varepsilon\}$ (17); $C^*\leftarrow\arg\min\{\bar J(C):\ C\le C^{DRO}_\rho\}$ (21) |
-| | **Stage II — Firm capacity on the operating days** (Section 3.6) |
-| 6 | **for** every $C\in\mathcal G$ and $\omega\in\Omega$ **do** run Stage III with commitment $C$ |
-| 7 | $\hat C^{firm}_\rho\leftarrow$ largest $C$ whose full-delivery share is at least $\rho$ for all $C'\le C$ (14); bootstrap confidence intervals over days |
-| | **Stage III — Intraday cross-event joint recovery MPC** (Section 4.2), every $\Delta t$ = 15 min |
-| 8 | measure $\mathbf x_t=(B_{1..3,t},E_t,S_t)$, the gas-engine state, the event status and the loads |
-| 9 | correct the forecasts with the latest observed errors (JR-S: build the scenario tree) |
-| 10 | solve the joint recovery MILP (2)–(12) over $t,\dots,t+T_H$ with all confirmed events |
-| 11 | apply the first-step decisions; replay the plant (storage → TES → compute throttling) |
-| 12 | update the backlogs by earliest-deadline-first execution and the settlement (11) |
-| 13 | **return** $C^*$, $\hat C^{firm}_\rho$ and the trajectories |"""
-
 PH = lambda text: "[" + text + ']{custom-style="Placeholder"}'
-TITLE_PAGE = "\n\n".join(f'::: {{custom-style="Author"}}\n{PH(t)}\n:::' for t in (
-    "Author names (affiliation letters as superscripts; an asterisk marks the corresponding author)",
-    "Affiliations", "\\* Corresponding author. E-mail address")) + "\n\n```{=openxml}\n<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>\n```"
+FLOAT_START, FLOAT_END = "FLOATSTARTMARK", "FLOATENDMARK"
 DECLARATIONS = "\n\n".join([
     "## CRediT authorship contribution statement",
     PH("Contribution of each author in the CRediT roles, e.g. Conceptualization, Methodology, Software, Formal analysis, "
@@ -188,38 +202,43 @@ def div(name, text):
     return f'::: {{custom-style="{name}"}}\n{text}\n:::'
 
 
+def raw(xml):
+    return "```{=openxml}\n" + xml + "\n```"
+
+
 def _cells(row):
     """Cells of a pipe-table row; a | inside $...$ belongs to the cell."""
     row = row.strip(); assert row.startswith("|") and row.endswith("|"), row
-    cells, cur, math = [], "", False
+    cells, cur, math_ = [], "", False
     for ch in row[1:-1]:
-        if ch == "$": math = not math
-        if ch == "|" and not math: cells.append(cur); cur = ""
+        if ch == "$": math_ = not math_
+        if ch == "|" and not math_: cells.append(cur); cur = ""
         else: cur += ch
     return cells + [cur]
 
 
 def _visible(cell):
-    """Approximate printed length of a Markdown cell: a LaTeX command prints as one character."""
+    """Approximate printed text of a Markdown cell: a LaTeX command prints as one character."""
     t = re.sub(r"\$([^$]*)\$", lambda m: re.sub(r"[{}^_]|\\[ ,;!]", "", re.sub(r"\\[A-Za-z]+", "x", m.group(1))), cell)
     return re.sub(r"\*\*|\\(?=\*)", "", t.replace("&emsp;", "  ")).strip()
 
 
 def _font():
-    """Times New Roman or its metric twin, to size the table columns; None if neither is installed."""
-    for name in ("LiberationSerif-Regular.ttf", "times.ttf", "Times New Roman.ttf"):
+    """Cambria or its metric twin Caladea, to size the table columns; None if neither is installed."""
+    for name in ("Caladea-Regular.ttf", "cambria.ttc", "Cambria.ttf", "LiberationSerif-Regular.ttf"):
         try: return ImageFont.truetype(name, 100)
         except OSError: pass
 
 
 _F = _font()
-text_pt = (lambda s: _F.getlength(s) / 10) if _F else (lambda s: 5.0 * len(s))      # printed width at 10 pt (points)
+text_pt = (lambda s: _F.getlength(s) * 0.075) if _F else (lambda s: 3.9 * len(s))      # printed width at 7.5 pt (points)
 
 
-def column_widths(block, text=453.5, pad=12.0):
-    """Pipe table whose relative column widths (dashes of the separator) follow its content at 10 pt: every column
-    holds its longest word and, if they are short, its cells on one line; the remaining width goes to the columns
-    whose text would otherwise wrap most."""
+def column_widths(block, width_tw, pad=7.0):
+    """Pipe table whose relative column widths (dashes of the separator) follow its content at 7.5 pt: every column holds
+    its longest word and, if they are short, its cells on one line; the remaining width goes to the columns whose text
+    would otherwise wrap most. Returns the table and the estimated number of printed lines."""
+    text = width_tw / 20
     rows = block.split("\n"); assert re.fullmatch(r"\|[-|]+\|", rows[1]), rows[1]
     cells = [_cells(r) for k, r in enumerate(rows) if k != 1]
     need, want = [], []
@@ -231,61 +250,99 @@ def column_widths(block, text=453.5, pad=12.0):
     extra = text - sum(need); gap = [b - a for a, b in zip(need, want)]
     w = [a * text / sum(need) for a in need] if extra <= 0 or not sum(gap) else [a + extra * g / sum(gap) for a, g in zip(need, gap)]
     rows[1] = "|" + "|".join("-" * max(3, round(300 * x / sum(w))) for x in w) + "|"
-    return "\n".join(rows)
+    lines = sum(max(math.ceil((text_pt(_visible(c)) + pad) / max(x, 1)) for c, x in zip(r, w)) for r in cells)
+    return "\n".join(rows), lines
 
 
-def two_lines_12(block):
-    """Objective (12) in two aligned lines: it is wider than the text."""
-    for a, b in [("$$J=", "$$\\begin{aligned}J=&"), ("\\Big]\\Delta t-\\sum_k", "\\Big]\\Delta t\\\\&-\\sum_k"),
-                 ("J^{term}, \\tag{12}$$", "J^{term},\\end{aligned} \\tag{12}$$")]:
-        assert block.count(a) == 1, a; block = block.replace(a, b)
-    return block
+def natural_width(block):
+    """Width (twips) a pipe table needs at 7.5 pt: every body cell on one line and every header word unbroken."""
+    rows = [_cells(r) for k, r in enumerate(block.split("\n")) if k != 1]
+    col = lambda j: max([text_pt(_visible(r[j])) for r in rows[1:] or rows] + [text_pt(x) for x in _visible(rows[0][j]).split() or [""]])
+    return 20 * sum(col(j) + 8 for j in range(len(rows[0])))
 
 
-def figure(label, caption):
+def fig_width_cm(label):
     f = glob.glob(os.path.join(FIG, f"Fig{label}_*.png")); assert len(f) == 1, (label, f)
-    w = min(Image.open(f[0]).size[0] / 300 * 2.54, MAX_W_CM)
-    return div("Figure", f"![]({f[0]}){{width={w:.2f}cm}}") + "\n\n" + div("Figure Caption", f"**Fig. {label}.** {caption}")
+    return Image.open(f[0]).size[0] / 300 * 2.54
+
+
+def figure(label, caption, width_cm):
+    f = glob.glob(os.path.join(FIG, f"Fig{label}_*.png")); assert len(f) == 1, (label, f)
+    w = min(fig_width_cm(label), width_cm)
+    cap = "Figure Caption Centered" if len(caption) < 150 else "Figure Caption"
+    return div("Figure", f"![]({f[0]}){{width={w:.2f}cm}}") + "\n\n" + div(cap, f"**Fig. {label}.** {caption}")
 
 
 def parse(src):
-    """Title, body (Highlights ... Appendix B), figure captions and references of the Markdown manuscript."""
+    """Title, named sections, figure captions and references of the Markdown manuscript."""
     first, rest = src.split("\n", 1); assert first.startswith("# ")
     rest = re.sub(r"\A\s*> Draft for[^\n]*\n", "", rest)                  # editorial note of the Markdown draft
     body, tail = rest.split("## Figure captions\n"); caps, refs = tail.split("## References\n")
     caps = dict(re.findall(r"^\*\*Fig\. (S?\d+)\.\*\* (.+)$", caps, re.M))
     refs = [l for l in refs.strip().split("\n") if l.strip()]
-    assert len(caps) == 22 and all(re.match(r"\[\d+\] ", l) for l in refs) and len(refs) == 38
-    return first[2:].strip(), body, caps, refs
+    assert len(caps) == N_FIG + N_SUPP and all(re.match(r"\[\d+\] ", l) for l in refs) and len(refs) == N_REF, (len(caps), len(refs))
+    secs = re.split(r"^## ", body, flags=re.M)
+    sections = [(s.split("\n", 1)[0].strip(), s.split("\n", 1)[1] if "\n" in s else "") for s in secs if s.strip()]
+    return first[2:].strip(), sections, caps, refs
+
+
+def front_md(title, sections):
+    """Title block across the page: title, authors, highlights, article information and abstract."""
+    sec = dict(sections)
+    hl = re.findall(r"^- (.+)$", sec["Highlights"], re.M)
+    abstract, kw = sec["Abstract"].strip().split("\n\n")
+    kws = [k.strip() for k in re.sub(r"^\*\*Keywords:\*\*\s*", "", kw).split(";")]
+    out = [div("Title", title), div("Author", PH("Author names") + "^a,\\*^"),
+           div("Affiliation", "^a^ " + PH("Affiliation, city, postcode, country")),
+           div("Affiliation", "^\\*^ Corresponding author. E-mail address: " + PH("e-mail")),
+           div("Rule", "\u00a0"), div("Front Head", "Highlights")]
+    out += [div("Highlight Item", "• " + h) for h in hl]
+    out += [div("Rule", "\u00a0")]
+    # article information (keywords) and abstract side by side: a two-column table without borders
+    left = div("Front Head", "Article info") + "\n\n" + div("Front Text", "*Keywords:*") + "\n\n" + "\n\n".join(div("Front Text", k) for k in kws)
+    right = div("Front Head", "Abstract") + "\n\n" + div("Front Text", abstract)
+    out.append(f"FRONTTABLE\n\n{left}\n\nFRONTCELL\n\n{right}\n\nFRONTTABLEEND")
+    out.append(raw(f"<w:p><w:pPr>{FIRST_SECTION}</w:pPr></w:p>"))
+    return out
 
 
 def manuscript_md(src):
-    title, body, caps, refs = parse(src)
-    blocks = [b for b in body.strip("\n").split("\n\n") if b.strip()]
-    cited = {}                                                           # main figure -> block of its first citation
-    for i, b in enumerate(blocks):
-        if b.startswith(("#", "|", "```")): continue
-        for m in FIGREF.finditer(b):
-            for n in re.findall(r"S?\d+", m.group(2)):
-                if not n.startswith("S"): cited.setdefault(n, i)
-    assert sorted(map(int, cited)) == list(range(1, 16)), sorted(cited)
-    out = [f'---\ntitle: "{title}"\nlang: en-GB\n---', TITLE_PAGE]
-    for i, b in enumerate(blocks):
-        if b.startswith("```") and "Algorithm 1" in b:
-            code = b.split("\n", 1)[1].rsplit("```", 1)[0]
-            assert hashlib.md5(code.encode()).hexdigest() == ALGORITHM_MD5, "Algorithm 1 changed: update ALGORITHM in build_word.py"
-            b = column_widths(ALGORITHM)
-        elif b.startswith("|"):
-            b = column_widths(b)
-        elif "\\tag{12}" in b:
-            b = two_lines_12(b)
-        elif b.startswith("**Table "):
-            b = div("Table Caption", b)
-        elif b.startswith("## Appendix A."):
-            out.append(DECLARATIONS)
-        out.append(b)
-        for n in sorted((k for k, v in cited.items() if v == i), key=int):
-            out.append(figure(n, caps[n]))
+    title, sections, caps, refs = parse(src)
+    names = [n for n, _ in sections]
+    out = ['---\nlang: en-GB\n---'] + front_md(title, sections)
+    cited, figs_done, fig_order = {}, set(), []
+    for name, text in sections:
+        if name in ("Highlights", "Abstract"): continue
+        if name.startswith("Appendix A."): out.append(DECLARATIONS)
+        out.append(f"## {name}")
+        bl = [b for b in text.strip("\n").split("\n\n") if b.strip()]
+        k = 0
+        while k < len(bl):
+            b = bl[k]
+            if name == "Nomenclature":
+                if b.startswith("**") and b.endswith("**"): out.append(div("Nomenclature Head", b.strip("*"))); k += 1; continue
+                if b.startswith("|"): out.append(column_widths(b, COL_W)[0]); k += 1; continue
+            if b.startswith("**Table "):
+                num, cap = re.match(r"\*\*Table (A?\d+)\.\*\*\s*(.*)", b, re.S).groups()
+                tab = bl[k + 1]; notes = []
+                if k + 2 < len(bl) and bl[k + 2].startswith("^a^"): notes = [bl[k + 2]]
+                wide = natural_width(tab) > COL_W or num in ("1", "A1")
+                table, lines = column_widths(tab, TEXT_W if wide else COL_W)
+                cap_md = div("Table Caption", f"**Table {num}**\\\n{cap}")
+                body = [cap_md, table] + [div("Table Note", n) for n in notes]
+                if wide: body = [FLOAT_START + f"T{lines}"] + body + [FLOAT_END]
+                out += body; k += 2 + len(notes); continue
+            out.append(b)
+            if not b.startswith(("#", "|")):
+                for m in FIGREF.finditer(b):
+                    for n in re.findall(r"S?\d+", m.group(2)):
+                        if not n.startswith("S") and n not in cited:
+                            cited[n] = True
+                            col_cm = COL_W / 20 * 2.54 / 72
+                            if fig_width_cm(n) <= col_cm: out.append(figure(n, caps[n], col_cm))      # fits in a column
+                            else: out += [FLOAT_START + "F", figure(n, caps[n], TEXT_W / 20 * 2.54 / 72), FLOAT_END]
+            k += 1
+    assert sorted(map(int, cited)) == list(range(1, N_FIG + 1)), sorted(cited)
     out += ["## References", div("Bibliography", "\n\n".join(refs))]
     return "\n\n".join(out) + "\n"
 
@@ -293,7 +350,7 @@ def manuscript_md(src):
 def supplementary_md(src):
     title, _, caps, _ = parse(src)
     out = [f'---\ntitle: "Supplementary material"\nsubtitle: "{title}"\nlang: en-GB\n---']
-    out += [figure(f"S{k}", caps[f"S{k}"]) for k in range(1, 8)]
+    out += [figure(f"S{k}", caps[f"S{k}"], SINGLE_W / 20 * 2.54 / 72) for k in range(1, N_SUPP + 1)]
     return "\n\n".join(out) + "\n"
 
 
@@ -304,20 +361,20 @@ def highlights_md(src):
 
 
 # ------------------------------------------------------------------ pandoc and post-processing
-TEXT_W = 9070                                     # text width in twentieths of a point (16 cm)
-
-
-def fix_table(m):
+def fix_table(m, widths):
     """Three-line table (rules above and below the table and below the header; none for the headerless nomenclature),
-    fixed column widths from the Markdown separator scaled to the text width, 10-pt single-spaced cell text."""
+    fixed column widths from the Markdown separator scaled to the target width, 7.5-pt single-spaced cell text."""
     t = m.group(0)
+    if "FrontTable" in t: return t
     head = "<w:tblHeader" in t
     g = [int(x) for x in re.findall(r'<w:gridCol w:w="(\d+)"', t)]
-    g = [2268, TEXT_W - 2268] if not head and len(g) == 2 else [round(x * TEXT_W / sum(g)) for x in g]   # nomenclature 25/75 %
-    g[-1] += TEXT_W - sum(g)
+    W = next(widths)
+    g = [1020, W - 1020] if not head and len(g) == 2 else [round(x * W / sum(g)) for x in g]     # nomenclature: 1.8 cm symbols
+    g[-1] += W - sum(g)
     t = re.sub(r"<w:tblGrid>.*?</w:tblGrid>", "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{x}"/>' for x in g) + "</w:tblGrid>", t, count=1, flags=re.S)
+    t = re.sub(r'<w:tblW [^>]*/>', f'<w:tblW w:w="{W}" w:type="dxa"/>', t, count=1)
     nil = "".join(f'<w:{s} w:val="nil"/>' for s in ("top", "left", "bottom", "right", "insideH", "insideV"))
-    pr = "<w:tblBorders>" + (BORDER("top", 8) + BORDER("bottom", 8) if head else nil) + '</w:tblBorders><w:tblLayout w:type="fixed"/>'
+    pr = "<w:tblBorders>" + (BORDER("top", 6) + BORDER("bottom", 6) if head else nil) + '</w:tblBorders><w:tblLayout w:type="fixed"/>'
     t = re.sub(r"<w:tblBorders>.*?</w:tblBorders>|<w:tblLayout [^>]*/>", "", t, flags=re.S)
     t = re.sub(r"(<w:tblPr>.*?)(<w:tblCellMar|<w:tblLook|</w:tblPr>)", lambda k: k.group(1) + pr + k.group(2), t, count=1, flags=re.S)
     for k, r0 in enumerate(re.findall(r"<w:tr>.*?</w:tr>", t, re.S)):
@@ -335,6 +392,76 @@ def _tc_bottom(tcpr):
     k = re.search(r"<w:(shd|noWrap|tcMar|textDirection|tcFitText|vAlign|hideMark)\b", tcpr)
     b = "<w:tcBorders>" + BORDER("bottom", 4) + "</w:tcBorders>"
     return tcpr[:k.start()] + b + tcpr[k.start():] if k else tcpr + b
+
+
+MARK_P = lambda word: re.compile(r"<w:p>(?:(?!</w:p>).)*?" + word + r"(\w*)(?:(?!</w:p>).)*?</w:p>", re.S)
+DRAW_NS = {"wps": "http://schemas.microsoft.com/office/word/2010/wordprocessingShape", "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
+           "wp14": "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing", "w14": "http://schemas.microsoft.com/office/word/2010/wordml"}
+
+
+def floats(doc):
+    """Content between the markers FLOAT_START<kind> and FLOAT_END -> an anchored text box across both columns at the top of
+    the page (top-and-bottom wrapping, no overlap). Its height is estimated from the picture or the table lines; Word
+    and LibreOffice grow it to fit (auto-fit)."""
+    root = re.search(r"<w:document[^>]*>", doc).group(0)
+    add = "".join(f' xmlns:{k}="{v}"' for k, v in DRAW_NS.items() if f"xmlns:{k}=" not in root)
+    if "mc:Ignorable" not in root: add += ' mc:Ignorable="w14 wp14"'
+    doc = doc.replace(root, root[:-1] + add + ">")
+    n = [0]
+    def box(m):
+        kind, inner = m.group(1), m.group(2)
+        n[0] += 1
+        if kind.startswith("F"):
+            cy = sum(int(x) for x in re.findall(r'<wp:extent cx="\d+" cy="(\d+)"', inner))
+            words = len(re.sub(r"<[^>]+>", "", inner)); h_pt = cy / 12700 + 14 + 9.2 * math.ceil(words * 3.75 / (TEXT_W / 20))
+        else:
+            h_pt = 9.6 * int(kind[1:]) + 34
+        h = int(h_pt * 12700 * 1.04)
+        if inner.rstrip().endswith("</w:tbl>"): inner += '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>'
+        return (f'<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/></w:pPr><w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing>'
+                f'<wp:anchor distT="0" distB="200000" distL="0" distR="0" simplePos="0" relativeHeight="{251659264 + n[0]}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="0">'
+                '<wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="margin"><wp:align>center</wp:align></wp:positionH>'
+                '<wp:positionV relativeFrom="margin"><wp:align>top</wp:align></wp:positionV>'
+                f'<wp:extent cx="{TEXT_W * EMU}" cy="{h}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapTopAndBottom/>'
+                f'<wp:docPr id="{5000 + n[0]}" name="Float {n[0]}"/><wp:cNvGraphicFramePr/>'
+                '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+                '<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/>'
+                f'<a:ext cx="{TEXT_W * EMU}" cy="{h}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/><a:ln><a:noFill/></a:ln></wps:spPr>'
+                f'<wps:txbx><w:txbxContent>{inner}</w:txbxContent></wps:txbx>'
+                '<wps:bodyPr rot="0" vert="horz" wrap="square" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t" anchorCtr="0"><a:spAutoFit/></wps:bodyPr></wps:wsp>'
+                '</a:graphicData></a:graphic></wp:anchor></w:drawing></mc:Choice><mc:Fallback/></mc:AlternateContent></w:r></w:p>')
+    pat = re.compile(r"<w:p>(?:(?!</w:p>).)*?" + FLOAT_START + r"(\w+)(?:(?!</w:p>).)*?</w:p>(.*?)<w:p>(?:(?!</w:p>).)*?" + FLOAT_END + r"(?:(?!</w:p>).)*?</w:p>", re.S)
+    doc, k = pat.subn(box, doc)
+    assert FLOAT_START not in doc and FLOAT_END not in doc
+    return doc, k
+
+
+def sections(doc):
+    """Content between FLOAT_START<kind> and FLOAT_END -> its own one-column section (continuous section breaks before and
+    after), so that it spans both columns at the place where it is cited."""
+    two, one = sectpr(2, MARG_LR), sectpr(1, MARG_LR)
+    brk = lambda sp: f'<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="20" w:lineRule="exact"/>{sp}</w:pPr></w:p>'
+    pat = re.compile(r"<w:p>(?:(?!</w:p>).)*?" + FLOAT_START + r"(\w+)(?:(?!</w:p>).)*?</w:p>(.*?)<w:p>(?:(?!</w:p>).)*?" + FLOAT_END + r"(?:(?!</w:p>).)*?</w:p>", re.S)
+    doc, k = pat.subn(lambda m: brk(two) + m.group(2) + brk(one), doc)
+    assert FLOAT_START not in doc and FLOAT_END not in doc
+    return doc, k
+
+
+def front_table(doc):
+    """Paragraphs between FRONTTABLE, FRONTCELL and FRONTTABLEEND -> a borderless two-column table (article info | abstract)."""
+    pat = re.compile(r"<w:p>(?:(?!</w:p>).)*?FRONTTABLE(?!END)(?:(?!</w:p>).)*?</w:p>(.*?)<w:p>(?:(?!</w:p>).)*?FRONTCELL(?:(?!</w:p>).)*?</w:p>(.*?)"
+                     r"<w:p>(?:(?!</w:p>).)*?FRONTTABLEEND(?:(?!</w:p>).)*?</w:p>", re.S)
+    w1 = int(TEXT_W * 0.27); w2 = TEXT_W - w1 - 284
+    def tab(m):
+        left, right = m.group(1), m.group(2)
+        cell = lambda w, body, extra="": (f'<w:tc><w:tcPr><w:tcW w:w="{w}" w:type="dxa"/>{extra}</w:tcPr>{body}</w:tc>')
+        return ('<w:tbl><w:tblPr><w:tblStyle w:val="FrontTable"/><w:tblW w:w="' + str(TEXT_W) + '" w:type="dxa"/><w:tblLayout w:type="fixed"/>'
+                '<w:tblBorders>' + "".join(f'<w:{s} w:val="nil"/>' for s in ("top", "left", "bottom", "right", "insideH", "insideV")) + '</w:tblBorders>'
+                '<w:tblCellMar><w:left w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tblCellMar><w:tblLook w:val="0000"/></w:tblPr>'
+                f'<w:tblGrid><w:gridCol w:w="{w1}"/><w:gridCol w:w="284"/><w:gridCol w:w="{w2}"/></w:tblGrid><w:tr>'
+                + cell(w1, left) + cell(284, "<w:p/>") + cell(w2, right) + '</w:tr></w:tbl><w:p><w:pPr><w:spacing w:before="0" w:after="120"/></w:pPr></w:p>')
+    doc, k = pat.subn(tab, doc); assert k == 1, "front table"
+    return doc
 
 
 SCHEMA_ORDER = {      # child order of the elements that pandoc 3.1 / texmath write out of schema order
@@ -371,8 +498,9 @@ def sanitize(files):
     doc = literal_runs(doc)
     for parent in ("m:rPr", "m:dPr", "m:mcPr"): doc = reorder(doc, parent)
     files["word/document.xml"] = doc.encode()
-    num = files["word/numbering.xml"].decode()
-    files["word/numbering.xml"] = re.sub(r'(<w:nsid w:val=")([0-9A-F]{1,7})"', lambda m: m.group(1) + m.group(2).rjust(8, "0") + '"', num).encode()
+    if "word/numbering.xml" in files:
+        num = files["word/numbering.xml"].decode()
+        files["word/numbering.xml"] = re.sub(r'(<w:nsid w:val=")([0-9A-F]{1,7})"', lambda m: m.group(1) + m.group(2).rjust(8, "0") + '"', num).encode()
     files["word/settings.xml"] = reorder(files["word/settings.xml"].decode(), "w:settings").encode()
     ct = files["[Content_Types].xml"].decode()
     if 'Extension="png"' not in ct:
@@ -380,16 +508,32 @@ def sanitize(files):
     files["[Content_Types].xml"] = ct.encode()
 
 
-LONE_OP = re.compile(r"(<m:(sup|sub)>)<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?<m:t>([*+∗′−])</m:t></m:r>(</m:\2>)", re.S)
-KEYWORD = re.compile(r"<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?<m:t>(sup|inf)</m:t></m:r>", re.S)
+LONE_OP = re.compile(r"(<m:(sup|sub)>)<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?(<w:rPr>(?:(?!</w:rPr>).)*?</w:rPr>)?<m:t>([*+∗′−])</m:t></m:r>(</m:\2>)", re.S)
+KEYWORD = re.compile(r"<m:r>(?:<m:rPr>((?:(?!</m:rPr>).)*?)</m:rPr>)?(<w:rPr>(?:(?!</w:rPr>).)*?</w:rPr>)?<m:t>(sup|inf)</m:t></m:r>", re.S)
 
 
 def literal_runs(doc):
     """Literal (m:lit) runs for an operator alone in a script (c*, x+) and for the operator names sup and inf. Word draws
     them unchanged; importers that re-parse the run text as a formula language (LibreOffice) otherwise read an operator
     without operand or a keyword."""
-    doc = LONE_OP.sub(lambda m: f"{m.group(1)}<m:r><m:rPr><m:lit />{m.group(3) or ''}</m:rPr><m:t>{m.group(4)}</m:t></m:r>{m.group(5)}", doc)
-    return KEYWORD.sub(lambda m: f"<m:r><m:rPr><m:lit />{m.group(1) or ''}</m:rPr><m:t>{m.group(2)}</m:t></m:r>", doc)
+    doc = LONE_OP.sub(lambda m: f"{m.group(1)}<m:r><m:rPr><m:lit />{m.group(3) or ''}</m:rPr>{m.group(4) or ''}<m:t>{m.group(5)}</m:t></m:r>{m.group(6)}", doc)
+    return KEYWORD.sub(lambda m: f"<m:r><m:rPr><m:lit />{m.group(1) or ''}</m:rPr>{m.group(2) or ''}<m:t>{m.group(3)}</m:t></m:r>", doc)
+
+
+MATH_PT = {"TableText": 7.5, "Compact": 7.5, "Caption": 7.5, "FigureCaption": 7.5, "FigureCaptionCentered": 7.5, "ImageCaption": 7.5,
+           "TableCaption": 7.5, "Bibliography": 7.5, "TableNote": 7, "FrontText": 8.5, "HighlightItem": 8, "NomHead": 8.5}
+
+
+def math_sizes(doc, default=9.5):
+    """Explicit font (Cambria Math) and size of every math run, from the style of its paragraph: Word sizes an equation by
+    the run properties, so equations follow the 7.5-pt table and caption text and the 9.5-pt body text."""
+    def para(m):
+        p = m.group(0)
+        if "<m:r>" not in p: return p
+        st = re.search(r'<w:pStyle w:val="([^"]+)"', p)
+        rpr = '<w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/>' + SZ(MATH_PT.get(st.group(1) if st else "", default)) + "</w:rPr>"
+        return re.sub(r"<m:r>(<m:rPr>(?:(?!</m:rPr>).)*?</m:rPr>)?(?!<w:rPr>)", lambda k: "<m:r>" + (k.group(1) or "") + rpr, p, flags=re.S)
+    return re.sub(r"<w:p>(?:(?!</w:p>).)*?</w:p>|<w:p [^>]*>(?:(?!</w:p>).)*?</w:p>", para, doc, flags=re.S)
 
 
 def _first(ppr, pat):
@@ -404,15 +548,33 @@ def _after_tblw(tblpr):
     return rest[:k] + m.group(0) + rest[k:]
 
 
-def pandoc(md_text, out, ref, lua, work):
+def table_widths(md_text):
+    """Target width of every pipe table in document order: the text width inside a float, else the column width."""
+    out, in_float = [], False
+    for b in md_text.split("\n\n"):
+        if b.startswith(FLOAT_START): in_float = True
+        elif b.startswith(FLOAT_END): in_float = False
+        elif b.startswith("|"): out.append(TEXT_W if in_float else COL_W)
+    return out
+
+
+def pandoc(md_text, out, ref, lua, work, journal=True):
     src = os.path.join(work, os.path.basename(out) + ".md")
     open(src, "w").write(md_text)
     subprocess.run(["pandoc", src, "-f", "markdown", "-o", out, f"--reference-doc={ref}", f"--lua-filter={lua}",
                     "--shift-heading-level-by=-1", "--columns=1"], check=True)      # --columns=1: relative widths for all pipe tables
     with zipfile.ZipFile(out) as z: files = {n: z.read(n) for n in z.namelist()}
     doc = files["word/document.xml"].decode()
-    doc = re.sub(r"<w:tbl>.*?</w:tbl>", fix_table, doc, flags=re.S)
-    assert "<w:lnNumType" in doc and "<w:footerReference" in doc, "page setup of the reference document was not applied"
+    widths = iter(table_widths(md_text) if journal else [SINGLE_W] * 100)
+    doc = re.sub(r"<w:tbl>.*?</w:tbl>", lambda m: fix_table(m, widths), doc, flags=re.S)
+    doc = math_sizes(doc, 9.5 if journal else 11)
+    if journal and "FRONTTABLE" in doc:
+        last = doc[doc.rindex("<w:sectPr"):]                         # pandoc renames the header and footer relationships
+        hid = re.search(r'<w:headerReference[^>]*r:id="(\w+)"', last).group(1); fid = re.search(r'<w:footerReference[^>]*r:id="(\w+)"', last).group(1)
+        doc = front_table(doc); doc, nf = (sections if LAYOUT == "sections" else floats)(doc)
+        doc = doc.replace('r:id="rIdPageHeader"', f'r:id="{hid}"').replace('r:id="rIdPageFooter"', f'r:id="{fid}"')
+        print(f"  {nf} figures and tables across both columns ({LAYOUT})")
+    assert "<w:lnNumType" not in doc and "<w:footerReference" in doc, "page setup of the reference document was not applied"
     files["word/document.xml"] = doc.encode()
     sanitize(files)
     write_zip(out, files)
@@ -422,11 +584,11 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     src = open(MD).read()
     with tempfile.TemporaryDirectory() as work:
-        ref, lua = os.path.join(work, "reference.docx"), os.path.join(work, "equations.lua")
-        reference_docx(ref); open(lua, "w").write(LUA)
-        for name, md in [("manuscript.docx", manuscript_md(src)), ("supplementary_material.docx", supplementary_md(src)),
-                         ("highlights.docx", highlights_md(src))]:
-            pandoc(md, os.path.join(OUT, name), ref, lua, work); print("wrote", name)
+        ref_j, ref_s, lua = (os.path.join(work, f) for f in ("ref_journal.docx", "ref_single.docx", "equations.lua"))
+        reference_docx(ref_j, journal=True); reference_docx(ref_s, journal=False); open(lua, "w").write(LUA)
+        for name, md, journal in [("manuscript.docx", manuscript_md(src), True), ("supplementary_material.docx", supplementary_md(src), False),
+                                  ("highlights.docx", highlights_md(src), False)]:
+            pandoc(md, os.path.join(OUT, name), ref_j if journal else ref_s, lua, work, journal); print("wrote", name)
     for ext in ("pdf", "png"):
         f = os.path.join(FIG, f"GraphicalAbstract.{ext}")
         if os.path.exists(f): shutil.copy2(f, os.path.join(OUT, f"graphical_abstract.{ext}"))

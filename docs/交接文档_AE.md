@@ -19,7 +19,14 @@
 
 ## 0 一句话现状
 
-模型、全部实验（exp1–exp20）、作图、取数和论文全文均已完成并推送（分支 `claude/ae-reliable-capacity`）；2026-10-24 已按 Zhang (2026)（Applied Energy 425:128499）的版式与语言完成全面包装和润色（见 `docs/修改进度.md` 末两行），并新增 Fig. 15。主要结论：JR-D 可靠容量 S1/S2 7.5 MW、S3 6.5 MW，独立基准 1 MW 都不可靠；预见价值 15 min 4.0 MW → 3 h 0；预见价值相当于 9.3 MWh 电池（5.6 百万元），加接网也换不来；成本最优鲁棒承诺 7 MW 样本外 100% 足额，完美追索两阶段承诺只有 85%；两事件可靠可行域中 JR-D 接近物理能力边界，JR-M 低 2.6–4.3 MW，而完美信息下三种控制器的物理能力相同。
+模型、全部实验（exp1–exp20）、作图、取数和论文全文均已完成并推送（分支 `claude/ae-reliable-capacity`）。2026-10-24 第二轮包装（对照 Zhang 2026 的逐项审阅意见）已完成：
+- **论文源文件**改为 `paper/manuscript_source.md`（公式用 `\label{eq:…}`/`\eqref{…}`，文献用 `[@key]`）；`python3 tools/resolve_manuscript.py` 按出现顺序编号，生成 `paper/manuscript.md`（58 个正文公式、附录 B.1–B.4、51 篇文献）和 `paper/labels.json`（Fig. 2 的公式编号从这里读取）。**以后只改源文件。**
+- 数学进正文：偏差恒等式、Γ^E/Γ^P、Lagrangian + KKT（新命题 3：单一通道价格）、背包原问题与对偶推导、原命题 3 改为命题 4；r̄_k、PUE、CO2、反弹考核、终值项、MPC 问题均有独立编号。
+- 第 5 节改为三级编号（5.1.1–5.9.2），新增 5.5.3（多目标替代）、5.7.3（PUE 与碳排放）、5.9（事件调用不确定性与事后反弹，图 16 = 原 S3+S4）；新增 Table 3（模型规模、求解时间、零回退）；结论合并为 4 条；符号表一符一行。
+- 图：Fig. 1a 扁平矢量图标（`tools/fig_icons.py`）+ 闭环标记 1–4 画在流线上；Fig. 2 九个小示意图；Fig. 10c/d 多目标替代；补充图重编为 S1–S5。
+- 双栏输出（无行号）：`python3 tools/build_latex.py` → `paper/latex/manuscript.pdf`（Charter 字体、期刊式标题区/Highlights/Article info/Abstract、通栏浮动图表、蓝色交叉引用，25 页）；`python3 tools/build_word.py` → `paper/word/manuscript.docx`（双栏，通栏图表放在单栏连续分节中；`WORD_LAYOUT=floats` 改为页顶文本框浮动）。LibreOffice 渲染 Word 公式时字号偏大、部分对齐公式显示“¿”，这是 LibreOffice 导入的限制，Word 中正常。
+
+主要结论不变：JR-D 可靠容量 S1/S2 7.5 MW、S3 6.5 MW，独立基准 1 MW 都不可靠；预见价值 15 min 4.0 MW → 3 h 0；预见价值相当于 9.3 MWh 电池（目标 5.25 MW 时 14.0 MWh），加接网也替代不了；成本最优鲁棒承诺 7 MW 样本外 100% 足额，完美追索两阶段承诺只有 85%；DR 使 CO2 变化 < 0.2%，日电 PUE 1.253 不变。
 
 ## 1 文档与代码索引
 
@@ -27,7 +34,9 @@
 |---|---|
 | 研究方案（主线，用户提供） | `docs/研究方案_AE重构.md` |
 | 论文蓝图（结构、Highlights、贡献、算法包装、Table 2、八张图、写作规则） | `docs/论文蓝图_AE.md` |
-| 论文初稿（英文；第 1–4 节、符号表、附录 A 已写，第 5–6 节和摘要待填数） | `paper/manuscript.md` |
+| 论文源文件（英文，带符号标签；只改这里） | `paper/manuscript_source.md` |
+| 编号后的论文（由 `tools/resolve_manuscript.py` 生成） | `paper/manuscript.md`、`paper/labels.json` |
+| 双栏 PDF / Word | `paper/latex/manuscript.pdf`（`tools/build_latex.py`）、`paper/word/`（`tools/build_word.py`） |
 | 本交接文档 | `docs/交接文档_AE.md` |
 | 判定实验 G1（旧版三事件结果，已被本轮取代，作历史记录） | `docs/判定实验G1.md`，结果在 `matlab/results/legacy_G1/` |
 | 理论证明（命题 1、原定理 1 = 现命题 2） | `docs/理论推导.md` |
