@@ -1,0 +1,4 @@
+label,C_rho,rho,n_eval
+lag50|JR-D,7.25,0.95,8
+lag50|JR-M,4.5,0.95,8
+lag50|IR-O*,NaN,0.95,1

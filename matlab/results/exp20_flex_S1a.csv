@@ -1,2 +1,6 @@
 label,C_rho,rho,n_eval
 base|JR-D,7.75,0.95,7
+base|JR-M,6.75,0.95,8
+base|IR-O*,NaN,0.95,1
+base|SR-D,7,0.95,7
+fs50|JR-D,6.75,0.95,8
