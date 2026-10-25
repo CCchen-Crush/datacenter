@@ -1,2 +1,5 @@
 label,C_rho,rho,n_eval
 hz1|JR-D,NaN,0.95,1
+hz2|JR-D,3.25,0.95,7
+hz4|JR-D,7,0.95,7
+hz8|JR-D,7.75,0.95,7

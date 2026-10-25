@@ -18,6 +18,7 @@
 %                                  E12_RS = [...] -> explicit test realisations of Exp12 (with MC_PASSES = 3: 1:78)
 %                                  E18_MODS, E18_STRATS -> the same for the back-test Exp18; RUN = 21 -> Exp21 channel
 %                                  MC_PASSES = 3 -> 78 test realisations; CASE_JUL = true -> DR day 22 July 2024
+%                                  RUN = 23 -> horizon diagnosis (E23_SCEN, E23_HZ, E23_CS, E23_TAG); E17_TAG -> no-DR file tag
 %   Base case: Jiangsu settlement rules alone (no gap-rebound assessment, c_rb = 0). The rebound
 %   assessment is a policy parameter: Exp8 sweeps it, RB_SENS repeats the main experiments at 3 CNY/kW.
 clc;
@@ -208,7 +209,8 @@ if any(RUN == 16)
 end
 if any(RUN == 17)
     fprintf('== Exp17: no-DR reference on the test days\n');
-    E17 = exp17_nodr(ctx, root, 26);
+    if ~exist('E17_TAG', 'var'), E17_TAG = ''; end
+    E17 = exp17_nodr(ctx, root, 26, E17_TAG);
 end
 if any(RUN == 18)
     % closed-loop back-test on the historical days of the day-ahead pool (distributionally robust commitment)
@@ -305,6 +307,15 @@ if any(RUN == 21)
     if ~exist('E21_C', 'var'), E21_C = 7; end
     fprintf('== Exp21: nominal vs actual recovery channel\n');
     E21 = exp21_channel(ctx, root, E21_C, 26);
+end
+if any(RUN == 23)
+    % day-by-day diagnosis of the prediction horizon (Section 5.10.2)
+    if ~exist('E23_SCEN', 'var'), E23_SCEN = 'S2-30'; end
+    if ~exist('E23_HZ', 'var'), E23_HZ = [1 2 18]; end
+    if ~exist('E23_CS', 'var'), E23_CS = [1 2.5]; end
+    if ~exist('E23_TAG', 'var'), E23_TAG = '_S2'; end
+    fprintf('== Exp23: horizon diagnosis (%s)\n', E23_SCEN);
+    E23 = exp23_horizon_diag(ctx, root, E23_SCEN, E23_HZ, E23_CS, E23_TAG);
 end
 if any(RUN == 22)
     % convergence of the iterative price coordination IR-PD on selected days (E22_SCEN, E22_C, E22_RS, E22_K)

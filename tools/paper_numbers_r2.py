@@ -28,9 +28,9 @@ def history(tag):
     return hh
 
 
-def nodr_cost(c_jct=0.5):
+def nodr_cost(c_jct=0.5, tag=""):
     """No-DR cost per test day at the delay price c_jct (its delay cost is linear in c_jct, no overdue work)."""
-    nd = rd("exp17_nodr.csv")
+    nd = rd(f"exp17_nodr{tag}.csv")
     if nd is None: return None
     nd = nd.set_index("realisation")
     return nd.net_cost_adj + (c_jct - 0.5) * nd.delay_GPUh_h
@@ -123,7 +123,7 @@ PRICE = [("p1c05", 1000, 0.5), ("p1c1", 1000, 1), ("p1c2", 1000, 2), ("p2c05", 2
          ("", 3000, 0.5), ("p3c1", 3000, 1), ("p3c2", 3000, 2), ("k0", 3000, 0.5)]
 
 
-def commit_point(hist, test, name, c_jct, rho=0.95):
+def commit_point(hist, test, name, c_jct, rho=0.95, ntag=""):
     """DRO capacity and cost-optimal commitment from the back-test, and its performance on the test days."""
     q = hist[hist.name == name]; grid = np.sort(hist.C.unique()); N = q.day.nunique()
     lb, step = capability(q, name); x = lb.values + step / 2
@@ -132,11 +132,11 @@ def commit_point(hist, test, name, c_jct, rho=0.95):
     cand = J[J.index <= (c_dro + 1e-9 if not np.isnan(c_dro) else -1)]
     cs = cand.idxmin() if len(cand) else np.nan
     out = dict(c_dro=c_dro, eps=e, c_star=cs, cap_mean=x.mean(), cap_min=x.min())
-    t = test[test.name == name]; nodr = nodr_cost(c_jct)
+    t = test[test.name == name]; nodr = nodr_cost(c_jct, ntag)
     if not np.isnan(cs) and nodr is not None:
         tt = t[np.isclose(t.C, cs)].set_index("realisation")
         if len(tt):
-            nd = rd("exp17_nodr.csv").set_index("realisation"); j = tt.index
+            nd = rd(f"exp17_nodr{ntag}.csv").set_index("realisation"); j = tt.index
             out.update(full=tt.all_full.mean(), n=len(tt), benefit=(nodr.reindex(j) - tt.net_cost_adj).mean() / 1e3,
                        revenue=tt.dr_pay.mean() / 1e3, delay=(tt.cost_delay - (c_jct / 0.5) * nd.cost_delay.reindex(j)).mean() / 1e3,
                        savings=(nd.cost_op.reindex(j) - tt.cost_op_adj).mean() / 1e3, short=tt.pen_dev.mean() / 1e3)
@@ -216,7 +216,7 @@ def july_section():
         if hh is not None:
             for n in ("JR-M", "JR-D"):
                 if n in set(hh.name):
-                    r = commit_point(hh, t, n, 0.5)
+                    r = commit_point(hh, t, n, 0.5, ntag="_jul")
                     print(f"  {n}: capability mean / min {r['cap_mean']:.2f} / {r['cap_min']:.2f}, eps {r['eps']:.3f}, C_DRO {r['c_dro']}, C* {r['c_star']}, "
                           f"full at C* {100 * r.get('full', np.nan):.0f} %, benefit {r.get('benefit', np.nan):.1f} k CNY/day")
 

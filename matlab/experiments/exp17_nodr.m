@@ -1,9 +1,10 @@
-function out = exp17_nodr(ctx, root, N)
+function out = exp17_nodr(ctx, root, N, tag)
 %EXP17_NODR  No-DR reference operation on the N PAI test days of Exp12/Exp16: one metrics row per day.
 %   The cost components of this reference are subtracted from those of every strategy to decompose the
 %   daily benefit of DR participation (electricity, gas, degradation, delay, end state, shortfall, revenue).
-%   Writes results/exp17_nodr.csv.
+%   Writes results/exp17_nodr<tag>.csv (tag '_jul' for the cross-month case).
 if nargin < 3 || isempty(N), N = 26; end
+if nargin < 4, tag = ''; end
 rs = distinct_pai(ctx.inp.mc.label, N);
 rows = []; hdr = {}; t0 = tic;
 for j = 1:numel(rs)
@@ -11,7 +12,7 @@ for j = 1:numel(rs)
     [row, hdr] = metrics_row(R.M);
     rows = [rows; rs(j), row]; %#ok<AGROW>
 end
-write_csv(fullfile(root, 'results', 'exp17_nodr.csv'), [{'realisation'}, hdr], rows);
+write_csv(fullfile(root, 'results', sprintf('exp17_nodr%s.csv', tag)), [{'realisation'}, hdr], rows);
 fprintf('  exp17 no-DR reference on %d test days: mean net cost %.1f k (%.1f min)\n', numel(rs), ...
     mean(rows(:, 1 + find(strcmp(hdr, 'net_cost_adj')))) / 1000, toc(t0) / 60);
 out.rows = rows; out.hdr = hdr;
