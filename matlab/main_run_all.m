@@ -132,6 +132,7 @@ if any(RUN == 12)
     c12 = ctx; if exist('E12_SCEN', 'var'), c12 = set_scenario(ctx, E12_SCEN); end   % S1 (default) | S2-<min> | S3
     if exist('E12_MODS', 'var'), c12 = ctx_with_par(c12, E12_MODS); end      % parameter sensitivity
     if ~exist('E12_RS', 'var'), E12_RS = []; end                             % explicit test realisations
+    if exist('E12_IRPD', 'var'), c12.irpd = E12_IRPD; end                    % rounds of the IR-PD price exchange
     if ~exist('E12_N', 'var'), E12_N = 26; end                                       % distinct PAI test weekdays
     if ~exist('E12_ACTIVE', 'var'), E12_ACTIVE = []; end                     % strategy subset of this part
     if ~exist('E12_ALPHA', 'var'), E12_ALPHA = []; end                       % [C, alpha*] tuned before

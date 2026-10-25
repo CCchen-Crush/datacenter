@@ -1,0 +1,3 @@
+# batch 8c: IR-PD with 24 rounds of price exchange per step (second half averaged) on all 26 operating days at 7 and 7.5 MW
+irpd24S1|RUN=12; E12_SCEN='S1'; E12_STRATS={'IR-PD','expected','IR-PD24'}; E12_IRPD=struct('K',24,'beta',0.5,'k0',13); E12_CS=[7 7.5]; E12_TAG='_S1_irpd24';
+irpd24S2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'IR-PD','expected','IR-PD24'}; E12_IRPD=struct('K',24,'beta',0.5,'k0',13); E12_CS=[7 7.5]; E12_TAG='_S2_irpd24';
