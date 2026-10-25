@@ -764,6 +764,28 @@ The 18-h horizon of the MPC covers both events from the morning of the DR day on
 
 The base case assumes the price cap of 3 CNY/kWh, a delay price of 0.5 CNY per GPU·h·h and a shortfall assessment at the event price ($\kappa$ = 1). The day-ahead procedure of Section 4.1 is repeated for DR prices of 1, 2 and 3 CNY/kWh combined with delay prices of 0.5, 1 and 2 CNY per GPU·h·h, and for $\kappa$ = 0, which reproduces the Jiangsu rules literally: the controller, the back-test on the historical days, the robust capacity and the cost-optimal commitment all use the changed prices.
 
+Table 9 and Fig. 16d show the result. At the base delay price of 0.5 CNY per GPU·h·h, the cost-optimal commitment of JR-D stays at 7–7.5 MW in S1 for DR prices of 1, 2 and 3 CNY/kWh and at 5.5–7 MW in S2, and it is delivered in full on 96–100 % of the operating days. The benefit scales with the price, in S1 from 44.8 k CNY/day at the cap to 28.8 k CNY/day at 2 CNY/kWh and 13.4 k CNY/day at 1 CNY/kWh, because the DR revenue makes up almost all of it: the cost savings stay below 1.2 k CNY/day. Doubling the delay price keeps 7–7.5 MW at 2–3 CNY/kWh but lowers the commitment to 3 MW at 1 CNY/kWh. A delay price of 2 CNY per GPU·h·h, four times the base value, changes the picture. Deferring work then costs more than the payment it earns on some days, so the controller accepts shortfalls there; its capability on the historical days spreads (minimum 5.25–7.25 MW), the radius grows to 0.10–0.33 MW, and the robust commitment falls to 5 MW in S1 and 1.5 MW in S2 at the price cap, to 3 MW in S1 at 2 CNY/kWh and to 1.5 MW in S1, or no commitment in S2, at 1 CNY/kWh. These commitments are still delivered in full on every operating day, but they forgo part of the benefit: in S2 at the price cap, the robust 1.5 MW earns 14.7 k CNY/day, whereas 5.5 MW would have earned 34.6 k CNY/day on the operating days. Without the shortfall assessment ($\kappa$ = 0), as in the Jiangsu rules, neither the commitment nor the benefit changes in either scenario, because JR-D delivers its commitment without shortfall. The 7-MW commitment of the base case therefore remains cost-optimal over the range of cleared prices as long as deferred work is not valued far above the base delay price; when it is, the robust commitment reflects the reluctance of the controller to defer, at a cost in benefit.
+
+**Table 9.** Cost-optimal day-ahead commitment $C^*$ \eqref{eq:commit} of JR-D from the back-test on the 14 historical days for DR prices cleared below the 3 CNY/kWh cap, delay prices and shortfall assessments, and its performance on the 26 operating days. Full delivery: share of operating days (one-sided 95 % Clopper–Pearson lower bound); benefit: operating-day net benefit relative to no DR at the same delay price = DR revenue + cost savings (electricity, gas, degradation and end state) − extra delay cost − shortfall assessment (zero in all cases), in k CNY/day; a negative extra delay cost means that JR-D delays work for less time than the capacity-limited no-DR operation. Last two columns: firm capacity $C^{firm}_{0.95}$ on the operating days and, ex post, the commitment with the largest benefit there. Base case in bold.
+
+| Scenario | DR price (CNY/kWh) | Delay price (CNY per GPU·h·h) | $\kappa$ | $C^*$ (MW) | Full delivery (%) | Benefit | DR revenue | Cost savings | Extra delay cost | $C^{firm}_{0.95}$ (MW) | Best $C$ ex post (benefit) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| S1 | 1 | 0.5 | 1 | 7 | 96 (0.83) | 13.4 | 15.2 | 0.9 | 2.7 | 7 | 6.5 (13.4) |
+| | 1 | 1 | 1 | 3 | 100 (0.89) | 9.4 | 7.2 | 0.9 | −1.3 | 4.5 | 5.5 (12.5) |
+| | 1 | 2 | 1 | 1.5 | 100 (0.89) | 7.5 | 3.6 | 0.6 | −3.4 | 4.5 | 5 (13.1) |
+| | 2 | 0.5 | 1 | 7.5 | 100 (0.89) | 28.8 | 31.8 | 0.9 | 3.9 | 7.5 | 7 (28.8) |
+| | 2 | 1 | 1 | 7 | 96 (0.83) | 25.9 | 30.2 | 0.7 | 4.9 | 7 | 6.5 (26.1) |
+| | 2 | 2 | 1 | 3 | 100 (0.89) | 18.2 | 14.4 | 0.5 | −3.3 | 4 | 5.5 (24.9) |
+| | **3** | **0.5** | **1** | **7** | **100 (0.89)** | **44.8** | **48.3** | **0.9** | **4.4** | **7.5** | **7 (44.8)** |
+| | 3 | 1 | 1 | 7.5 | 96 (0.83) | 40.9 | 47.1 | 0.7 | 6.8 | 7.5 | 7 (41.2) |
+| | 3 | 2 | 1 | 5 | 100 (0.89) | 35.9 | 35.2 | 0.1 | −0.6 | 5 | 6 (37.9) |
+| | 3 | 0.5 | 0 | 7 | 100 (0.89) | 44.8 | 48.3 | 0.9 | 4.4 | 7.5 | 8 (44.8) |
+| S2 | 1 | 0.5 | 1 | 5.5 | 100 (0.89) | 12.3 | 12.6 | 1.1 | 1.4 | 6 | 6 (12.4) |
+| | 1 | 2 | 1 | none ≥ 1 | – | – | – | – | – | 4 | 4.5 (12.5) |
+| | **3** | **0.5** | **1** | **7** | **100 (0.89)** | **43.1** | **48.4** | **1.2** | **6.4** | **7.5** | **7 (43.1)** |
+| | 3 | 2 | 1 | 1.5 | 100 (0.89) | 14.7 | 10.8 | 0.6 | −3.3 | 5 | 5.5 (34.6) |
+| | 3 | 0.5 | 0 | 7 | 100 (0.89) | 43.1 | 48.4 | 1.2 | 6.4 | 7.5 | 7 (43.1) |
+
 #### 5.10.4. More operating days and a DR day in another month
 
 Two further test sets examine the out-of-sample evidence. The first extends the 26 operating days to 78 realisations by pairing every PAI weekday with three different hot days and inference days instead of one. The second moves the DR day, its baseline days and the historical days to July (DR day 22 July 2024, 36.8 °C), while the operating days remain those of the base case.
