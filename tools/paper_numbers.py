@@ -54,7 +54,7 @@ def capacity_section():
                 else:
                     lo2, hi2 = np.nanpercentile(bj - bm, [2.5, 97.5]); dM = f"{v['JR-D'] - v['JR-M']:+.1f} [{lo2:+.1f}, {hi2:+.1f}]"
                 print(f"| {s} | {rule} | {rho:.0%} | {f(v['IR-O*'])} | {f(v['IR-P'])} | {f(v['JR-M'])} | {f(v['JR-D'])} | {dC} | {I} | {dM} |")
-    h("Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
+    h("Table 7: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days")
     print("| Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |\n|---|---|---|---|---|---|")
     for tag, s in [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]:
         d = load_capacity(tag)
@@ -290,7 +290,7 @@ def efficiency_section(C0=7.0, zeta=0.05, p_aux=0.3):
 
 
 def computation_section():
-    h("Computational performance (Section 4.4, Table 3)")
+    h("Computational performance (Section 4.4, Table 5)")
     print("Model size at the full 18-h horizon (S1, 7 MW, both events visible; counted from the MILP passed to the solver):")
     print("JR-D 1 524 variables (2 binary), 604 inequality / 504 equality constraints; JR-S (5 scenarios) 7 620 (10), 3 020 / 2 564;")
     print("JR-M 1 519 (1), 588 / 504; IR-O*/IR-P IT scheduling LP 656 (0), 368 / 216, then facility MILP 1 524 (2), 604 / 504.\n")

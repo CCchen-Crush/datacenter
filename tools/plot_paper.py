@@ -86,7 +86,7 @@ def endogenous_points(scen="S1", tag="_S1", rho=1.0):
 
 
 def figS2(rho=0.95):
-    """Day-ahead commitment methods in the plane of out-of-sample full delivery and benefit (Table 6): physical
+    """Day-ahead commitment methods in the plane of out-of-sample full delivery and benefit (Table 8): physical
     capability (perfect-recourse MILP, single-event capability; Exp16) and the closed-loop back-test on the historical
     days (sample average, Wasserstein-robust, cost-optimal below the robust capacity; Exp18 with Exp12). Points are
     numbered; the key lists the strategy, the commitment and the methods that select it."""
@@ -1108,7 +1108,7 @@ def fig14_economics(C0=7.0):
 def fig15_commitment(rho=0.95, c_opt=7.0):
     """Daily benefit relative to no DR versus the uniform commitment on the 26 test days. (a, b) JR-D: contributions of the
     cost groups (DR revenue minus the cost changes, stacked above and below zero) and the net benefit, with the cost-optimal
-    day-ahead commitment (Table 6) and the firm capacity; (c, d) net benefit of every controller, filled where the controller
+    day-ahead commitment (Table 8) and the firm capacity; (c, d) net benefit of every controller, filled where the controller
     delivers in full on at least rho of the days at that commitment."""
     from matplotlib.patches import Patch
     from matplotlib.lines import Line2D

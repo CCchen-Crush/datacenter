@@ -5,7 +5,7 @@
 ## Highlights
 
 - Model computing backlog and storage deficit as debts sharing one recovery channel.
-- Certify firm consecutive DR capacity from closed-loop capability via Wasserstein DRO.
+- Commit firm consecutive DR capacity from closed-loop capability with Wasserstein DRO.
 - Deliver 7.5 MW firmly by cross-event joint recovery, 94 % of physical capability.
 - Show that foresight adds up to 4.0 MW of firm capacity at short event intervals.
 - Quantify a 9.3 MWh battery saving from foresight that connection cannot replace.
@@ -35,6 +35,7 @@ Symbols used only within one proof are defined where they appear.
 | IES | Integrated energy system |
 | IR-O\* | Independent recovery with a day-ahead tuned static split |
 | IR-P | Independent recovery with day-ahead channel-price coordination |
+| IR-PD | Independent recovery with iterative two-way channel-price coordination |
 | JR-D | Cross-event joint recovery, deterministic MPC (proposed) |
 | JR-M | Event-by-event joint recovery |
 | JR-S | Cross-event joint recovery, scenario MPC |
@@ -47,6 +48,7 @@ Symbols used only within one proof are defined where they appear.
 | SAA | Sample average approximation |
 | SLA | Service-level agreement |
 | SOC | State of charge |
+| SR-D | Staged recovery with the information and joint delivery of JR-D |
 | TES | Thermal (chilled-water) energy storage |
 | TOU | Time of use |
 
@@ -72,6 +74,7 @@ Symbols used only within one proof are defined where they appear.
 | $\delta^{val}$ | Planning margin above the validity threshold (MW) |
 | $M$ | Big-M constant |
 | $P^{base}_t$ | DR baseline (MW) |
+| $P^{noDR}_t$ | Import of the no-DR operation on the realised data (MW) |
 | $\hat P$ | Typical-day peak import (MW) |
 | $\gamma$ | Connection margin over the typical-day peak |
 | $P^{cap}$ | Grid connection limit, $\gamma\hat P$ (MW) |
@@ -119,8 +122,8 @@ Symbols used only within one proof are defined where they appear.
 | $c^{E}$ | Terminal value of the BESS deficit (CNY/MWh) |
 | $c^{S}$ | Terminal value of the TES deficit (CNY/MWh~th~) |
 | $c^{B}$ | Terminal value of the remaining backlog (CNY per GPU·h) |
-| $E^{ref}$ | Terminal reference of the BESS energy (MWh) |
-| $S^{ref}$ | Terminal reference of the TES energy (MWh~th~) |
+| $E^{ref}_t$ | BESS energy of the no-DR operation planned day-ahead (MWh) |
+| $S^{ref}_t$ | TES energy of the no-DR operation planned day-ahead (MWh~th~) |
 | $e^{grid}$ | Grid emission factor (t CO~2~/MWh) |
 | $e^{gas}$ | Emission factor of natural gas (t CO~2~/MWh of fuel) |
 | $\alpha$ | Compute share of the reduction in the static split of IR-O\* |
@@ -162,7 +165,9 @@ Symbols used only within one proof are defined where they appear.
 | $\psi_t$ | Facility energy per GPU·h of catch-up (MWh) |
 | $X_t$ | Computing debt (MWh) |
 | $\mathbf x_{e_k}$ | Recovery state at the end of event $k$ |
-| $H_k$ | Recovery channel between events $k$ and $k+1$ (MWh) |
+| $H_k$ | Nominal recovery channel between events $k$ and $k+1$ (MWh) |
+| $H^{act}_k$ | Actual, state-dependent recovery channel (MWh) |
+| $D^E_t$, $D^S_t$ | Storage debts of the BESS (MWh) and the TES (MWh~th~) |
 | $\mathrm{PUE}(\mathcal T')$ | Electric power usage effectiveness over the period $\mathcal T'$ |
 | $\bar r_k$ | Average reduction of event $k$ against the baseline (MW) |
 | $z_k$ | Validity indicator of event $k$ |
@@ -215,7 +220,7 @@ Symbols used only within one proof are defined where they appear.
 | $m^*_C(\varepsilon)$ | Largest probability mass removable within the transport budget |
 | $\lambda$ | Multiplier of the transport budget |
 | $C^{DRO}_\rho(\varepsilon)$ | Distributionally robust firm capacity (MW) |
-| $\Phi_\rho(C)$ | Certified reliability margin (MW) |
+| $\Phi_\rho(C)$ | Robust reliability margin (MW) |
 | $C^*$ | Cost-optimal day-ahead commitment (MW) |
 | $\hat{\mathbf x}_t$ | Measured recovery state at step $t$ |
 | $\hat{\mathbf w}_{\cdot|t}$ | Forecasts available at step $t$ |
@@ -230,17 +235,25 @@ Each event leaves recovery debts behind. Deferred training and batch work accumu
 
 In the area of data-center DR and computing flexibility, workload shifting and local generation were introduced by Liu et al. [@liu2013] and reviewed in [@wierman2014; @chen2020]. Recent studies quantify the flexibility of AI workloads: Acun et al. reported 18–55 % power flexibility of AI data centers [@acun2026], Wang et al. reshaped the power profiles of large language model workloads to provide load flexibility [@wang2025llm], Du et al. added inference quantization as a DR lever [@du2026], Chen and Zheng showed that deferring workloads reduces interconnection cost with diminishing returns in the delay window [@chenzheng2026], and Williams et al. framed power-flexible AI data centers as grid-responsive compute [@williams2026]. In *Applied Energy*, data-center load models for DR [@zhou2025], the DR potential of liquid-cooled data centers [@chen2026], a four-level joint dispatch of data-center DR [@han2024], energy sharing in data-center clusters with integrated demand response [@bian2025] and multi-energy portfolios of zero-carbon data-center buildings under proactive DR programs [@xu2023] have been developed. Overall, existing studies evaluate the curtailment capability of a single event, whereas the recovery state that one event passes on to the next remains insufficiently explored.
 
-In the area of computing–energy coupling in data-center integrated energy systems (IES), data centers increasingly operate with combined cooling, heating and power (CCHP), cold storage and batteries [@lin2025; @fan2026]. Zhang et al. coupled computing and electricity in a bi-level capacity planning model of a data-center cluster under supply–demand uncertainty [@zhang2026], Liu scheduled an internet data center together with a regional integrated energy system through electricity–heat–water coupling [@liu2024], and the cooling and waste-heat recovery of data centers have been optimised with model predictive control and thermal storage [@hou2023] and with physics-guided reinforcement learning and aquifer thermal storage [@zhangy2026]. Batteries support the online operation of distributed data centers under uncertain workloads and prices [@sun2023] and the operation of hyperscale AI data centers under connect-and-manage interconnection [@lu2026], and the reliability impact of energy-system flexibility on data centers has been quantified in [@yu2026]. These studies capture the coupling between computing, power and heat within a scheduling period. Overall, they treat the computing backlog and the state of charge as internal operating states rather than as debts that are inherited across DR events and decide the next deliverable reduction.
+In the area of computing–energy coupling in data-center integrated energy systems (IES), data centers increasingly operate with combined cooling, heating and power (CCHP), cold storage and batteries [@lin2025; @fan2026]. Zhang et al. coupled computing and electricity in a bi-level capacity planning model of a data-center cluster under supply–demand uncertainty [@zhang2026], Liu scheduled an internet data center together with a regional integrated energy system through electricity–heat–water coupling [@liu2024], and the cooling and waste-heat recovery of data centers have been optimised with model predictive control and thermal storage [@hou2023] and with physics-guided reinforcement learning and aquifer thermal storage [@zhangy2026]. Batteries support the online operation of distributed data centers under uncertain workloads and prices [@sun2023], the risk-aware coordinated scheduling of AI data centers with decoupled multi-layer workload models [@xie2027] and the operation of hyperscale AI data centers under connect-and-manage interconnection [@lu2026], and the reliability impact of energy-system flexibility on data centers has been quantified in [@yu2026]. These studies capture the coupling between computing, power and heat within a scheduling period. Overall, they treat the computing backlog and the state of charge as internal operating states rather than as debts that are inherited across DR events and decide the next deliverable reduction.
 
-In the area of deliverability and commitment of flexible resources, aggregate flexibility models describe the power–energy envelope of homogeneous devices [@hao2015], and Evans et al. derived recovery guarantees for aggregated energy storage that must be restored between service requests [@evans2022]. Li distinguished eligible AI workloads from dependable load relief [@li2026], and the scenario approach provides probabilistic guarantees for closed-loop constraint satisfaction [@schildbach2014]. The delivered reduction is measured against a customer baseline, whose estimation error enters the settlement directly [@wangz2024; @wangy2026]. Distributionally robust chance constraints over Wasserstein ambiguity sets offer data-driven reliability guarantees [@esfahani2018; @duan2018] and secure end-user flexibility for independent aggregators [@paredes2026]. Their two-stage form, solved by column-and-constraint generation [@zeng2013], evaluates the second stage with perfect recourse and therefore certifies physical capability rather than the deliverability of the controller that operates the resource. Overall, recovery guarantees have been developed for one type of resource with one type of debt, whereas an AIDC holds two heterogeneous debts at once: computing debt is lossless but deadline-bound, storage debt is lossy but has no deadline, and both compete for the same recovery channel.
+In the area of deliverability and commitment of flexible resources, aggregate flexibility models describe the power–energy envelope of homogeneous devices [@hao2015], and Evans et al. derived recovery guarantees for aggregated energy storage that must be restored between service requests [@evans2022]. Li distinguished eligible AI workloads from dependable load relief [@li2026], and the scenario approach provides probabilistic guarantees for closed-loop constraint satisfaction [@schildbach2014]. The delivered reduction is measured against a customer baseline, whose estimation error enters the settlement directly [@wangz2024; @wangy2026]. Distributionally robust chance constraints over Wasserstein ambiguity sets offer data-driven reliability guarantees [@esfahani2018; @duan2018] and secure end-user flexibility for independent aggregators [@paredes2026]. Their two-stage form, solved by column-and-constraint generation [@zeng2013], evaluates the second stage with perfect recourse and therefore measures physical capability rather than the deliverability of the controller that operates the resource. Overall, recovery guarantees have been developed for one type of resource with one type of debt, whereas an AIDC holds two heterogeneous debts at once: computing debt is lossless but deadline-bound, storage debt is lossy but has no deadline, and both compete for the same recovery channel.
 
-Despite substantial progress in data-center DR, computing–energy coupling and flexibility commitment, three research gaps remain. First, the heterogeneous recovery debts that one DR event leaves for the next, and their competition for a shared grid connection, have not been modelled in an AIDC integrated energy system. Second, no capacity metric certifies what a given controller delivers in every event of a DR day, and commitments derived from physical capability overstate it. Third, coordinated scheduling that exploits cross-event foresight during recovery is lacking, and its value relative to coordination alone, the conditions under which it is valuable and its equivalent in battery and connection capacity are unknown. Consequently, a framework that sizes and delivers the consecutive DR commitments of an AIDC from its recovery is still lacking.
+Despite substantial progress in data-center DR, computing–energy coupling and flexibility commitment, three research gaps remain. First, the heterogeneous recovery debts that one DR event leaves for the next, and their competition for a shared grid connection, have not been modelled in an AIDC integrated energy system. Second, no capacity metric quantifies what a given controller delivers in every event of a DR day, and commitments derived from physical capability overstate it. Third, coordinated scheduling that exploits cross-event foresight during recovery is lacking, and its value relative to coordination alone, the conditions under which it is valuable and its equivalent in battery and connection capacity are unknown. Consequently, a framework that sizes and delivers the consecutive DR commitments of an AIDC from its recovery is still lacking. Table 1 contrasts this study with the three closest research directions.
 
-To address these gaps, this paper develops a recovery-aware coordinated scheduling framework for consecutive DR of an AIDC integrated energy system. The framework models the recovery debts of every event, certifies the firm consecutive capacity of the controller day-ahead and delivers it with cross-event joint recovery in real time. The main contributions are summarised as follows.
+**Table 1.** Positioning of this study against the closest research directions.
+
+| Research direction | Focus of existing studies | Increment of this study |
+|---|---|---|
+| AI workload modelling and computing–storage scheduling | Power flexibility of AI workloads in a single event and real-time regulation of computing and batteries [@acun2026; @wang2025llm; @du2026; @xie2027] | Recovery state that one event passes on to the next, and its effect on the next deliverable reduction |
+| Flexibility envelopes and recovery guarantees | Power–energy envelopes and recovery guarantees for one type of resource and debt [@hao2015; @evans2022], dependable AI load relief [@li2026] | Two heterogeneous debts, deadline-bound computing and lossy storage, sharing one recovery channel with CCHP and cold storage |
+| Dependable operation and commitments of data centers | Computing service under supply limits [@lu2026; @yu2026]; chance-constrained and two-stage commitments with perfect recourse [@esfahani2018; @zeng2013; @paredes2026] | Consecutive DR commitments sized by the closed-loop capability of the controller that delivers them |
+
+To address these gaps, this paper develops a recovery-aware coordinated scheduling framework for consecutive DR of an AIDC integrated energy system. The framework models the recovery debts of every event, commits the firm consecutive capacity of the controller day-ahead and delivers it with cross-event joint recovery in real time. The main contributions are summarised as follows.
 
 (1) A cross-event heterogeneous recovery model of the AIDC integrated energy system is developed. Deadline-bound computing backlogs of three workload classes and lossy battery and cold-storage deficits are modelled as recovery debts that share one grid recovery channel, coupled with the electric, cooling and heat balances of the CCHP-based energy system and the Jiangsu settlement rules. Three propositions bound the deliverable reduction of the next event, give the closed-form minimum recovery interval together with the conditions under which joint recovery is valuable, and show from the Karush–Kuhn–Tucker conditions that a single channel price values both debts.
 
-(2) A firm consecutive DR capacity metric and its distributionally robust commitment are proposed. The firm capacity is the largest uniform commitment delivered in full in every event with a prescribed probability, generalised to a multi-event reliability region. The day-ahead commitment is certified from the closed-loop capability of the controller on historical days within a 1-Wasserstein ambiguity set; a fractional-knapsack representation and its linear-programming dual reformulate the worst-case failure probability, and Proposition 4 solves the robust capacity exactly by sorting. Unlike a perfect-recourse two-stage commitment, which measures physical capability, the certified commitment is deliverable by the controller that operates the resource.
+(2) A firm consecutive DR capacity metric and its distributionally robust commitment are proposed. The firm capacity is the largest uniform commitment delivered in full in every event with a prescribed probability, generalised to a multi-event reliability region. The day-ahead commitment is derived from the closed-loop capability of the controller on historical days with a distributionally robust chance constraint over a 1-Wasserstein ambiguity set; a fractional-knapsack representation and its linear-programming dual reformulate the worst-case failure probability, and Proposition 4 solves the robust capacity exactly by sorting. Wasserstein ambiguity sets are an established tool [@esfahani2018], and controller-dependent deliverability has been studied for aggregated storage [@evans2022] and AI workloads [@li2026]; the contribution here is to apply the robust commitment to the closed-loop capability of a controller that delivers consecutive events with heterogeneous debts. Unlike a perfect-recourse two-stage commitment, which measures physical capability, the robust commitment refers to the controller that operates the resource, and its reliability is reported at three levels: the guarantee within the ambiguity set, the full-delivery share on independent operating days and the statistical confidence bound of that share.
 
 (3) A recovery-aware coordinated scheduling framework is established and validated at the system level. The robust commitment is coupled with an intraday cross-event joint recovery model predictive controller (MPC). A controlled comparison with tuned and price-coordinated independent recovery and event-by-event joint recovery on 26 operating days separates the value of coordination from that of cross-event foresight, converts the capacity gain into equivalent battery energy and connection capacity, and quantifies the contribution of the gas engine, absorption chiller and cold storage together with the energy efficiency and emissions of the facility.
 
@@ -256,11 +269,13 @@ The four subsystems are coupled through three energy flows that close one loop (
 
 ### 2.3. Consecutive DR events and recovery debts
 
-A DR operator confirms events $k\in\mathcal K$ with commitments $C_k$. Under the Jiangsu rules [@jiangsu2024], an event is valid when the average reduction against the five-day baseline reaches 80 % of the commitment; the payment is proportional to the reduction up to 120 % of the commitment, and a shortfall is assessed at $\kappa$ times the event price. Three event scenarios are studied (Section 5.1): two agreed one-hour events at 17:00 and 19:00 (S1, the rule-compliant base case), the same events with the interval shortened to 30 min (S2), and a high-stress extension with a third, rapid peak-shaving event at 21:00 announced 3 h ahead (S3).
+A DR operator confirms events $k\in\mathcal K$ with commitments $C_k$. Under the Jiangsu rules [@jiangsu2024], an event is valid when the average reduction against the five-day baseline reaches 80 % of the commitment, and the payment is proportional to the reduction up to 120 % of the commitment. The unit price of agreed response is cleared by bidding below a cap of 3 CNY/kWh, which the base case assumes. The rules pay nothing for an invalid event and levy no monetary penalty on a shortfall; to represent the cost of non-performance, this paper assesses a shortfall at $\kappa$ times the event price, a modelling assumption ($\kappa$ = 1 in the base case; Section 5.10.3 examines lower prices, higher delay costs and $\kappa$ = 0). Three event scenarios are studied (Section 5.1): two agreed one-hour events at 17:00 and 19:00 (S1, the rule-compliant base case), the same events with the interval shortened to 30 min (S2), and a high-stress extension with a third, rapid peak-shaving event at 21:00 announced 3 h ahead (S3).
 
-During event $k$, the AIDC defers class-$c$ work and discharges storage. At the end of the event it holds the recovery state $\mathbf x_{e_k}=(B_{1},B_{2},B_{3},E,S)$: the backlogs are deadline-bound computing debts, and the deficits $\bar E-E$ and $\bar S-S$ are lossy storage debts. Both are repaid between events by importing power above the baseline (Fig. 1b), so both compete for the recovery channel
+During event $k$, the AIDC defers class-$c$ work and discharges storage. At the end of the event it holds the recovery state $\mathbf x_{e_k}=(B_{1},B_{2},B_{3},E,S)$: the backlogs are deadline-bound computing debts, and the deficits of the stored energy and cold below their no-DR reference trajectories (Section 3.2) are lossy storage debts. Both are repaid between events by importing power above the baseline (Fig. 1b), so both compete for the recovery channel
 $$H_k=\sum_{t=e_k+1}^{s_{k+1}-1}\max\{P^{cap}-P^{base}_t,\,0\}\,\Delta t. \label{eq:channel}$$
-The scheduling problem is to decide which debt to repay first so that the reduction deliverable in event $k+1$ is maximised; the commitment problem is to determine how much consecutive capacity the AIDC can firmly offer when recovery is coordinated across events.
+Because it is measured against the baseline, which is known day-ahead, $H_k$ is the nominal channel. The channel that is physically available on the operating day is the state-dependent actual channel
+$$H^{act}_k=\sum_{t=e_k+1}^{s_{k+1}-1}\max\{P^{cap}-P^{noDR}_t,\,0\}\,\Delta t, \label{eq:actchannel}$$
+where $P^{noDR}_t$ is the import of the no-DR operation on the realised computing load, inference load, PV output and chiller COP. The two coincide when the no-DR import equals the baseline and otherwise differ by the baseline error; Section 5.1.3 compares them on the operating days. The scheduling problem is to decide which debt to repay first so that the reduction deliverable in event $k+1$ is maximised; the commitment problem is to determine how much consecutive capacity the AIDC can firmly offer when recovery is coordinated across events.
 
 ## 3. Cross-event recovery model of the AIDC integrated energy system
 
@@ -290,7 +305,9 @@ $$\underline E\le E_t\le\bar E,\qquad 0\le P^{ch}_t,\,P^{dis}_t\le\bar P^{B}, \l
 and the chilled-water TES as
 $$\begin{aligned}S_t={}&(1-\sigma\Delta t)\,S_{t-1}\\&+\Big(\eta^T_cQ^{TC}_t-\frac{Q^{TD}_t}{\eta^T_d}\Big)\Delta t,\end{aligned} \label{eq:tes}$$
 $$\underline S\le S_t\le\bar S,\qquad 0\le Q^{TC}_t,\,Q^{TD}_t\le\bar Q^{T}. \label{eq:tesbound}$$
-Their deficits $\bar E-E_t$ and $\bar S-S_t$ are lossy debts: every MWh drawn for recharging returns only the round-trip efficiency in the next event.
+The storage debts are measured against the reference trajectories $E^{ref}_t$ and $S^{ref}_t$ of the no-DR operation planned day-ahead,
+$$D^E_t=\max\{E^{ref}_t-E_t,\,0\},\qquad D^S_t=\max\{S^{ref}_t-S_t,\,0\}, \label{eq:sdebt}$$
+so that only the energy and cold that DR has drawn below normal operation count as debt, not the free room up to $\bar E$ and $\bar S$. These debts are lossy: every MWh drawn for recharging returns only the round-trip efficiency in the next event.
 
 ### 3.3. CCHP, cooling supply and grid interaction model
 
@@ -333,8 +350,8 @@ $$J^{qos}=\sum_t\sum_c\big(c^{jct}B_{c,t}+c^{late}v_{c,t}\big)\Delta t, \label{e
 the DR revenue, the shortfall assessment and the rebound assessment,
 $$\begin{aligned}&J^{DR}=\textstyle\sum_k\pi_kD_kR_k,\qquad J^{sf}=\textstyle\sum_k\kappa\,\pi_kD_ks^{f}_k,\\&J^{rb}=c^{rb}\textstyle\sum_k\Delta P^{rb}_k,\end{aligned} \label{eq:jdr}$$
 and the terminal value of the remaining debts at the last step $T$ of the horizon,
-$$\begin{aligned}J^{term}={}&c^{E}\max\{E^{ref}-E_{T},\,0\}\\&+c^{S}\max\{S^{ref}-S_{T},\,0\}+c^{B}\textstyle\sum_cB_{c,T}.\end{aligned} \label{eq:jterm}$$
-The terminal references $E^{ref}$ and $S^{ref}$ follow the day-ahead plan, $c^{E}$ and $c^{S}$ lie just above the recharge costs of the BESS and the TES at the valley price, and $c^{B}$ values the backlog left at the end of the evaluation window at its energy cost, so that no strategy can shift cost beyond the window. The reported costs value the end state of every strategy relative to the no-DR operation in the same way.
+$$\begin{aligned}J^{term}={}&c^{E}D^E_T+c^{S}D^S_T+c^{B}\textstyle\sum_cB_{c,T}.\end{aligned} \label{eq:jterm}$$
+The storage debts are those of \eqref{eq:sdebt} at the end of the horizon; $c^{E}$ and $c^{S}$ lie just above the recharge costs of the BESS and the TES at the valley price, and $c^{B}$ values the backlog left at the end of the evaluation window at its energy cost, so that no strategy can shift cost beyond the window. The reported costs value the end state of every strategy relative to the no-DR operation in the same way.
 
 Two indicators describe the energy efficiency and the emissions of the facility; they are evaluated on the closed-loop trajectories and do not enter the objective. The electric power usage effectiveness over a period $\mathcal T'$ is the ratio of the electricity consumed by the facility to that of the IT equipment,
 $$\mathrm{PUE}(\mathcal T')=\frac{\sum_{t\in\mathcal T'}\big[(1+\zeta)P^{IT}_t+P^{aux}+Q^{EC}_t/\mathrm{COP}_t\big]}{\sum_{t\in\mathcal T'}P^{IT}_t}, \label{eq:pue}$$
@@ -356,13 +373,15 @@ Because a larger commitment can only tighten the delivery requirement, the indic
 $$\begin{aligned}\hat C^{firm}_\rho=\max\Big\{&C\in\mathcal G:\ \frac{1}{|\Omega|}\sum_{\omega\in\Omega}u_\omega(C')\ge\rho\\&\forall C'\in\mathcal G,\ C'\le C\Big\}.\end{aligned} \label{eq:saa}$$
 Confidence intervals of $\hat C^{firm}_\rho$ and of the capacity gain $\Delta C_\rho$ between two strategies are obtained by a block bootstrap over operating days.
 
+The SAA share is an estimate, so three levels of reliability evidence are distinguished. (i) Within the ambiguity set of Section 4.1, Proposition 4 guarantees the full-delivery probability $\rho$ for every capability distribution in the Wasserstein ball around the historical days; the guarantee carries over to the operating days only if their distribution lies in the ball. (ii) On independent operating days, the empirical full-delivery share defines $\hat C^{firm}_\rho$. (iii) Under the unknown true distribution and independent operating days, the one-sided Clopper–Pearson bound converts the share into a confidence statement: if all $n$ operating days are delivered in full, the full-delivery probability exceeds $0.05^{1/n}$ with 95 % confidence, which is 0.891 for $n$ = 26 and 0.962 for $n$ = 78, so at least 59 days without failure are needed to support $\rho$ = 0.95 at this confidence. The firm capacities of Section 5 are estimates in the sense of (ii); Section 5.6 reports (i) and (iii) alongside them.
+
 ### 3.7. Theoretical properties of cross-event recovery
 
-This section derives three properties of the model \eqref{eq:it}–\eqref{eq:jterm} for two consecutive events A and B: a bound on the reduction deliverable in B (Proposition 1), the value of repaying the debts in the right order (Proposition 2) and the price that couples the two debts (Proposition 3). The proofs are given in Appendix B.
+This section derives three properties of the model \eqref{eq:it}–\eqref{eq:jterm} for two consecutive events A and B: a bound on the reduction deliverable in B (Proposition 1), the value of repaying the debts in the right order (Proposition 2) and the price that couples the two debts (Proposition 3). The proofs are given in Appendix B, and Table 2 lists the assumptions, the scope, the differences from the full model and the numerical verification of these propositions and of Proposition 4 (Section 4.1.2).
 
 #### 3.7.1. Capability bound of the next event
 
-Let $\mathcal I=(e_A,s_B)$ be the interval of length $\tau$ between the events and $\mathcal T_B$ the steps of event B with duration $D_B$. Two assumptions are made. (H1) Without DR the grid import equals the baseline and the storage is idle in $\mathcal I\cup\mathcal T_B$. (H2) $\psi_t$ and $\mathrm{COP}_t$ are constant in $\mathcal I\cup\mathcal T_B$; otherwise all bounds below hold with the largest $\psi_t$ of the interval. Under (H1), the balances \eqref{eq:it}, \eqref{eq:cool} and \eqref{eq:elec} give the deviation of any schedule from the baseline,
+Let $\mathcal I=(e_A,s_B)$ be the interval of length $\tau$ between the events and $\mathcal T_B$ the steps of event B with duration $D_B$. Two assumptions are made. (H1) Without DR the grid import equals the baseline and the storage is idle in $\mathcal I\cup\mathcal T_B$. (H2) $\psi_t$ and $\mathrm{COP}_t$ are constant in $\mathcal I\cup\mathcal T_B$; otherwise all bounds below hold with the largest $\psi_t$ of the interval. (H1) is not needed in its strict form. If the no-DR operation imports $P^{noDR}_t\ne P^{base}_t$ or uses its storage, as in the case study, where the BESS shaves the evening peak, all relations below hold with $P^{base}_t$ replaced by $P^{noDR}_t$, the storage actions counted as deviations from the no-DR storage schedule and the channel taken as the actual channel \eqref{eq:actchannel}; the bound then applies to the true reduction against $P^{noDR}_t$, and the settled reduction differs from it by the baseline error $P^{base}_t-P^{noDR}_t$. Under (H1), the balances \eqref{eq:it}, \eqref{eq:cool} and \eqref{eq:elec} give the deviation of any schedule from the baseline,
 $$\begin{aligned}&P^{grid}_t-P^{base}_t=\psi\textstyle\sum_c\big(y_{c,t}-a_{c,t}\big)\\&\quad+P^{ch}_t-P^{dis}_t+\dfrac{Q^{TC}_t-Q^{TD}_t}{\mathrm{COP}}-\Delta g_t,\end{aligned} \label{eq:dev}$$
 where the first term is catch-up (positive) or deferral (negative) of computing work and $0\le\Delta g_t\le g$ is the additional gas-engine output including its absorption-chiller equivalent. Every reduction in B and every MWh of recovery in $\mathcal I$ therefore passes through the same import.
 
@@ -379,7 +398,7 @@ $$\begin{aligned}\Gamma^P=\max_{(H_c,H_s)\in\mathcal H}\Big\{&p_f-\frac{\max\{X^
 over the feasible allocations of the channel to catch-up ($H_c$) and recharge ($H_s$),
 $$\begin{aligned}\mathcal H=\big\{(H_c,H_s):\ &H_c+H_s\le H,\\&0\le H_c\le\psi G^{free}\tau,\ 0\le H_s\le\bar P^{B}\tau\big\}.\end{aligned} \label{eq:hset}$$
 
-The energy bound \eqref{eq:ge} states that the channel, the task deadlines and the stored energy jointly determine the next deliverable reduction, and the power bound \eqref{eq:gp} accounts for the backlog of A that falls due within B. The bound is tight when the backlogs reach their deadline limits at the end of B, the storage is empty at the end of B and the channel is used in the order catch-up, then recharge; in the mechanism experiment it lies within 0.05 MW of the optimal deliverable reduction in most cases (supplementary Fig. S3).
+The energy bound \eqref{eq:ge} states that the channel, the task deadlines and the stored energy jointly determine the next deliverable reduction, and the power bound \eqref{eq:gp} accounts for the backlog of A that falls due within B. The bound is tight when the backlogs reach their deadline limits at the end of B, the storage is empty at the end of B and the channel is used in the order catch-up, then recharge. In the mechanism experiment on the DR day (80 combinations of interval, connection margin and event durations, each evaluated at the state that event A leaves), the bound is never violated. It lies within 0.05 MW of the optimal deliverable reduction in 60 % and 55 % of the cases of the two event layouts, mostly where the single-event capability $\Gamma^0_B$ binds, and up to 2.0 MW above it otherwise (supplementary Fig. S3), so it is valid but not always tight.
 
 #### 3.7.2. Value of joint recovery
 
@@ -407,11 +426,20 @@ When catch-up and recharge are both interior in step $t$,
 $$\frac{\mu_{c,t}}{\psi_t}=\lambda^{el}_t=\eta_c\,\nu_t-c^{deg}, \label{eq:price}$$
 so one price of the recovery channel values both debts.
 
-The channel price $\lambda^{el}_t$ exceeds the energy price by the scarcity of the connection, $\lambda^{cap}_t$, and by the settlement value of the next event, $\lambda^{ev}_t$. Independent recovery schedules catch-up against $\pi_t$ or against its own share of the commitment, ignores $\lambda^{cap}_t$ and breaks the equality \eqref{eq:price}. The price-coordinated benchmark IR-P of Section 4.3 passes the day-ahead $\lambda^{el}_t$ to the IT scheduler, but this one-way signal is neither updated with the realised state nor able to resolve the non-uniqueness of the IT response at that price (supplementary Fig. S5); coordinated recovery requires the joint model itself.
+The channel price $\lambda^{el}_t$ exceeds the energy price by the scarcity of the connection, $\lambda^{cap}_t$, and by the settlement value of the next event, $\lambda^{ev}_t$. Independent recovery schedules catch-up against $\pi_t$ or against its own share of the commitment, ignores $\lambda^{cap}_t$ and breaks the equality \eqref{eq:price}. Proposition 3 characterises the prices at a joint optimum; it does not imply that a price alone coordinates the subsystems. The response of a linear IT model to a given price is generally not unique, and the validity indicators make the full model mixed-integer. Section 4.3 therefore includes two price-coordinated benchmarks, the one-way day-ahead price of IR-P and the iteratively updated two-way price of IR-PD.
+
+**Table 2.** Assumptions, scope and numerical verification of the propositions.
+
+| Proposition | Assumptions | Scope of the result | Difference from the full model | Numerical verification |
+|---|---|---|---|---|
+| 1 Capability bound | (H1) reductions measured against the no-DR operation; (H2) constant $\psi$ and COP in $\mathcal I\cup\mathcal T_B$ | Upper bound on the reduction deliverable in B by any controller, given the state after A | Time-varying COP, PV and inference load; the bound uses the largest $\psi_t$ of the interval | Never violated in 80 cases on the DR day; within 0.05 MW in 55–60 % of them (Section 3.7.1, Fig. S3) |
+| 2 Value of joint recovery | One class, constant arrivals $p_f$, $L\ge D_B$, constant channel width $h\le\bar P^{B}$ | Allocation of the channel to catch-up and recharge; minimum recovery interval | Three classes and a time-varying channel; the benchmarks of Section 4.3 optimise their recovery instead of repaying the whole debt first | C3 carried across events, 57 % of the channel to the BESS (Section 5.2); foresight value vanishes at 2–3 h (Section 5.4.1); staged benchmark SR-D (Section 5.3.4) |
+| 3 Single channel price | Validity indicators fixed (LP); interior catch-up and recharge; minimum import not binding | Marginal values of both debts at a joint optimum | Mixed-integer settlement; non-unique LP responses to a price | One-way (IR-P) and iterative two-way (IR-PD) price coordination (Section 5.3.4, Fig. S5) |
+| 4 Exact robust capacity | Empirical capability distribution on the grid; 1-Wasserstein ball of radius $\varepsilon$ | Robust capacity for every distribution within the ball | No guarantee for distributions outside the ball | Out-of-sample calibration on the 26 operating days (Section 5.6.2) |
 
 ## 4. Recovery-aware coordinated scheduling framework
 
-The framework comprises two layers (Fig. 2). The day-ahead layer certifies the commitments from the closed-loop capability of the intraday controller on historical days, and the intraday layer operates the AIDC with cross-event joint recovery. Algorithm 1 in Table 1 summarises both layers.
+The framework comprises two layers (Fig. 2). The day-ahead layer derives the commitments from the closed-loop capability of the intraday controller on historical days, and the intraday layer operates the AIDC with cross-event joint recovery. Algorithm 1 in Table 3 summarises both layers.
 
 ### 4.1. Day-ahead recovery-aware commitment
 
@@ -439,13 +467,13 @@ where strong duality holds because \eqref{eq:knap} is a feasible and bounded lin
 $$\begin{aligned}\Phi_\rho(C)=\frac1N\Big[&\sum_{j=1}^{\lfloor q\rfloor}\delta_{(j)}(C)\\&+\big(q-\lfloor q\rfloor\big)\,\delta_{(\lfloor q\rfloor+1)}(C)\Big]\ge\varepsilon .\end{aligned} \label{eq:phi}$$
 Hence (i) $C^{DRO}_\rho(\varepsilon)=\max\{C\in\mathcal G:\ q(C)\ge0,\ \Phi_\rho(C)\ge\varepsilon\}$ is obtained by sorting; (ii) for $\varepsilon=0$ it equals the sample-average capacity, the empirical $(1-\rho)$-quantile of $\xi$; (iii) it is non-increasing in $\varepsilon$, and it is insensitive to the radius when the days just above the commitment keep a large margin, i.e. when the capability distribution is concentrated.
 
-$\Phi_\rho(C)$ is the smallest average capability loss (MW) that would push the full-delivery probability below $\rho$; it is the certified reliability margin of the commitment.
+$\Phi_\rho(C)$ is the smallest average capability loss (MW) that would push the full-delivery probability below $\rho$; it is the robust reliability margin of the commitment.
 
 #### 4.1.3. Radius selection and cost-optimal commitment
 
 The radius is set to the expected 1-Wasserstein estimation error of the empirical distribution [@delbarrio1999],
 $$\varepsilon_N=\frac{1}{\sqrt N}\int\sqrt{\hat F_N(\xi)\big(1-\hat F_N(\xi)\big)}\,\mathrm d\xi, \label{eq:radius}$$
-where $\hat F_N$ is the empirical distribution function of the capability. The radius is small for a concentrated capability distribution and large for a dispersed one; a leave-one-out choice on $\Omega^{DA}$ serves as a check (Section 5.6.2). Among the robustly deliverable commitments, the operator selects the one with the lowest mean back-tested cost
+where $\hat F_N$ is the empirical distribution function of the capability. The radius is small for a concentrated capability distribution and large for a dispersed one. It is a calibrated choice rather than a finite-sample guarantee: for $N$ = 14, radii that contain the true distribution with high confidence exceed the spread of the capability itself (Appendix B). Its out-of-sample validity is therefore tested on the operating days, and a leave-one-out choice on $\Omega^{DA}$ serves as a check (Section 5.6.2). Among the robustly deliverable commitments, the operator selects the one with the lowest mean back-tested cost
 $$\bar J(C)=\frac1N\sum_{d\in\Omega^{DA}}J_d(C), \label{eq:jbar}$$
 $$C^*=\arg\min\big\{\bar J(C):\ C\in\mathcal G,\ C\le C^{DRO}_\rho(\varepsilon)\big\}. \label{eq:commit}$$
 Every strategy can be paired with this procedure, which makes the endogenous-commitment comparison of Section 5.6 fair: all strategies use the same days, the same objective and the same reliability target.
@@ -455,15 +483,15 @@ Every strategy can be paired with this procedure, which makes the endogenous-com
 For comparison, the commitments can also be obtained from a two-stage stochastic MILP with perfect recourse, in which $\mathbf C=(C_1,\dots,C_K)$ is the first-stage decision and the joint recovery model \eqref{eq:it}–\eqref{eq:jterm} of every scenario $\omega$ with probability $p_\omega$ is the second stage,
 $$\min_{\mathbf C}\ -\epsilon^{C}\textstyle\sum_kC_k+\sum_{\omega}p_\omega J_\omega(\mathbf C), \label{eq:ra-obj}$$
 $$\begin{aligned}&\bar r_{k,\omega}\ge(1-\epsilon_f)\,C_k-M(1-u_\omega)\quad\forall k,\omega,\\&\textstyle\sum_\omega p_\omega u_\omega\ge\rho,\qquad u_\omega\in\{0,1\}.\end{aligned} \label{eq:ra-cc}$$
-Because the recourse of \eqref{eq:ra-obj}–\eqref{eq:ra-cc} knows each scenario in advance, it measures the physical consecutive capability; in the case study it returns the single-event capabilities (8.18/7.98 MW in S1). Two-stage distributionally robust models solved by column-and-constraint generation [@zeng2013] share this recourse structure, whereas the closed-loop capability \eqref{eq:capability} certifies what the controller actually delivers.
+Because the recourse of \eqref{eq:ra-obj}–\eqref{eq:ra-cc} knows each scenario in advance, it measures the physical consecutive capability; in the case study it returns the single-event capabilities (8.18/7.98 MW in S1). Two-stage distributionally robust models solved by column-and-constraint generation [@zeng2013] share this recourse structure, whereas the closed-loop capability \eqref{eq:capability} measures what the controller actually delivers.
 
 ### 4.2. Intraday cross-event joint recovery MPC
 
 Every 15 min the controller measures the state $\hat{\mathbf x}_t$ (backlogs, stored energy and cold, gas-engine output, event status), corrects the forecasts $\hat{\mathbf w}_{\cdot|t}$ of arrivals, inference load, PV and chiller COP by the latest observed errors, and solves
 $$\mathbf u^*_{\cdot|t}\in\arg\min_{\mathbf u\in\mathcal U_t(\hat{\mathbf x}_t,\,\hat{\mathbf w}_{\cdot|t})}J_{[t,\,t+T_H]}(\mathbf u),\qquad \mathbf u_t=\mathbf u^*_{t|t}, \label{eq:mpc}$$
-where $\mathcal U_t$ is the feasible set of \eqref{eq:it}–\eqref{eq:short} and \eqref{eq:rebound} over the 18-h horizon and $J_{[t,\,t+T_H]}$ the objective \eqref{eq:obj} over the same horizon, with the terminal references of the day-ahead plan (JR-D). Because all confirmed events are visible within the horizon, the controller decides at every step which debt to repay first: it carries long-deadline backlog across events when doing so frees the channel for the storage that the next event needs, and it repays the debts that would otherwise fall due. An event that is not yet confirmed is treated as called if its call probability is at least 0.5 (certainty equivalence). The scenario variant JR-S replaces the forecast by a scenario tree with non-anticipative first-step decisions, in which an event that is not yet confirmed appears only in the scenarios in which it is called. The plant replay enforces the physical limits in the order storage, cold storage and deferrable computing, so that the grid import never exceeds $P^{cap}$.
+where $\mathcal U_t$ is the feasible set of \eqref{eq:it}–\eqref{eq:short} and \eqref{eq:rebound} over the 18-h horizon and $J_{[t,\,t+T_H]}$ the objective \eqref{eq:obj} over the same horizon, with the terminal value \eqref{eq:jterm} of the storage debts and the backlog (JR-D). Because all confirmed events are visible within the horizon, the controller decides at every step which debt to repay first: it carries long-deadline backlog across events when doing so frees the channel for the storage that the next event needs, and it repays the debts that would otherwise fall due. An event that is not yet confirmed is treated as called if its call probability is at least 0.5 (certainty equivalence). The scenario variant JR-S replaces the forecast by a scenario tree with non-anticipative first-step decisions, in which an event that is not yet confirmed appears only in the scenarios in which it is called. The plant replay enforces the physical limits in the order storage, cold storage and deferrable computing, so that the grid import never exceeds $P^{cap}$.
 
-**Table 1.** Pseudocode of the recovery-aware commitment and the cross-event joint recovery.
+**Table 3.** Pseudocode of the recovery-aware commitment and the cross-event joint recovery.
 
 | **Algorithm 1** Recovery-aware commitment and cross-event joint recovery |
 |---|
@@ -488,14 +516,16 @@ where $\mathcal U_t$ is the feasible set of \eqref{eq:it}–\eqref{eq:short} and
 
 ### 4.3. Benchmarks and controlled scenario matrix
 
-All strategies face the same commitments, service deadlines, physical limits and settlement rules. Table 2 lists the controlled scenario matrix, which isolates the contribution of each resource, each device and each layer of coordination.
+All strategies face the same commitments, service deadlines, physical limits and settlement rules, and all use the forecasts, event information, 15-min step and 18-h horizon of JR-D: the benchmarks differ from JR-D in how the subsystems coordinate, not in what they know. Table 4 lists the controlled scenario matrix, which isolates the contribution of each resource, each device and each layer of coordination.
 
 - **IR-O\*** — independent recovery with an optimised static split. The IT scheduler plans its own share $\alpha C_k$ of every event and its catch-up with priority on the connection headroom; the facility energy-management system then optimises storage and IES with the IT schedule fixed. The split $\alpha$ is tuned day-ahead on the historical scenarios over $\alpha\in[0.2,1.0]$ for every commitment level.
 - **IR-P** — price-coordinated independent recovery. Instead of a fixed share, the IT scheduler prices its facility energy at the channel price $\lambda^{el}_t$ of the day-ahead joint plan (Proposition 3), i.e. at the TOU price plus the premium $\lambda^{cap}_t+\lambda^{ev}_t$, a one-way, day-ahead price signal.
+- **IR-PD** — independent recovery with iterative two-way price coordination, renewed at every step. The facility prices the channel from the joint plan at the measured state; the IT scheduler answers with its own schedule at that price; the facility re-optimises with this schedule fixed and returns the marginal value of IT power under its best response, towards which the price moves with damping 0.5. After 12 rounds the IT applies the average of the schedules of rounds 7–12 (primal averaging of the price iteration), and the facility follows with it fixed.
+- **SR-D** — staged recovery with the forecasts and the joint delivery of JR-D. During an event SR-D acts as JR-D. Outside events, at every step, the computing schedule is planned first with the storage charging held at the no-DR schedule, so that the deferred work is caught up through the whole channel, and the storage and IES are planned afterwards with this computing schedule fixed. SR-D thus executes the recovery order of independent recovery in Proposition 2, computing debt first and storage debt after, with the information of JR-D.
 - **JR-M** — event-by-event joint recovery. The joint model is used, but only the current or next event is visible, which represents single-event DR scheduling and isolates the value of cross-event foresight.
 - **JR-oracle** — joint recovery with perfect information (reference).
 
-**Table 2.** Controlled scenario matrix (✓ included, × excluded, – not applicable). The resource and device configurations are operated by the JR-D controller with the connection limit of the base case.
+**Table 4.** Controlled scenario matrix (✓ included, × excluded, – not applicable). The resource and device configurations are operated by the JR-D controller with the connection limit of the base case.
 
 | Configuration | Compute flexibility | BESS | Cold storage | Gas engine | Absorption chiller | Joint recovery | Cross-event foresight |
 |---|---|---|---|---|---|---|---|
@@ -506,15 +536,16 @@ All strategies face the same commitments, service deadlines, physical limits and
 | D2 w/o absorption chiller | ✓ | ✓ | ✓ | ✓ | × | ✓ | ✓ |
 | D3 w/o cold storage | ✓ | ✓ | × | ✓ | ✓ | ✓ | ✓ |
 | D4 w/o all three | ✓ | ✓ | × | × | × | ✓ | ✓ |
-| IR-O\* / IR-P | ✓ | ✓ | ✓ | ✓ | ✓ | × | ✓ |
+| IR-O\* / IR-P / IR-PD | ✓ | ✓ | ✓ | ✓ | ✓ | × | ✓ |
+| SR-D | ✓ | ✓ | ✓ | ✓ | ✓ | × (staged) | ✓ |
 | JR-M | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | × |
 | JR-D (proposed) | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
 ### 4.4. Implementation and computational performance
 
-The models are implemented in GNU Octave 8.4 and solved with GLPK 5.0 on one core of an Intel Xeon processor at 2.8 GHz; the implementation also supports Gurobi and the MATLAB solvers `linprog` and `intlinprog`. Table 3 lists the size of the optimisation models and their solution times. With the full 18-h horizon and two visible events, the MILP of JR-D has 1 524 variables, of which two are binary (one validity indicator per event), and its solution takes 0.04 s on average; a closed-loop day of 120 MPC steps takes 5.2 s. The scenario variant JR-S, with five scenarios, is five times larger and takes 60.1 s per day. Every MILP of the more than 18 000 closed-loop runs reported in Section 5 is solved to proven optimality (GLPK status optimal, zero relative gap), and no step requires the fallback controller. The controller therefore runs well within the 15-min step of the MPC.
+The models are implemented in GNU Octave 8.4 and solved with GLPK 5.0 on one core of an Intel Xeon processor at 2.8 GHz; the implementation also supports Gurobi and the MATLAB solvers `linprog` and `intlinprog`. Table 5 lists the size of the optimisation models and their solution times. With the full 18-h horizon and two visible events, the MILP of JR-D has 1 524 variables, of which two are binary (one validity indicator per event), and its solution takes 0.04 s on average; a closed-loop day of 120 MPC steps takes 5.2 s. The scenario variant JR-S, with five scenarios, is five times larger and takes 60.1 s per day. Every MILP of the more than 18 000 closed-loop runs reported in Section 5 is solved to proven optimality (GLPK status optimal, zero relative gap), and no step requires the fallback controller. The controller therefore runs well within the 15-min step of the MPC.
 
-**Table 3.** Size and solution time of the optimisation models (S1, 7 MW, full 18-h horizon with both events visible). Closed-loop day: mean solver time per day over the closed-loop runs of S1 (26 operating days, all commitments).
+**Table 5.** Size and solution time of the optimisation models (S1, 7 MW, full 18-h horizon with both events visible). Closed-loop day: mean solver time per day over the closed-loop runs of S1 (26 operating days, all commitments).
 
 | Controller | Model solved every 15 min | Variables (binary) | Constraints (inequality / equality) | Solution time per step, mean / max (s) | Closed-loop day (s) |
 |---|---|---|---|---|---|
@@ -535,11 +566,11 @@ The AIDC of Section 2.1 operates under the Jiangsu two-part TOU tariff and DR ru
 
 #### 5.1.2. Event scenarios and operating days
 
-Table 4 lists the event scenarios. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3.3. The historical days $\Omega^{DA}$ are the 14 weekdays of the trace before the DR day; the deterministic forecasts and the IR-O\* split are tuned on five of them, selected at the 10–90 % quantiles of the daily deferrable load. The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 16 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event, on 14 of them upwards (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors.
+Table 6 lists the event scenarios. The commitment is uniform across events ($C_k=C$), which corresponds to the standard DR product; non-uniform commitments are examined through the reliability region in Section 5.3.3. The historical days $\Omega^{DA}$ are the 14 weekdays of the trace before the DR day; the deterministic forecasts and the IR-O\* split are tuned on five of them, selected at the 10–90 % quantiles of the daily deferrable load. The operating-day set $\Omega$ (scenario S4) contains 26 days, each combining a different PAI weekday after the DR day with a hot summer day and an Azure inference day. On 16 of the 26 days the load without DR deviates from the baseline by more than 1 MW during at least one event, on 14 of them upwards (range −1.45 to +3.30 MW), so the commitments must be delivered under realistic baseline errors.
 
-All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 2). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.9), so that the benchmark always operates in its best day-ahead configuration. Every strategy is simulated in closed loop on every operating day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
+All strategies of Section 4.3 use the same MPC settings (15-min step, 18-h horizon), the same commitments and the same settlement rules (Table 4). The static split of IR-O\* is re-tuned on $\Omega^{DA}$ for every commitment level ($\alpha^*$ between 0.2 and 0.9), so that the benchmark always operates in its best day-ahead configuration. Every strategy is simulated in closed loop on every operating day, and all statistics are reported with 95 % block-bootstrap confidence intervals over days.
 
-**Table 4.** Event scenarios.
+**Table 6.** Event scenarios.
 
 | Scenario | Events (h) | Notice | Price coefficient | Purpose |
 |---|---|---|---|---|
@@ -569,9 +600,9 @@ The gas engine and the absorption chiller provide 85 % of the energy that recove
 
 #### 5.3.1. Firm capacity of the controllers
 
-Fig. 6 shows the share of the 26 operating days on which every event is delivered in full, as a function of the uniform commitment, and Table 5 lists the firm capacities. JR-D firmly delivers 7.5 MW in S1 and in S2 (95 % CI 7.5–8 MW), 94 % of the single-event capability of the second event (7.98 MW). Above this level its share drops to 81 % at 8 MW and to zero at 8.5 MW, where the commitment exceeds what the AIDC can reduce below the baseline at the minimum import of 1.5 MW; this limit is physical, not a recovery limit. JR-M firmly delivers 6.5 MW in S1 but only 4.5 MW in S2, so cross-event foresight adds 1.0 MW (95 % CI 0.5–1.5) with the 1-h interval and 3.0 MW (2.5–3.0) with the 30-min interval. The third, rapid event of S3 makes the evening more demanding: JR-D firmly delivers 6.5 MW per event (4.5–7.0) and JR-M 4.5 MW (1.5–5.0), so foresight adds 2.0 MW (2.0–3.0), while the independent benchmarks deliver all three events in full on at most 77 % of the days at any commitment.
+Fig. 6 shows the share of the 26 operating days on which every event is delivered in full, as a function of the uniform commitment, and Table 7 lists the firm capacities. JR-D firmly delivers 7.5 MW in S1 and in S2 (95 % CI 7.5–8 MW), 94 % of the single-event capability of the second event (7.98 MW). Above this level its share drops to 81 % at 8 MW and to zero at 8.5 MW, where the commitment exceeds what the AIDC can reduce below the baseline at the minimum import of 1.5 MW; this limit is physical, not a recovery limit. JR-M firmly delivers 6.5 MW in S1 but only 4.5 MW in S2, so cross-event foresight adds 1.0 MW (95 % CI 0.5–1.5) with the 1-h interval and 3.0 MW (2.5–3.0) with the 30-min interval. The third, rapid event of S3 makes the evening more demanding: JR-D firmly delivers 6.5 MW per event (4.5–7.0) and JR-M 4.5 MW (1.5–5.0), so foresight adds 2.0 MW (2.0–3.0), while the independent benchmarks deliver all three events in full on at most 77 % of the days at any commitment.
 
-**Table 5.** Firm consecutive DR capacity $C^{firm}_{0.95}$ (MW) on the 26 operating days, with 95 % block-bootstrap confidence intervals; "< 1" means that full delivery on 95 % of the days is not reached even at 1 MW.
+**Table 7.** Firm consecutive DR capacity $C^{firm}_{0.95}$ (MW) on the 26 operating days, with 95 % block-bootstrap confidence intervals, evaluated on the commitment grid with 0.5 MW steps (Sections 5.4–5.5 use bisection with 0.25 MW resolution, so 7.75 MW there corresponds to 7.5 MW on the grid); "< 1" means that full delivery on 95 % of the days is not reached even at 1 MW.
 
 | Scenario | IR-O\* | IR-P | JR-M | JR-D | Foresight gain JR-D − JR-M |
 |---|---|---|---|---|---|
@@ -625,7 +656,7 @@ Fig. 11a and d show the closed-loop capability $\xi_d$ \eqref{eq:capability} of 
 
 #### 5.6.2. Robust firm capacity and calibration
 
-With $\rho$ = 0.95 and $N$ = 14, the sample-average capacity is the smallest historical capability rounded down to the grid (Table 6). The robust capacity \eqref{eq:dro} lowers it by the certified margin \eqref{eq:phi}: because a 5 % share of the days may lose its whole margin, every 0.025 MW of radius costs 0.5 MW of commitment when all days lie above it (Fig. 11b, e). In S1 the radius \eqref{eq:radius} is 0.91 MW for IR-O\*, 0.066 MW for JR-M and zero for JR-D, whose capability does not vary. For JR-M it lowers the commitment from 7.5 to 6.0 MW and corrects the over-confidence of the sample average: out of sample, 7.5 MW is delivered in full on 77 % of the days and 6.0 MW on all of them, and the worst-case probabilities within the ball, 0.74, 0.91 and 0.95 at 7.5, 7.0 and 6.5 MW, match the realised shares of 0.77, 0.92 and 0.96 (Fig. 11c). For IR-O\* the radius even exceeds the actual distance between the historical and the operating capabilities ($W_1$ = 0.81 MW), and no commitment of 1 MW or more is robust. For JR-D the robust capacity equals the sample-average 8.0 MW, its physical limit, which is delivered in full on 81 % of the operating days. The operating days are more loaded than the historical ones: during the first event the load without DR exceeds the baseline by 0.78 MW on average, against −0.16 MW on the historical days, and the five days on which JR-D misses 8 MW, each time in the second event, all have the load above the baseline in both events (by 0.9–1.9 MW in the first and 0.8–2.8 MW in the second). The cost-optimal commitment absorbs this systematic shift with the margin that it keeps below the capability limit (Section 5.6.3).
+With $\rho$ = 0.95 and $N$ = 14, the sample-average capacity is the smallest historical capability rounded down to the grid (Table 8). The robust capacity \eqref{eq:dro} lowers it by the robust margin \eqref{eq:phi}: because a 5 % share of the days may lose its whole margin, every 0.025 MW of radius costs 0.5 MW of commitment when all days lie above it (Fig. 11b, e). In S1 the radius \eqref{eq:radius} is 0.91 MW for IR-O\*, 0.066 MW for JR-M and zero for JR-D, whose capability does not vary. For JR-M it lowers the commitment from 7.5 to 6.0 MW and corrects the over-confidence of the sample average: out of sample, 7.5 MW is delivered in full on 77 % of the days and 6.0 MW on all of them, and the worst-case probabilities within the ball, 0.74, 0.91 and 0.95 at 7.5, 7.0 and 6.5 MW, match the realised shares of 0.77, 0.92 and 0.96 (Fig. 11c). For IR-O\* the radius even exceeds the actual distance between the historical and the operating capabilities ($W_1$ = 0.81 MW), and no commitment of 1 MW or more is robust. For JR-D the robust capacity equals the sample-average 8.0 MW, its physical limit, which is delivered in full on only 81 % of the operating days, so the robust commitment misses its target out of sample. The operating days are more loaded than the historical ones: during the first event the load without DR exceeds the baseline by 0.78 MW on average, against −0.16 MW on the historical days, and the five days on which JR-D misses 8 MW, each time in the second event, all have the load above the baseline in both events (by 0.9–1.9 MW in the first and 0.8–2.8 MW in the second). The capability distribution of the operating days therefore lies outside the Wasserstein ball around the historical days: the radius covers the estimation error of 14 samples but not a systematic shift of the baseline error, so the guarantee of Proposition 4 does not carry over (level (i) of Section 3.6). The full delivery of the cost-optimal 7 MW on every operating day stems from the margin of 1 MW that the cost criterion keeps below the capability limit, not from the robust step (Section 5.6.3). With 26 failure-free days, its full-delivery probability exceeds 0.89 with 95 % confidence (Table 8); Section 5.10.4 extends the test to 78 realisations and to a DR day in another month.
 
 In S2 the capability of JR-D varies slightly (one historical day at 7.75 MW, the others at 8.25 MW). The radius is 0.034 MW and the robust capacity of 7.0 MW is delivered in full on every operating day; at 8 MW the robust probability of full delivery, 0.79, matches the realised share of 0.81, where the sample average predicts 0.93 (Fig. 11f). The capability of JR-M is dispersed between 5.25 and 7.75 MW; its radius of 0.25 MW leaves no robust commitment of 1 MW or more, whereas the sample average commits 5.0 MW and delivers it in full on only 92 % of the days. The price of robustness thus scales with the dispersion of the capability: it is negligible for the concentrated capability of JR-D and excludes any commitment for the dispersed capability of JR-M, which is a second reason, besides the larger capability itself, why cross-event joint recovery can commit more.
 
@@ -633,31 +664,31 @@ A leave-one-out choice of the radius, the smallest radius at which the commitmen
 
 #### 5.6.3. Cost-optimal commitment and comparison with physical capability
 
-The commitment \eqref{eq:commit} minimises the back-tested cost below the robust capacity. It selects 7 MW for JR-D in both scenarios and 6 MW for JR-M in S1, which are delivered in full on all 26 operating days, with benefits of 44.8 (S1) and 43.1 k CNY/day (S2) for JR-D and 35.8 k CNY/day for JR-M (Table 6). For JR-D the cost minimum lies below the capability limit: the payment, capped at 120 % of the commitment, grows with the commitment only until the reduction reaches its physical maximum of about 8 MW, beyond which a larger commitment adds shortfall risk but no revenue; in S1 the certified margin at 7 MW is 0.063 MW, five times the margin at 8.0 MW. Independent recovery receives no robust commitment in either scenario, consistent with its out-of-sample performance: at 1 MW it delivers in full on only 69–73 % of the operating days.
+The commitment \eqref{eq:commit} minimises the back-tested cost below the robust capacity. It selects 7 MW for JR-D in both scenarios and 6 MW for JR-M in S1, which are delivered in full on all 26 operating days, with benefits of 44.8 (S1) and 43.1 k CNY/day (S2) for JR-D and 35.8 k CNY/day for JR-M (Table 8). For JR-D the cost minimum lies below the capability limit: the payment, capped at 120 % of the commitment, grows with the commitment only until the reduction reaches its physical maximum of about 8 MW, beyond which a larger commitment adds shortfall risk but no revenue; in S1 the robust margin at 7 MW is 0.063 MW, five times the margin at 8.0 MW. Independent recovery receives no robust commitment in either scenario, consistent with its out-of-sample performance: at 1 MW it delivers in full on only 69–73 % of the operating days.
 
 Commitments derived from physical capability are not deliverable. The perfect-recourse model \eqref{eq:ra-obj}–\eqref{eq:ra-cc} commits the single-event capabilities of 8.18/7.98 MW in S1, which JR-D delivers in full on 85 % of the days; operated by independent recovery, as in conventional single-event practice, the share falls to 27 % (IR-O\*) and 0 % (IR-P). Supplementary Fig. S2 places all commitment methods in the plane of out-of-sample reliability and benefit.
 
-**Table 6.** Day-ahead commitment from the 14 historical days and its out-of-sample performance on the 26 operating days ($\rho$ = 0.95). $\varepsilon$: radius (MW); $\Phi$: certified reliability margin \eqref{eq:phi} at the commitment (MW).
+**Table 8.** Day-ahead commitment from the 14 historical days and its out-of-sample performance on the 26 operating days ($\rho$ = 0.95). $\varepsilon$: radius (MW); $\Phi$: robust reliability margin \eqref{eq:phi} at the commitment (MW); lower 95 % bound: one-sided Clopper–Pearson bound of the full-delivery probability from the 26 operating days (Section 3.6).
 
-| Scenario | Commitment method | Operated by | Commitment (MW) | $\varepsilon$ | $\Phi$ | Days with full delivery (%) | Benefit vs no DR (k CNY/day) |
-|---|---|---|---|---|---|---|---|
-| S1 | Perfect-recourse MILP \eqref{eq:ra-obj} | JR-D | 8.18 / 7.98 | – | – | 85 | 44.7 |
-| | Single-event capability | IR-O\* / IR-P | 8.18 / 7.98 | – | – | 27 / 0 | 37.2 / 1.8 |
-| | Sample average | IR-O\*, IR-P | none ≥ 1 | 0 | – | – | – |
-| | | JR-M | 7.5 | 0 | 0.013 | 77 | 36.9 |
-| | | JR-D | 8.0 | 0 | 0.013 | 81 | 44.6 |
-| | Robust \eqref{eq:dro} | IR-O\*, IR-P | none ≥ 1 | 0.91 / 0.90 | – | – | – |
-| | | JR-M | 6.0 | 0.066 | 0.088 | 100 | 35.8 |
-| | | JR-D | 8.0 | 0 | 0.013 | 81 | 44.6 |
-| | Cost-optimal \eqref{eq:commit} | JR-M | 6.0 | 0.066 | 0.088 | 100 | 35.8 |
-| | | **JR-D** | **7.0** | **0** | **0.063** | **100** | **44.8** |
-| S2 | Sample average | IR-O\*, IR-P | none ≥ 1 | 0 | – | – | – |
-| | | JR-M | 5.0 | 0 | 0.013 | 92 | 29.3 |
-| | | JR-D | 7.5 | 0 | 0.013 | 100 | 43.1 |
-| | Robust \eqref{eq:dro} | IR-O\*, IR-P | none ≥ 1 | 0.73 / 0.83 | – | – | – |
-| | | JR-M | none ≥ 1 | 0.25 | – | – | – |
-| | | JR-D | 7.0 | 0.034 | 0.038 | 100 | 43.1 |
-| | Cost-optimal \eqref{eq:commit} | **JR-D** | **7.0** | **0.034** | **0.038** | **100** | **43.1** |
+| Scenario | Commitment method | Operated by | Commitment (MW) | $\varepsilon$ | $\Phi$ | Days with full delivery (%) | Lower 95 % bound | Benefit vs no DR (k CNY/day) |
+|---|---|---|---|---|---|---|---|---|
+| S1 | Perfect-recourse MILP \eqref{eq:ra-obj} | JR-D | 8.18 / 7.98 | – | – | 85 | 0.68 | 44.7 |
+|  | Single-event capability | IR-O\* / IR-P | 8.18 / 7.98 | – | – | 27 / 0 | 0.13 / 0 | 37.2 / 1.8 |
+|  | Sample average | IR-O\*, IR-P | none ≥ 1 | 0 | – | – | – | – |
+|  |  | JR-M | 7.5 | 0 | 0.013 | 77 | 0.60 | 36.9 |
+|  |  | JR-D | 8.0 | 0 | 0.013 | 81 | 0.64 | 44.6 |
+|  | Robust \eqref{eq:dro} | IR-O\*, IR-P | none ≥ 1 | 0.91 / 0.90 | – | – | – | – |
+|  |  | JR-M | 6.0 | 0.066 | 0.088 | 100 | 0.89 | 35.8 |
+|  |  | JR-D | 8.0 | 0 | 0.013 | 81 | 0.64 | 44.6 |
+|  | Cost-optimal \eqref{eq:commit} | JR-M | 6.0 | 0.066 | 0.088 | 100 | 0.89 | 35.8 |
+|  |  | **JR-D** | **7.0** | **0** | **0.063** | **100** | **0.89** | **44.8** |
+| S2 | Sample average | IR-O\*, IR-P | none ≥ 1 | 0 | – | – | – | – |
+|  |  | JR-M | 5.0 | 0 | 0.013 | 92 | 0.78 | 29.3 |
+|  |  | JR-D | 7.5 | 0 | 0.013 | 100 | 0.89 | 43.1 |
+|  | Robust \eqref{eq:dro} | IR-O\*, IR-P | none ≥ 1 | 0.73 / 0.83 | – | – | – | – |
+|  |  | JR-M | none ≥ 1 | 0.25 | – | – | – | – |
+|  |  | JR-D | 7.0 | 0.034 | 0.038 | 100 | 0.89 | 43.1 |
+|  | Cost-optimal \eqref{eq:commit} | **JR-D** | **7.0** | **0.034** | **0.038** | **100** | **0.89** | **43.1** |
 
 ### 5.7. Role of the integrated energy system
 
@@ -679,7 +710,7 @@ Consecutive DR leaves the energy efficiency and the emissions of the facility al
 
 #### 5.8.1. Service quality of the computing users
 
-No strategy leaves work overdue: the deadline constraints \eqref{eq:deadline} and earliest-deadline-first execution keep every deferred task within its lag bound on all days and at all commitments. What DR costs the computing users is the extra completion time of the deferred work (Fig. 13). At every commitment JR-D defers work for less time than the other controllers that deliver: at 7 MW the mean extra completion time is 0.68 h in S1 and 0.90 h in S2, against 0.85 h and 1.12 h for IR-O\* and 1.35 h and 1.26 h for JR-M, and JR-D uses 36 % and 46 % of the SLA slack against 60–75 % for IR-O\* and 60–64 % for JR-M. JR-D defers the long-deadline class, which has slack to spare, whereas IR-O\* catches up its own share at once and JR-M over-delivers the first event and must defer more in the second. IR-P defers least (0.52 h in S1) because it delivers least. The firm operating points of JR-D therefore form the capacity–service front in both scenarios: a larger firm commitment does not come at the expense of the computing users.
+The deadline constraints \eqref{eq:deadline} are soft only for feasibility: overdue work is priced at $c^{late}$ = 1000 CNY per GPU·h·h, 2000 times the delay price, so it occurs only when no schedule meets every deadline. In S1 and S2 no strategy leaves work overdue on any day or at any commitment, so every deferred task completes within its lag bound (at most 3 h, for C3). In S3 overdue work occurs on one operating day: under IR-O\* at 6–9 MW (up to 2.4×10^4^ GPU·h·h) and under JR-M at 7–9 MW (up to 27 GPU·h·h), never under JR-D. Recovery is also not shifted beyond the evaluation window: at 7 MW, JR-D and JR-M end the window with no backlog in all scenarios, and their end-of-window storage differs from the no-DR level by at most 0.7 k CNY of recharge value (on average it lies slightly above it), whereas IR-O\* and IR-P leave 310–440 GPU·h of backlog on average in S1 and S2 (up to 7.7×10^3^ GPU·h). The reported costs value every end state relative to the no-DR operation (Section 3.5). What DR costs the computing users is the extra completion time of the deferred work (Fig. 13). At every commitment JR-D defers work for less time than the other controllers that deliver: at 7 MW the mean extra completion time is 0.68 h in S1 and 0.90 h in S2, against 0.85 h and 1.12 h for IR-O\* and 1.35 h and 1.26 h for JR-M, and JR-D uses 36 % and 46 % of the SLA slack against 60–75 % for IR-O\* and 60–64 % for JR-M. JR-D defers the long-deadline class, which has slack to spare, whereas IR-O\* catches up its own share at once and JR-M over-delivers the first event and must defer more in the second. IR-P defers least (0.52 h in S1) because it delivers least. The firm operating points of JR-D therefore form the capacity–service front in both scenarios: a larger firm commitment does not come at the expense of the computing users.
 
 #### 5.8.2. Daily cost and benefit
 
@@ -729,7 +760,7 @@ For DR practice, these results support sizing consecutive-event contracts of AI 
 | | Inference dynamic-power factor $\kappa^{inf}$ | 0.65 | [@patel2024] [A] |
 | | Workload shares | 25 % of GPUs busy with online inference; 40 % with training and batch work, 75 % of it deferrable; profile shapes from [@weng2022; @stojkovic2025] | [A] |
 | | Deferrable classes; lag bounds $L_c$ | C1/C2/C3 by PAI runtime ≤ 1 h, 1–12 h, > 12 h; 0.5/1.5/3 h | [@weng2022] [D]; [@colangelo2026] [A] |
-| | Delay and lateness prices $c^{jct}$, $c^{late}$ | 0.5 and 1000 CNY per GPU·h·h | [A] |
+| | Delay and lateness prices $c^{jct}$, $c^{late}$ | 0.5 CNY per GPU·h·h, the loss of value of a delayed job (1 and 2 in Section 5.10.3); 1000 CNY per GPU·h·h, which makes overdue work a last resort | [A] |
 | Facility and cooling | Losses $\zeta$; auxiliary power $P^{aux}$ | 5 % of the IT power (UPS, distribution, air handling); 0.3 MW | [A] |
 | | Heat per unit of IT power $\theta$; base cooling load $Q_0$ | 1.0; 0.3 MW~th~ | [A] |
 | | Electric chillers $\mathrm{COP}_t$, $\bar Q^{EC}$ | 6.0 at 25 °C, −0.12 per °C (bounds 3–7); 30 MW~th~ | [A] |
@@ -743,8 +774,8 @@ For DR practice, these results support sizing consecutive-event contracts of AI 
 | | Grid connection $P^{cap}$; minimum import $P^{min}$ | 1.10 × typical-day peak (16.03 MW); 1.5 MW | [A] |
 | Emissions | Emission factors $e^{grid}$, $e^{gas}$ | 0.5617 t CO~2~/MWh (East China grid, 2022); 56.1 t CO~2~/TJ, i.e. 0.202 t CO~2~/MWh of fuel | [@mee2024] [S]; [@ipcc2006] [S] |
 | Market | Tariff | Jiangsu two-part TOU: peak 14–22 h ×1.8 and valley ×0.35 on the purchase price | [@ndrc2016] [S] |
-| | DR settlement | 3 CNY/kWh (agreed); ×1.4 (2–4 h notice), ×1.6 (0.5–2 h); valid ≥ 80 %, paid ≤ 120 % | [@jiangsu2024] [S] |
-| | Shortfall coefficient $\kappa$; planning margin $\delta^{val}$; full delivery; reliability $\rho$ | 1; 0.1 MW; $\bar r_k\ge 0.98C_k$ ($\epsilon_f$ = 2 %); 0.95 | [A] |
+| | DR settlement | agreed response cleared by bidding below a cap of 3 CNY/kWh (base case at the cap; 1 and 2 CNY/kWh in Section 5.10.3); ×1.4 (2–4 h notice), ×1.6 (0.5–2 h); valid ≥ 80 %, paid ≤ 120 % | [@jiangsu2024] [S] |
+| | Shortfall coefficient $\kappa$ (no monetary shortfall penalty in the Jiangsu rules; 0 in Section 5.10.3); planning margin $\delta^{val}$; full delivery; reliability $\rho$ | 1; 0.1 MW; $\bar r_k\ge 0.98C_k$ ($\epsilon_f$ = 2 %); 0.95 | [A] |
 | | Rebound window $\mathcal W_k$; assessment $c^{rb}$ | 2 h after every event; 0 (Jiangsu rules), 0–3 CNY/kW per event in Section 5.9.2 | [A] |
 | Method | Terminal values $c^{E}$, $c^{S}$, $c^{B}$ | 500 CNY/MWh of BESS and 100 CNY/MWh~th~ of TES deficit; backlog at its energy cost at the flat price | [A] |
 | | MPC | $\Delta t$ = 15 min, $T_H$ = 18 h; evaluation window 00:00–06:00 of the next day (30 h); JR-S with 5 scenarios | [A] |
@@ -782,9 +813,9 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\be
 
 ## Figure captions
 
-**Fig. 1.** Physical architecture and recovery channel. (a) AI data-center integrated energy system with its energy supply (grid connection, PV), conversion and storage (gas engine with heat recovery, BESS), cooling supply (absorption chiller, electric chillers, chilled-water TES) and computing (online inference and non-deferrable training, three deferrable classes C1–C3 with lag bounds 0.5, 1.5 and 3 h) subsystems on one AC bus; the DR operator, the day-ahead commitment and the intraday controller form the dispatch layer. Markers 1–4 on the flow paths trace the closed computing–energy–thermal loop: (1) deferrable work sets the IT power, (2) the IT heat sets the cooling load, (3) chiller power and recovered heat return to the electric balance and (4) the grid import is settled against the baseline. (b) Two consecutive DR events: after the first event, computing catch-up and storage recharge are repaid through one recovery channel between the baseline and the connection limit.
+**Fig. 1.** Physical architecture and recovery channel. (a) AI data-center integrated energy system with its energy supply (grid connection, PV), conversion and storage (gas engine with heat recovery, BESS), cooling supply (absorption chiller, electric chillers, chilled-water TES) and computing (online inference and non-deferrable training, three deferrable classes C1–C3 with lag bounds 0.5, 1.5 and 3 h) subsystems on one AC bus; the DR operator, the day-ahead commitment and the intraday controller form the dispatch layer. Markers 1–4 on the flow paths trace the closed computing–energy–thermal loop: (1) deferrable work sets the IT power, (2) the IT heat sets the cooling load, (3) chiller power and recovered heat return to the electric balance and (4) the grid import is settled against the baseline. (b) Two consecutive DR events: after the first event, computing catch-up and storage recharge are repaid through one recovery channel between the baseline and the connection limit (nominal channel \eqref{eq:channel}; the actual channel \eqref{eq:actchannel} is measured against the no-DR import of the day).
 
-**Fig. 2.** Recovery-aware coordinated scheduling framework. Day-ahead layer: closed-loop back-test of the intraday controller on the historical days, capability per day \eqref{eq:capability}, Wasserstein-robust capacity by sorting the capability margins (Proposition 4) and cost-optimal commitment \eqref{eq:commit}. Intraday layer: cross-event joint recovery MPC \eqref{eq:mpc} with a 15-min step and an 18-h horizon over all confirmed events. Mini schematics show the historical days, the back-test grid (delivered until the first failure), the empirical capability distribution, the sorted capability margins, the back-tested cost, the measured state, the forecasts, the rolling horizon over the events and the settlement; badges give the lines of Algorithm 1 in Table 1.
+**Fig. 2.** Recovery-aware coordinated scheduling framework. Day-ahead layer: closed-loop back-test of the intraday controller on the historical days, capability per day \eqref{eq:capability}, Wasserstein-robust capacity by sorting the capability margins (Proposition 4) and cost-optimal commitment \eqref{eq:commit}. Intraday layer: cross-event joint recovery MPC \eqref{eq:mpc} with a 15-min step and an 18-h horizon over all confirmed events. Mini schematics show the historical days, the back-test grid (delivered until the first failure), the empirical capability distribution, the sorted capability margins, the back-tested cost, the measured state, the forecasts, the rolling horizon over the events and the settlement; badges give the lines of Algorithm 1 in Table 3.
 
 **Fig. 3.** Power balance on the typical day (S2, 30-min interval, 7 MW, operating day r21) under (a) IR-O\* and (b) JR-D: supply (grid import, PV, gas engine, BESS discharge) above zero and demand below zero; events shaded. (c, d) Use of the recovery channel $P^{cap}-P^{base}_t$ for compute catch-up and storage recharge, with the energies drawn in the interval between the events.
 
@@ -792,31 +823,31 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\be
 
 **Fig. 5.** Sources and uses of the recovery energy on the typical day (S2, 7 MW), relative to the no-DR operation of the same day, under (a) IR-O\* and (b) JR-D: grid energy drawn through the channel is attributed to the connection margin, gas engine, absorption chiller, PV and cold storage; uses are catch-up and recharge in the interval and after the events.
 
-**Fig. 6.** Share of the 26 operating days on which every event is delivered in full (a–c) and on which every event is valid under the 80 % rule (d–f) versus the uniform commitment, for S1, S2 and S3; bands: 95 % block-bootstrap intervals; ticks: firm capacities at 95 %; arrows: gain of JR-D over the best independent benchmark, a lower bound because neither independent benchmark is firm at 1 MW.
+**Fig. 6.** Share of the 26 operating days on which every event is delivered in full (a–c) and on which every event is valid under the 80 % rule (d–f) versus the uniform commitment (grid step 0.5 MW; base system; forecasts of Section 5.1.1 for all controllers), for S1, S2 and S3; bands: 95 % block-bootstrap intervals; ticks: firm capacities at 95 %; arrows: gain of JR-D over the best independent benchmark, a lower bound because neither independent benchmark is firm at 1 MW.
 
 **Fig. 7.** Two-event firm region in S2 (30-min interval, reliability 95 %): largest second-event commitment delivered in full for a fixed first-event commitment, for JR-D and JR-M (bisection on the 26 operating days), and the physical capability with perfect information on the DR day (dashed), which is the same for joint, event-by-event and independent recovery.
 
-**Fig. 8.** Firm capacity versus the event interval (two one-hour events, base system): (a) firm capacity of IR-O\*, JR-M and JR-D with the coordination and foresight values shaded; (b) decomposition into the coordination value (JR-M − IR-O\*, a lower bound where IR-O\* stays below 1 MW, hatched) and the cross-event foresight value (JR-D − JR-M).
+**Fig. 8.** Firm capacity versus the event interval (two one-hour events, base system, $\rho$ = 0.95, bisection on the 26 operating days with 0.25 MW resolution): (a) firm capacity of IR-O\*, JR-M and JR-D with the coordination and foresight values shaded; (b) decomposition into the coordination value (JR-M − IR-O\*, a lower bound where IR-O\* stays below 1 MW, hatched) and the cross-event foresight value (JR-D − JR-M).
 
-**Fig. 9.** Sensitivity at a commitment of 7 MW: (a) full-delivery share of JR-D over the event interval and the connection margin; (b) gain of JR-D over the best independent benchmark; (c) gain over JR-M (percentage points); (d) full-delivery share versus the scale of the lag bounds (S1).
+**Fig. 9.** Sensitivity at a uniform commitment of 7 MW (26 operating days, base devices): (a) full-delivery share of JR-D over the event interval and the connection margin; (b) gain of JR-D over the best independent benchmark; (c) gain over JR-M (percentage points); (d) full-delivery share versus the scale of the lag bounds (S1).
 
 **Fig. 10.** System-level value of joint recovery in S2 (firm capacity by bisection, resolution 0.25 MW): (a) firm capacity versus BESS energy (2-h rating, connection fixed); (b) versus the connection limit; (c) battery energy and (d) connection capacity saved by cross-event foresight for every firm capacity that JR-M reaches (hatched: lower bound, because JR-D exceeds the target already at the smallest connection tested).
 
 **Fig. 11.** Distributionally robust commitment in S1 (a–c) and S2 (d–f): (a, d) closed-loop capability per day on the 14 historical days (filled) and the 26 operating days (hollow); (b, e) robust firm capacity versus the Wasserstein radius, star at the radius $\varepsilon_N$ \eqref{eq:radius}; (c, f) predicted versus realised full-delivery probability for every commitment of the grid, sample average (hollow) and robust (filled).
 
-**Fig. 12.** Role of the integrated energy system (S2, connection limit of the base case): (a) firm capacity of JR-D without the gas engine, the absorption chiller, the cold storage or all three, and for the resource ablation; (b) composition of the evening recovery channel $P^{cap}-P^{grid}_{noDR}$ on the typical day.
+**Fig. 12.** Role of the integrated energy system (S2, connection limit of the base case; firm capacity at $\rho$ = 0.95 by bisection, 0.25 MW resolution): (a) firm capacity of JR-D without the gas engine, the absorption chiller, the cold storage or all three, and for the resource ablation; (b) composition of the evening recovery channel $P^{cap}-P^{grid}_{noDR}$ on the typical day.
 
-**Fig. 13.** Capacity–service trade-off in S1 (a, b) and S2 (c, d): uniform commitment versus the mean extra completion time of deferred work (a, c) and the SLA slack used (b, d); filled markers: firm operating points (full delivery on ≥ 95 % of the days); dashed: front of the firm points.
+**Fig. 13.** Capacity–service trade-off in S1 (a, b) and S2 (c, d) on the 26 operating days (base system, same commitment for all controllers): uniform commitment versus the mean extra completion time of deferred work (a, c) and the SLA slack used (b, d); filled markers: firm operating points (full delivery on ≥ 95 % of the days); dashed: front of the firm points.
 
-**Fig. 14.** Economics at a fixed commitment of 7 MW: (a) daily cost components relative to no DR, labelled with the share of days with full delivery; (b) paired daily cost differences between JR-D and each benchmark over the 26 operating days; (c) distribution of the worst-event delivery ratio in S2.
+**Fig. 14.** Economics at the same fixed commitment of 7 MW for every controller (26 operating days, base system, DR price 3 CNY/kWh, $\kappa$ = 1): (a) daily cost components relative to no DR, labelled with the share of days with full delivery; (b) paired daily cost differences between JR-D and each benchmark over the 26 operating days; (c) distribution of the worst-event delivery ratio in S2.
 
-**Fig. 15.** Daily benefit relative to no DR versus the uniform commitment on the 26 operating days in S1 (a, c) and S2 (b, d): (a, b) contributions of the cost groups for JR-D, with the DR revenue and the energy savings stacked above and the task delay, storage degradation and shortfall assessment stacked below zero, and the net benefit (line); dashed: cost-optimal day-ahead commitment $C^*$; dash-dotted: firm capacity $C^{firm}_{0.95}$; shaded: commitments delivered in full on at least 95 % of the days; (c, d) net benefit of all controllers, filled markers where full delivery is reached on at least 95 % of the days at that commitment.
+**Fig. 15.** Daily benefit relative to no DR versus the uniform commitment, which is the same for every controller at each point, on the 26 operating days in S1 (a, c) and S2 (b, d) (DR price 3 CNY/kWh, $\kappa$ = 1): (a, b) contributions of the cost groups for JR-D, with the DR revenue and the energy savings stacked above and the task delay, storage degradation and shortfall assessment stacked below zero, and the net benefit (line); dashed: cost-optimal day-ahead commitment $C^*$; dash-dotted: firm capacity $C^{firm}_{0.95}$; shaded: commitments delivered in full on at least 95 % of the days; (c, d) net benefit of all controllers, filled markers where full delivery is reached on at least 95 % of the days at that commitment.
 
 **Fig. 16.** Event-call uncertainty and post-event rebound. (a, b) S4-U, third event called with probability 0.6 and confirmed 1 h ahead, 6 MW per event: (a) mean daily cost and (b) mean fulfilment on the days on which the third event is called or cancelled. (c, d) Rebound assessment as a policy parameter (S1, 6 MW, DR day): (c) cost under the Jiangsu rules alone versus the peak post-event rebound; (d) peak rebound versus the assessment price $c^{rb}$.
 
 **Fig. S1.** Two-event capability regions with perfect information on the DR day for different event durations and intervals, and for three events (E1 = E2 = $C_1$, E3 maximised), for joint recovery, event-by-event joint recovery, independent recovery with the best static split and the independent post-event state with joint recovery.
 
-**Fig. S2.** Day-ahead commitment methods in the plane of out-of-sample full delivery and daily benefit (Table 6): closed-loop back-test with sample-average, robust and cost-optimal commitments, and commitments from physical capability (perfect-recourse MILP, single-event capability).
+**Fig. S2.** Day-ahead commitment methods in the plane of out-of-sample full delivery and daily benefit (Table 8): closed-loop back-test with sample-average, robust and cost-optimal commitments, and commitments from physical capability (perfect-recourse MILP, single-event capability).
 
 **Fig. S3.** Proposition 1 on the DR day: deliverable capability of event B relative to its single-event capability versus the interval, for joint response and recovery, independent recovery, the independent post-event state with joint recovery and the bound \eqref{eq:bound}, for (a) a 2-h first event and (b) a 2-h second event; (c) capability gain of joint recovery over the interval and the connection margin.
 
@@ -853,6 +884,7 @@ If the radius exceeds the finite-sample concentration radius $\varepsilon_{N,\be
 [@hou2023]: Hou J, Li H, Nord N, et al. Model predictive control for a university heat prosumer with data centre waste heat and thermal energy storage. Energy 2023;267:126579.
 [@zhangy2026]: Zhang Y, Wang Z, Filonenko K, et al. Physics-guided deep reinforcement learning for optimized data center cooling and waste heat recovery utilizing aquifer thermal energy storage. Appl Energy 2026;402:126984.
 [@sun2023]: Sun J, Chen S, You P, et al. Battery-assisted online operation of distributed data centers with uncertain workload and electricity prices. IEEE Trans Cloud Comput 2023;11(2):1303–14.
+[@xie2027]: Xie X, Huang C, Hu Q, et al. Risk-aware coordinated scheduling of battery storage and AI data centers with decoupled multi-layer AI workload models. Appl Energy 2027;427:128836.
 [@lu2026]: Lu X, Qiu J, Lin J, et al. Battery-assisted operation of hyperscale AI data centers under connect-and-manage interconnection practices. arXiv:2605.14105; 2026.
 [@yu2026]: Yu Y, Shan K, Li H, et al. Quantitative impacts of energy system flexibility provision and design/operation on data center reliability and the key influential parameters. Appl Energy 2026;415:127904.
 [@hao2015]: Hao H, Sanandaji BM, Poolla K, et al. Aggregate flexibility of thermostatically controlled loads. IEEE Trans Power Syst 2015;30(1):189–98.
