@@ -6,3 +6,7 @@ lag50|SR-D,6.25,0.95,7
 idle40|JR-D,6.75,0.95,8
 idle40|JR-M,4,0.95,8
 idle40|IR-O*,NaN,0.95,1
+idle40|SR-D,6,0.95,7
+low|JR-D,4.5,0.95,8
+low|JR-M,NaN,0.95,1
+low|IR-O*,NaN,0.95,1
