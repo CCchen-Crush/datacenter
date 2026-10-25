@@ -1,0 +1,40 @@
+# batch 8: experiments of the second review round (tools/run_queue.sh 4 tools/jobs/batch8.txt); new tags only, earlier
+# results stay unchanged. Longest jobs first.
+#   P0-5 stronger benchmarks: IR-PD (iterative two-way channel price, 12 rounds per step) and SR-D (JR-D information and
+#        joint delivery, staged recovery: computing debt first, storage after), capacity curves on the 26 operating days
+#   P0-4 low computing flexibility (firm capacity by bisection; JR-D, JR-M, IR-O*, SR-D; connection kept)
+#   P0-2 nominal vs actual recovery channel (Exp21)
+#   P0-6 DR price (CNY/MWh) x delay price (CNY per GPU-h per h), JR-D back-test (C*) and test days; kappa = 0: no monetary
+#        shortfall assessment
+#   optional: 78 operating days (three weather / inference days per PAI weekday), MPC horizon, July DR day (cross-month)
+irpdS1|RUN=12; E12_SCEN='S1'; E12_STRATS={'IR-PD','expected','IR-PD'}; E12_CS=[1 2 3 4 5 6 7 8 9]; E12_TAG='_S1_irpd';
+irpdS2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'IR-PD','expected','IR-PD'}; E12_CS=[1 2 3 4 5 6 7 8 9]; E12_TAG='_S2_irpd';
+flxS2a|RUN=20; E20_SET='flex'; E20_SCEN='S2-30'; E20_SUB=1:3; E20_TAG='_S2a';
+flxS2b|RUN=20; E20_SET='flex'; E20_SCEN='S2-30'; E20_SUB=4:6; E20_TAG='_S2b';
+flxS1a|RUN=20; E20_SET='flex'; E20_SCEN='S1'; E20_SUB=1:3; E20_TAG='_S1a';
+flxS1b|RUN=20; E20_SET='flex'; E20_SCEN='S1'; E20_SUB=4:6; E20_TAG='_S1b';
+julS1|CASE_JUL=true; RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'IR-O*','expected','IR-O*'; 'JR-M','expected','JR-M'; 'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E12_CS=[1 2 3 4 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_jul'; E12_TAG=E18_TAG;
+julS2|CASE_JUL=true; RUN=[18 12]; E18_SCEN='S2-30'; E12_SCEN='S2-30'; E18_STRATS={'IR-O*','expected','IR-O*'; 'JR-M','expected','JR-M'; 'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E12_CS=[1 2 3 4 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S2_jul'; E12_TAG=E18_TAG;
+srdS1|RUN=12; E12_SCEN='S1'; E12_STRATS={'SR-D','expected','SR-D'}; E12_CS=1:0.5:9; E12_TAG='_S1_srd';
+srdS2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'SR-D','expected','SR-D'}; E12_CS=1:0.5:9; E12_TAG='_S2_srd';
+srdS3|RUN=12; E12_SCEN='S3'; E12_STRATS={'SR-D','expected','SR-D'}; E12_CS=1:0.5:9; E12_TAG='_S3_srd';
+chan|RUN=21;
+pS1_p1c05|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',1000,'c_jct',0.5); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p1c05'; E12_TAG=E18_TAG;
+pS1_p1c1|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',1000,'c_jct',1); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p1c1'; E12_TAG=E18_TAG;
+pS1_p1c2|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',1000,'c_jct',2); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p1c2'; E12_TAG=E18_TAG;
+pS1_p2c05|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',2000,'c_jct',0.5); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p2c05'; E12_TAG=E18_TAG;
+pS1_p2c1|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',2000,'c_jct',1); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p2c1'; E12_TAG=E18_TAG;
+pS1_p2c2|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',2000,'c_jct',2); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p2c2'; E12_TAG=E18_TAG;
+pS1_p3c1|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',3000,'c_jct',1); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p3c1'; E12_TAG=E18_TAG;
+pS1_p3c2|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',3000,'c_jct',2); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_p3c2'; E12_TAG=E18_TAG;
+pS1_k0|RUN=[18 12]; E18_SCEN='S1'; E12_SCEN='S1'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('kappa',0); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S1_k0'; E12_TAG=E18_TAG;
+pS2_p1c05|RUN=[18 12]; E18_SCEN='S2-30'; E12_SCEN='S2-30'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',1000,'c_jct',0.5); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S2_p1c05'; E12_TAG=E18_TAG;
+pS2_p1c2|RUN=[18 12]; E18_SCEN='S2-30'; E12_SCEN='S2-30'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',1000,'c_jct',2); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S2_p1c2'; E12_TAG=E18_TAG;
+pS2_p3c2|RUN=[18 12]; E18_SCEN='S2-30'; E12_SCEN='S2-30'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('price_da',3000,'c_jct',2); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S2_p3c2'; E12_TAG=E18_TAG;
+pS2_k0|RUN=[18 12]; E18_SCEN='S2-30'; E12_SCEN='S2-30'; E18_STRATS={'JR','expected','JR-D'}; E12_STRATS=E18_STRATS; E18_MODS=struct('kappa',0); E12_MODS=E18_MODS; E12_CS=[1 2 3 3.5 4 4.5 5 5.5 6 6.5 7 7.5 8 8.5 9]; E18_TAG='_S2_k0'; E12_TAG=E18_TAG;
+d78S1|MC_PASSES=3; RUN=12; E12_SCEN='S1'; E12_RS=1:78; E12_STRATS={'JR','expected','JR-D'}; E12_CS=[6.5 7 7.5 8]; E12_TAG='_S1_d78';
+d78S2|MC_PASSES=3; RUN=12; E12_SCEN='S2-30'; E12_RS=1:78; E12_STRATS={'JR','expected','JR-D'}; E12_CS=[6.5 7 7.5 8]; E12_TAG='_S2_d78';
+d78S1m|MC_PASSES=3; RUN=12; E12_SCEN='S1'; E12_RS=1:78; E12_STRATS={'JR-M','expected','JR-M'; 'IR-O*','expected','IR-O*'}; E12_CS=[1 5 6]; E12_ALPHA=[1 0.2; 5 0.3; 6 0.4]; E12_TAG='_S1_d78m';
+d78S2m|MC_PASSES=3; RUN=12; E12_SCEN='S2-30'; E12_RS=1:78; E12_STRATS={'JR-M','expected','JR-M'; 'IR-O*','expected','IR-O*'}; E12_CS=[1 4 5]; E12_ALPHA=[1 0.2; 4 0.2; 5 0.4]; E12_TAG='_S2_d78m';
+hzS2|RUN=20; E20_SET='horizon'; E20_SCEN='S2-30'; E20_TAG='_S2';
+hzS1|RUN=20; E20_SET='horizon'; E20_SCEN='S1'; E20_TAG='_S1';

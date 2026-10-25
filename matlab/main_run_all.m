@@ -13,6 +13,11 @@
 %                                  (to split the capacity sweep over parallel processes)
 %                                  E12_FMODE = 'oracle' -> Exp12 with perfect forecasts (information diagnostic)
 %                                  E12_SCEN = 'S1' | 'S2-30' | 'S3' -> event scenario of Exp12 (set_scenario), E12_N days
+%                                  E12_STRATS = {name, fmode, label; ...} -> strategies of Exp12 (e.g. IR-PD, SR-D)
+%                                  E12_MODS = struct(...) -> ctx_with_par changes for Exp12 (flex_share, c_jct, ...)
+%                                  E12_RS = [...] -> explicit test realisations of Exp12 (with MC_PASSES = 3: 1:78)
+%                                  E18_MODS, E18_STRATS -> the same for the back-test Exp18; RUN = 21 -> Exp21 channel
+%                                  MC_PASSES = 3 -> 78 test realisations; CASE_JUL = true -> DR day 22 July 2024
 %   Base case: Jiangsu settlement rules alone (no gap-rebound assessment, c_rb = 0). The rebound
 %   assessment is a policy parameter: Exp8 sweeps it, RB_SENS repeats the main experiments at 3 CNY/kW.
 clc;
@@ -28,6 +33,11 @@ if ~exist('RB_SENS', 'var'), RB_SENS = false; end
 diary(fullfile(root, 'results', sprintf('run_log%s.txt', LOGTAG)));
 t_all = tic;
 par = dcdr_params();
+if exist('MC_PASSES', 'var'), par.case.mc_passes = MC_PASSES; end   % 3: 78 realisations (first 52 unchanged)
+if exist('CASE_JUL', 'var') && CASE_JUL      % cross-month case: DR day, baseline days and history pool in July
+    par.case.weather_date = '2024-07-22';      % hot weekday (Tmax 36.8 C)
+    par.case.base_dates = {'2024-07-15', '2024-07-16', '2024-07-17', '2024-07-18', '2024-07-19'};
+end
 if QUICK, par.bench.alpha_grid = [0.6 1.0]; end
 ctx = setup_case(par);
 ctx3 = ctx; ctx3.par.dr.c_rb = 3000;          % policy sensitivity: gap-rebound assessment 3 CNY/kW per event
@@ -118,12 +128,15 @@ if any(RUN == 12)
     if exist('E12_FMODE', 'var')                % e.g. 'oracle': same controllers with perfect forecasts
         S12 = {'IR-O*', E12_FMODE, 'IR-O*'; 'IR-P', E12_FMODE, 'IR-P'; 'JR-M', E12_FMODE, 'JR-M'; 'JR', E12_FMODE, 'JR-D'};
     end
+    if exist('E12_STRATS', 'var'), S12 = E12_STRATS; end                     % e.g. {'IR-PD', 'expected', 'IR-PD'}
     c12 = ctx; if exist('E12_SCEN', 'var'), c12 = set_scenario(ctx, E12_SCEN); end   % S1 (default) | S2-<min> | S3
+    if exist('E12_MODS', 'var'), c12 = ctx_with_par(c12, E12_MODS); end      % parameter sensitivity
+    if ~exist('E12_RS', 'var'), E12_RS = []; end                             % explicit test realisations
     if ~exist('E12_N', 'var'), E12_N = 26; end                                       % distinct PAI test weekdays
     if ~exist('E12_ACTIVE', 'var'), E12_ACTIVE = []; end                     % strategy subset of this part
     if ~exist('E12_ALPHA', 'var'), E12_ALPHA = []; end                       % [C, alpha*] tuned before
     if QUICK, E12 = exp12_capacity(c12, root, [6 8], 2, E12_TAG, S12); else
-        E12 = exp12_capacity(c12, root, E12_CS, E12_N, E12_TAG, S12, E12_ACTIVE, E12_ALPHA); end
+        E12 = exp12_capacity(c12, root, E12_CS, E12_N, E12_TAG, S12, E12_ACTIVE, E12_ALPHA, E12_RS); end
 end
 if any(RUN == 13)
     fprintf('== Exp13: two-event capacity region (perfect information)\n');
@@ -204,7 +217,9 @@ if any(RUN == 18)
     fprintf('== Exp18: back-test on the historical days (%s)\n', E18_SCEN);
     if ~exist('E18_ACTIVE', 'var'), E18_ACTIVE = []; end                     % strategy subset of this part
     if ~exist('E18_ALPHA', 'var'), E18_ALPHA = []; end
-    E18 = exp18_history(set_scenario(ctx, E18_SCEN), root, E18_CS, E18_TAG, [], E18_ACTIVE, E18_ALPHA);
+    c18 = set_scenario(ctx, E18_SCEN); if exist('E18_MODS', 'var'), c18 = ctx_with_par(c18, E18_MODS); end
+    if ~exist('E18_STRATS', 'var'), E18_STRATS = []; end
+    E18 = exp18_history(c18, root, E18_CS, E18_TAG, E18_STRATS, E18_ACTIVE, E18_ALPHA);
 end
 if any(RUN == 19)
     % upper bound of static-split independent recovery (best split in hindsight on every test day)
@@ -217,7 +232,7 @@ if any(RUN == 19)
 end
 if any(RUN == 20)
     % firm capacity by bisection for system configurations:
-    %   E20_SET = 'bess' | 'bessM' | 'gamma' | 'ies' | 'resources' | 'tau' | 'overhead' | 'region' (E20_C1)
+    %   E20_SET = 'bess' | 'bessM' | 'gamma' | 'ies' | 'resources' | 'tau' | 'overhead' | 'region' (E20_C1) | 'flex' | 'horizon'
     if ~exist('E20_SET', 'var'), E20_SET = 'bess'; end
     if ~exist('E20_SCEN', 'var'), E20_SCEN = 'S2-30'; end
     if ~exist('E20_TAG', 'var'), E20_TAG = ''; end
@@ -260,6 +275,18 @@ if any(RUN == 20)
                 cf(end+1) = struct('name', sprintf('C1_%g', c1), 'scen', E20_SCEN, 'mods', [], 'S', {[SD; SM]}, ...
                                    'lo', 1, 'hi', 10, 'C1', c1); %#ok<SAGROW>
             end
+        case 'flex'          % low computing flexibility: deferrable share, lag bounds, idle power and all three together
+            SS = {'SR-D', 'expected', 'SR-D'};
+            F = {'base', struct(); 'fs50', struct('flex_share', 0.50); 'fs25', struct('flex_share', 0.25); 'lag50', struct('lag_scale', 0.5); ...
+                 'idle40', struct('idle_frac', 0.40); 'low', struct('flex_share', 0.50, 'lag_scale', 0.5, 'idle_frac', 0.40)};
+            for i = 1:size(F, 1)
+                md = F{i, 2}; md.keep_Pcap = true;
+                cf(end+1) = struct('name', F{i, 1}, 'scen', E20_SCEN, 'mods', md, 'S', {[SD; SM; SI; SS]}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
+            end
+        case 'horizon'       % prediction horizon of the MPC (18 h is the base case)
+            for hz = [1 2 4 8]
+                cf(end+1) = struct('name', sprintf('hz%g', hz), 'scen', E20_SCEN, 'mods', struct('horizon_h', hz), 'S', {SD}, 'lo', 1, 'hi', 12); %#ok<SAGROW>
+            end
         case 'overhead'      % robustness: pause/resume overhead of deferred work
             for ov = [0.02 0.05]
                 cf(end+1) = struct('name', sprintf('ovh%.2f', ov), 'scen', E20_SCEN, 'mods', struct('overhead', ov, 'keep_Pcap', true), ...
@@ -271,6 +298,12 @@ if any(RUN == 20)
     if exist('E20_LOHI', 'var'), for i = 1:numel(cf), cf(i).lo = E20_LOHI(1); cf(i).hi = E20_LOHI(2); end, end
     fprintf('== Exp20: firm capacity by bisection, set %s (%d configurations)\n', E20_SET, numel(cf));
     E20 = exp20_capacity_configs(ctx, root, cf, [E20_SET E20_TAG], o20);
+end
+if any(RUN == 21)
+    % nominal versus actual recovery channel on the operating days, and the channel used by JR-D
+    if ~exist('E21_C', 'var'), E21_C = 7; end
+    fprintf('== Exp21: nominal vs actual recovery channel\n');
+    E21 = exp21_channel(ctx, root, E21_C, 26);
 end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);
 diary off;

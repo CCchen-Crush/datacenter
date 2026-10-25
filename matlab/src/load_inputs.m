@@ -127,9 +127,10 @@ for q = ordT(:)'
     end
 end
 % crossed design: each later PAI weekday is paired with two different hot days (weather) and two
-% different Azure inference days -> up to 2 x numel(cand) distinct realisations
+% different Azure inference days -> up to 2 x numel(cand) distinct realisations (par.case.mc_passes = 3: a third pass)
 nc = min(numel(cand), numel(wsel)); azall = azwk(:)'; na = numel(azall); nw = numel(wsel);
-Nmc = min(2 * nc, 60);
+npass = 2; if isfield(par.case, 'mc_passes'), npass = par.case.mc_passes; end   % 3 passes: 78 operating days
+Nmc = min(npass * nc, 30 * npass);
 inp.mc.N = Nmc; inp.mc.flex = zeros(T, 3, Nmc); inp.mc.fix = zeros(T, Nmc); inp.mc.inf = zeros(T, Nmc);
 inp.mc.pv = zeros(T, Nmc); inp.mc.cop = zeros(T, Nmc); inp.mc.label = cell(Nmc, 1);
 for r = 1:Nmc

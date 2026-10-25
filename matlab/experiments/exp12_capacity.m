@@ -1,4 +1,4 @@
-function out = exp12_capacity(ctx, root, Cs, N, tag, S, active, alpha_tab)
+function out = exp12_capacity(ctx, root, Cs, N, tag, S, active, alpha_tab, rs)
 %EXP12_CAPACITY  Reliably deliverable consecutive-DR capacity (decision experiment G1a): uniform
 %   commitment C swept over Cs; for every C the benchmarks are re-tuned day-ahead and each strategy is
 %   run in closed loop on N Monte-Carlo realisations that use N different PAI weekdays. For each
@@ -9,6 +9,7 @@ function out = exp12_capacity(ctx, root, Cs, N, tag, S, active, alpha_tab)
 %   JR-D (joint, cross-event, deterministic MPC). active (indices into S, default all) selects the strategies
 %   run in this part (the strategy index of the output refers to S); alpha_tab = [C, alpha*] rows reuses splits
 %   already tuned day-ahead for the same scenario (tune_alpha is deterministic), other C are tuned.
+%   rs (optional) lists the test realisations explicitly (default: the first N with different PAI weekdays).
 if nargin < 3 || isempty(Cs), Cs = 3:0.5:9; end
 if nargin < 4 || isempty(N), N = 26; end
 if nargin < 5, tag = ''; end
@@ -17,7 +18,7 @@ if nargin < 6 || isempty(S)
 end
 if nargin < 7 || isempty(active), active = 1:size(S, 1); end
 if nargin < 8, alpha_tab = []; end
-rs = distinct_pai(ctx.inp.mc.label, N);
+if nargin < 9 || isempty(rs), rs = distinct_pai(ctx.inp.mc.label, N); end   % rs: explicit test realisations
 rows = []; hdr = {}; t0 = tic;
 for C = Cs
     c0 = bench_prepare(apply_commit(ctx, C * ones(1, numel(ctx.ev))), S(active, 1), C, alpha_tab);

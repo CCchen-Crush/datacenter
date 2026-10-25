@@ -1,10 +1,12 @@
 function R = run_strategy(ctx, name, fmode)
 %RUN_STRATEGY  Run one scheduling strategy on the DR day and evaluate it.
-%   name : 'NoDR' | 'IR-R' | 'IR-O' | 'IR-O*' | 'IR-P' | 'JR' | 'JR-M'
+%   name : 'NoDR' | 'IR-R' | 'IR-O' | 'IR-O*' | 'IR-P' | 'IR-PD' | 'SR-D' | 'JR' | 'JR-M'
 %     IR-R  independent recovery, rule based
 %     IR-O  independent recovery, sequential optimisation, static split ctx.alpha
 %     IR-O* as IR-O with the split tuned day-ahead (ctx.alpha_star, see prepare_benchmarks)
 %     IR-P  independent recovery coordinated only by a day-ahead shadow price (ctx.lambda_hr_da)
+%     IR-PD independent recovery coordinated by the channel price recomputed every step from the measured state
+%     SR-D  staged recovery: JR-D forecasts and joint delivery, but deferred work is caught up before storage recharges
 %     JR    joint recovery (proposed); JR-M joint but event-by-event (no cross-event foresight)
 %   fmode: 'open'     - perfect-information plan solved once over the whole day, replayed open loop
 %          'oracle'   - rolling horizon with perfect forecasts
@@ -29,6 +31,10 @@ switch name
         else
             o = run_closed_loop(par, inp.real, ctx.base, ctx.ev, @planner_iro, ctx);
         end
+    case 'IR-PD'
+        o = run_closed_loop(par, inp.real, ctx.base, ctx.ev, @planner_irpd, ctx);
+    case 'SR-D'
+        o = run_closed_loop(par, inp.real, ctx.base, ctx.ev, @planner_srd, ctx);
     case {'JR', 'JR-M'}
         if strcmp(name, 'JR-M')
             ctx.myopic = true; ctx.Eterm = []; ctx.Sterm = [];

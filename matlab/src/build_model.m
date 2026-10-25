@@ -10,7 +10,8 @@ function [P, ix] = build_model(par, st, sc, ev, opt)
 %     'max'     maximise a common reduction level (capability analysis)
 %     'commit'  day-ahead: commitment C is a first-stage decision variable
 %     'none'    ignored
-%   opt: milp, nonant, fix_y (Hx3), terminal, Eref_end, Sref_end, no_late, visible (Kx1 logical),
+%   opt: milp, nonant, fix_y (Hx3), y1 / z1 (1x3, first step only), ch_ub / qtc_ub (Hx1 caps on BESS and TES
+%        charging), terminal, Eref_end, Sref_end, no_late, visible (Kx1 logical),
 %        active (KxS logical, event happens in scenario s; default = visible), Cmax (for 'commit'),
 %        w_max (weight of 'max')
 %   Optional par fields used: par.dr.c_pre (pre-event load-up assessment), par.it.ramp_max (limit on
@@ -48,6 +49,11 @@ end
 [m, SS]  = addb(m, H, S, par.tes.Smin, par.tes.Smax, 0);
 [m, PPV] = addb(m, H, S, 0, Inf, 0);
 m.ub(PPV(:)) = max(sc.pv(:), 0);
+if ~isempty(opt.ch_ub), m.ub(PCH(:)) = min(m.ub(PCH(:)), reshape(repmat(opt.ch_ub(:), 1, S), [], 1)); end
+if ~isempty(opt.qtc_ub), m.ub(QTC(:)) = min(m.ub(QTC(:)), reshape(repmat(opt.qtc_ub(:), 1, S), [], 1)); end
+if ~isempty(opt.y1)
+    for c = 1:3, m.lb(Y{c}(1, :)) = opt.y1(c); m.ub(Y{c}(1, :)) = opt.y1(c); end
+end
 if ~isempty(opt.fix_y)
     for c = 1:3
         v = repmat(opt.fix_y(:, c), 1, S);
@@ -76,6 +82,7 @@ if capon
         if ~isempty(opt.fix_z)
             v = repmat(opt.fix_z(:, c), 1, S); m.lb(ZC{c}(:)) = v(:); m.ub(ZC{c}(:)) = v(:);
         end
+        if ~isempty(opt.z1), m.lb(ZC{c}(1, :)) = opt.z1(c); m.ub(ZC{c}(1, :)) = opt.z1(c); end
     end
 end
 
@@ -325,7 +332,8 @@ end
 
 function opt = defaults(opt, K)
 f = {'milp', true; 'nonant', true; 'fix_y', []; 'terminal', false; 'Eref_end', 0; 'Sref_end', 0; ...
-     'no_late', false; 'fix_z', []; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []; 'rho', 0};
+     'no_late', false; 'fix_z', []; 'visible', true(K,1); 'Cmax', 15; 'w_max', 1e7; 'active', []; 'rho', 0; ...
+     'ch_ub', []; 'qtc_ub', []; 'y1', []; 'z1', []};
 for i = 1:size(f,1)
     if ~isfield(opt, f{i,1}), opt.(f{i,1}) = f{i,2}; end
 end
