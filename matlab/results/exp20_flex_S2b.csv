@@ -10,3 +10,4 @@ idle40|SR-D,6,0.95,7
 low|JR-D,4.5,0.95,8
 low|JR-M,NaN,0.95,1
 low|IR-O*,NaN,0.95,1
+low|SR-D,4.5,0.95,8
