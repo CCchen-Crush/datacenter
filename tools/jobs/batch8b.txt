@@ -1,0 +1,8 @@
+# batch 8b: follow-up of IR-PD (run alongside batch 8 with tools/run_queue.sh 2 tools/jobs/batch8b.txt)
+#   firm-capacity boundary of IR-PD at 0.5 MW resolution, more rounds of price exchange on the days on which IR-PD misses 7 MW
+#   (Exp22, K = 24 and 48 with the second half averaged), and IR-PD in the three-event scenario S3
+irpd2S1|RUN=12; E12_SCEN='S1'; E12_STRATS={'IR-PD','expected','IR-PD'}; E12_CS=6.5; E12_TAG='_S1_irpd2';
+irpd2S2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'IR-PD','expected','IR-PD'}; E12_CS=6.5; E12_TAG='_S2_irpd2';
+k22S2|RUN=22; E22_SCEN='S2-30'; E22_C=7; E22_RS=[1 2 7 10 21 25]; E22_K=[24 48]; E22_TAG='_S2';
+k22S1|RUN=22; E22_SCEN='S1'; E22_C=7; E22_RS=[7 14 15 17]; E22_K=[24 48]; E22_TAG='_S1';
+irpdS3|RUN=12; E12_SCEN='S3'; E12_STRATS={'IR-PD','expected','IR-PD'}; E12_CS=[3 4 5 5.5 6 6.5 7]; E12_TAG='_S3_irpd';
