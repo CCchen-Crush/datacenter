@@ -4,3 +4,9 @@ base|JR-M,6.75,0.95,8
 base|IR-O*,NaN,0.95,1
 base|SR-D,7,0.95,7
 fs50|JR-D,6.75,0.95,8
+fs50|JR-M,4.25,0.95,7
+fs50|IR-O*,NaN,0.95,1
+fs50|SR-D,5.75,0.95,7
+fs25|JR-D,5,0.95,7
+fs25|JR-M,NaN,0.95,1
+fs25|IR-O*,NaN,0.95,1
