@@ -15,7 +15,8 @@ deficit — that are repaid through the same grid headroom before the next event
 these debts limit the next deliverable reduction and how much **firm consecutive DR capacity**
 $C^{firm}_\rho$ (largest uniform commitment delivered in full in every event with probability $\rho$) an
 AIDC can offer with cross-event joint recovery, compared with tuned independent recovery (IR-O\*),
-price-coordinated independent recovery (IR-P) and event-by-event joint recovery (JR-M).
+one-way and iterative two-way price-coordinated independent recovery (IR-P, IR-PD), staged recovery with the
+information of the proposed controller (SR-D) and event-by-event joint recovery (JR-M).
 
 ## Scenarios and modules
 
@@ -29,15 +30,16 @@ price-coordinated independent recovery (IR-P) and event-by-event joint recovery 
 | Module | Question | Experiment | Paper figure |
 |---|---|---|---|
 | Mechanism | How do the recovery debts of one event limit the next? | `exp15_mechanism`, `exp1_mechanism`, `exp11_stylized` | Fig. 3, 4, 5; S3, S4 |
-| Firm capacity | How much more can the same equipment commit? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days), `exp20` (region), `exp13_region` | Fig. 6, 7, S1; Table 5 |
+| Firm capacity | How much more can the same equipment commit? Against stronger benchmarks? | `exp12_capacity` (S1-S3, 1-9 MW x 26 days; IR-PD, SR-D), `exp20` (region), `exp13_region` | Fig. 6, 7, S1; Table 7 |
 | Value decomposition | Coordination vs cross-event foresight, conditions | `exp20_capacity_configs` (tau), `exp14_sweep` (tau_gamma, single) | Fig. 8, 9 |
 | System-level insight | Equivalent battery energy and connection capacity, for every target firm capacity | `exp20_capacity_configs` (bess, bessM, gamma) | Fig. 10 |
-| Commitment | Distributionally robust firm capacity (Proposition 4) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 6 |
+| Commitment | Distributionally robust firm capacity (Proposition 4) | `exp18_history`, `exp16_endogenous` | Fig. 11, S2; Table 8 |
 | Integrated energy system | Who provides the recovery channel; device contribution; PUE and CO2 | `exp15` time series, `exp20` (ies, resources), `exp17_nodr` | Fig. 5, 12; Section 5.7.3 |
 | Users and economics | Service quality, costs, benefit versus commitment, multi-day statistics | `exp12`, `exp17_nodr` | Fig. 13, 14, 15 |
-| Uncertainty and rebound | Event-call uncertainty (JR-S), post-event rebound as a policy parameter | `exp4_montecarlo`, `exp8_rebound` | Fig. 16; Section 5.9 |
+| Uncertainty and rebound | Event-call uncertainty (JR-S), post-event rebound as a policy parameter | `exp4_montecarlo`, `exp8_rebound` | Fig. S7; Section 5.9 |
 | Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8.4, Fig. 9d |
-| Supplementary | Physical capability regions, commitment methods, propositions, channel price | `exp13_region`, `exp16`, `exp1`, `exp11`, `exp5_shadow` | Fig. S1-S5 |
+| Review round 2 | Low computing flexibility, MPC horizon, DR price x delay price (and kappa = 0), 78 operating days, July DR day, nominal vs actual channel, IR-PD rounds | `exp20` (flex, horizon), `exp12`/`exp18` with `E12_MODS`/`E18_MODS`, `MC_PASSES = 3`, `CASE_JUL`, `exp21_channel`, `exp22_irpd_rounds` | Fig. 16, S6; Section 5.10 |
+| Supplementary | Physical capability regions, commitment methods, propositions, channel price, recovery channel | `exp13_region`, `exp16`, `exp1`, `exp11`, `exp5_shadow`, `exp21_channel` | Fig. S1-S7 |
 
 ## Reproduce
 
@@ -51,8 +53,10 @@ tools/run_queue.sh 4 tools/jobs/batch5b.txt        # BESS substitution (connecti
 tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commitments, S3, historical back-test (DRO),
                                                     # connection margin, IES devices, interval, two-event region,
                                                     # hindsight split, overhead, lag bounds, JR-S, supplementary
+tools/run_queue.sh 4 tools/jobs/batch8.txt         # review round 2: IR-PD, SR-D, low flexibility, horizon, prices,
+                                                    # channel check, 78 days, July DR day (about 10 h on 4 cores)
 # collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
-PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-16, S1-S5
+PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-16, S1-S7
 python3 tools/plot_paper.py GA                      # graphical abstract (13 x 5 cm)
 # manuscript: edit paper/manuscript_source.md, then
 python3 tools/resolve_manuscript.py                 # numbers equations and references -> paper/manuscript.md, paper/labels.json
@@ -80,9 +84,12 @@ matlab/src/build_model.m      joint computing-storage recovery MILP (backlog cla
 matlab/src/dayahead_commit.m  day-ahead commitment (perfect-recourse stochastic MILP, optional chance constraint)
 matlab/src/planner_jr.m       intraday cross-event joint recovery MPC (JR-D / JR-S / JR-M)
 matlab/src/planner_iro.m      independent recovery benchmarks (IR-O*, IR-P)
+matlab/src/planner_irpd.m     iterative two-way price coordination (IR-PD)
+matlab/src/planner_srd.m      staged recovery with the information of JR-D (SR-D)
 matlab/src/plant_step.m       plant replay (EDF execution, IES balances, connection-limit enforcement)
 matlab/src/set_scenario.m     event scenarios S1, S2-<min>, S3
-matlab/experiments/           exp1 ... exp20 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection)
+matlab/experiments/           exp1 ... exp22 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection,
+                              exp21 nominal vs actual recovery channel, exp22 rounds of the IR-PD price exchange)
 matlab/results/               all result CSVs (see docs/实验结果_AE.md)
 tools/                        job queue, merge, numbers and figure scripts
 paper/                        manuscript source and numbered Markdown, labels.json, numbers, figures

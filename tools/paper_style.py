@@ -25,10 +25,14 @@ plt.rcParams.update({
 # fixed colour per strategy; the four of ORDER pass the all-pairs colour-vision checks (worst CVD dE 7.4, JR-D/JR-M, which
 # also differ in marker and line style)
 COL = {"JR-D": "#1f5fa8", "IR-O*": "#d98200", "IR-P": "#1baf7a", "JR-M": "#c4508a", "JR-S": "#7a5cb8",
-       "JR-oracle": "#5c5c5c", "NoDR": "#9a9a9a", "SE": "#b8860b", "RA": "#1f5fa8"}
-MK = {"JR-D": "o", "IR-O*": "s", "IR-P": "^", "JR-M": "v", "JR-S": "D", "JR-oracle": "x"}
-LS = {"JR-D": "-", "IR-O*": "--", "IR-P": "-.", "JR-M": ":"}
+       "JR-oracle": "#5c5c5c", "NoDR": "#9a9a9a", "SE": "#b8860b", "RA": "#1f5fa8",
+       "IR-PD": "#9d4edd", "SR-D": "#7a6a00"}
+# the six strategies of Fig. 6 (IR-O*, IR-P, IR-PD, SR-D, JR-M, JR-D) pass the all-pairs checks of the dataviz validator
+# (worst normal-vision dE 15.2; CVD floor 7.4 for JR-D/JR-M, which also differ in marker and line style)
+MK = {"JR-D": "o", "IR-O*": "s", "IR-P": "^", "JR-M": "v", "JR-S": "D", "JR-oracle": "x", "IR-PD": ">", "SR-D": "P"}
+LS = {"JR-D": "-", "IR-O*": "--", "IR-P": "-.", "JR-M": ":", "IR-PD": (0, (3, 1, 1, 1, 1, 1)), "SR-D": (0, (6, 1.5))}
 ORDER = ["IR-O*", "IR-P", "JR-M", "JR-D"]
+ORDER6 = ["IR-O*", "IR-P", "IR-PD", "SR-D", "JR-M", "JR-D"]
 SCEN = {"S1": "S1: two events, 1-h interval", "S2": "S2: two events, 30-min interval", "S3": "S3: three events (stress)"}
 EVENTS = {"S1": [(17, 18), (19, 20)], "S2": [(17, 18), (18.5, 19.5)], "S3": [(17, 18), (19, 20), (21, 22)],
           "short": [(17, 18), (18.5, 19.5)], "long": [(17, 18), (21, 22)]}
@@ -86,6 +90,13 @@ def load_capacity(tag):
     return d
 
 
+def load_capacity_all(tag):
+    """Exp12 results of the four base strategies together with the stronger benchmarks IR-PD and SR-D of the scenario."""
+    parts = [load_capacity(tag), load_capacity(tag + "_irpd"), load_capacity(tag + "_srd")]
+    parts = [p for p in parts if p is not None]
+    return pd.concat(parts, ignore_index=True) if parts else None
+
+
 def c_rho(share, rho):
     """Largest C of a sorted share-vs-C series such that share >= rho for C and all smaller C (NaN if none)."""
     sh = share.sort_index(); ok = (sh.values >= rho - 1e-9)
@@ -98,11 +109,10 @@ def capacity_table(d, col="all_full", rhos=(0.90, 0.95), B=2000):
     """C_rho per strategy with a block bootstrap over test days (each realisation = one PAI weekday)."""
     days = np.sort(d.realisation.unique()); out = {}
     piv = {n: d[d.name == n].pivot(index="realisation", columns="C", values=col).loc[days] for n in d.name.unique()}
-    Cs = next(iter(piv.values())).columns.values
     idx = rng.integers(0, len(days), (B, len(days)))
     for n, p in piv.items():
         pt = {r: c_rho(p.mean(axis=0), r) for r in rhos}
-        bt = {r: np.array([c_rho(pd.Series(p.values[i].mean(axis=0), index=Cs), r) for i in idx]) for r in rhos}
+        bt = {r: np.array([c_rho(pd.Series(p.values[i].mean(axis=0), index=p.columns.values), r) for i in idx]) for r in rhos}
         out[n] = (pt, bt)
     return out, idx
 

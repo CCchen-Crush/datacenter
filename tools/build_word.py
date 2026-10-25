@@ -10,7 +10,7 @@ Usage: python3 tools/build_word.py                          (writes paper/word/)
                                they are cited (WORD_LAYOUT=floats: anchored text boxes at the top of a page instead);
                                A4, Cambria 9.5 pt
   highlights.docx              the highlights as a separate file
-  supplementary_material.docx  Figs. S1-S5 with their captions (one column)
+  supplementary_material.docx  Figs. S1-S7 with their captions (one column)
   graphical_abstract.*         copied from paper/figures (python3 tools/plot_paper.py GA)
 Author details and declarations are placeholders shaded in yellow. Figures are taken from paper/figures.
 """
@@ -21,7 +21,7 @@ ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)),
 MD, FIG, OUT = (os.path.join(ROOT, "paper", p) for p in ("manuscript.md", "figures", "word"))
 FIGREF = re.compile(r"(Figs?\.\s*)((?:S?\d+)(?:[a-f](?:–[a-f])?)?(?:(?:,\s*|\s+and\s+)(?:S?\d+(?:[a-f](?:–[a-f])?)?|[a-f](?:–[a-f])?)(?!\w))*)")
 SHORT_TITLE = "Recovery-aware scheduling for consecutive demand response of AI data centers"
-N_FIG, N_SUPP, N_REF = 16, 5, 51
+N_FIG, N_SUPP, N_REF = 16, 7, 52
 LAYOUT = os.environ.get("WORD_LAYOUT", "sections")      # "sections": one-column sections where cited; "floats": text boxes at the top of a page
 
 # ------------------------------------------------------------------ page geometry (twentieths of a point)

@@ -5,56 +5,59 @@ Usage: python3 tools/plot_paper.py [fig ...]      e.g.  python3 tools/plot_paper
 Fig. 1 system and recovery channel | 2 framework | 3 typical-day power balance | 4 backlogs and storage |
 5 recovery-energy Sankey | 6 reliability curves | 7 two-event region | 8 coordination vs foresight | 9 sensitivity |
 10 substitution curves | 11 distributionally robust commitment | 12 IES contribution | 13 capacity-service Pareto |
-14 economics | 15 benefit versus the commitment | 16 event-call uncertainty and post-event rebound |
-S1 perfect-information regions | S2 commitment methods | S3 Proposition 1 | S4 Proposition 2 | S5 channel price | GA graphical abstract (13 x 5 cm)
+14 economics | 15 benefit versus the commitment | 16 robustness (flexibility, horizon, DR price x delay price) |
+S1 perfect-information regions | S2 commitment methods | S3 Proposition 1 | S4 Proposition 2 | S5 channel price |
+S6 nominal vs actual recovery channel | S7 event-call uncertainty and post-event rebound | GA graphical abstract (13 x 5 cm)
 """
 import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
-from paper_style import (rd, save, shade, panel, bottom_legend, load_capacity, capacity_table, share_band, c_rho, recovery_flows, COL, MK, LS,
-                         ORDER, SCEN, EVENTS, SINGLE_COL, DOUBLE_COL)
+from paper_style import (rd, save, shade, panel, bottom_legend, load_capacity, load_capacity_all, capacity_table, share_band, c_rho, recovery_flows,
+                         COL, MK, LS, ORDER, ORDER6, SCEN, EVENTS, SINGLE_COL, DOUBLE_COL)
 
 CAP_TAGS = [("_S1", "S1"), ("_S2", "S2"), ("_S3", "S3")]
 
 
 # ------------------------------------------------------------------ Fig. 6 reliability curves
 def fig6_capacity():
-    data = [(load_capacity(t), s) for t, s in CAP_TAGS]
+    data = [(load_capacity_all(t), s) for t, s in CAP_TAGS]
     data = [(d, s) for d, s in data if d is not None]
     if not data: return
-    fig, axs = plt.subplots(2, len(data), figsize=(DOUBLE_COL, 4.6), squeeze=False, sharey="row")
+    fig, axs = plt.subplots(2, len(data), figsize=(DOUBLE_COL, 4.8), squeeze=False, sharey="row")
     fig.subplots_adjust(wspace=0.08, hspace=0.42)
     for j, (d, s) in enumerate(data):
+        names = [n for n in ORDER6 if n in set(d.name)]
         for i, (col, lab) in enumerate([("all_full", "Days with full delivery (%)"), ("all_valid", "Days all valid, 80 % rule (%)")]):
             ax = axs[i, j]
-            for n in ORDER:
+            for n in names:
                 C, m, lo, hi = share_band(d, n, col)
                 if n in ("JR-D", "IR-O*"): ax.fill_between(C, 100 * lo, 100 * hi, color=COL[n], alpha=0.12, lw=0)
-                ax.plot(C, 100 * m, color=COL[n], ls=LS[n], lw=1.4, marker=MK[n], ms=3.2, mfc="white", mew=0.9, label=n)
+                ax.plot(C, 100 * m, color=COL[n], ls=LS[n], lw=1.3, marker=MK[n], ms=3.2, mfc="white", mew=0.9, label=n)
             ax.axhline(95, color="#555555", lw=0.7, ls=(0, (4, 3)))
-            ax.set_ylim(-3, 104); ax.set_xlim(C.min() - 0.15, C.max() + 0.15)
+            ax.set_ylim(-3, 104); ax.set_xlim(d.C.min() - 0.15, d.C.max() + 0.15)
             if j == 0: ax.set_ylabel(lab)
             if i == 1: ax.set_xlabel("Uniform commitment per event C (MW)")
             if i == 0: ax.set_title(SCEN[s], fontsize=8.5)
             panel(ax, "abcdef"[i * len(data) + j], x=-0.02, y=1.02)
             # firm capacities at 95 %: markers on the reliability line and the gain of JR-D over the best independent benchmark
             tab, _ = capacity_table(d, col, rhos=(0.95,), B=200)
-            cr = {n: tab[n][0][0.95] for n in ORDER}
-            cj = cr["JR-D"]; ci = np.nanmax([cr["IR-O*"], cr["IR-P"]]) if not np.all(np.isnan([cr["IR-O*"], cr["IR-P"]])) else np.nan
-            for n in ORDER:
+            cr = {n: tab[n][0][0.95] for n in names}
+            indep = [cr[n] for n in ("IR-O*", "IR-P", "IR-PD") if n in cr]
+            cj = cr["JR-D"]; ci = np.nanmax(indep) if not np.all(np.isnan(indep)) else np.nan
+            for n in names:
                 if not np.isnan(cr[n]): ax.plot(cr[n], 95, marker="|", ms=9, mew=1.6, color=COL[n], zorder=4)
             if not np.isnan(cj) and i == 0:
-                x0 = ci if not np.isnan(ci) else C.min()
+                x0 = ci if not np.isnan(ci) else d.C.min()
                 ya = 12
                 ax.annotate("", xy=(cj, ya), xytext=(x0, ya), arrowprops=dict(arrowstyle="<|-|>", color=COL["JR-D"], lw=0.9, mutation_scale=7))
-                txt = f"$\\Delta C_{{0.95}}$ = {cj - ci:+.1f} MW" if not np.isnan(ci) else f"$\\Delta C_{{0.95}}$ > {cj - C.min():.1f} MW"
-                ax.text((x0 + cj) / 2, ya + 3, txt, ha="center", va="bottom", fontsize=6.8, color=COL["JR-D"],
+                txt = f"$\\Delta C_{{0.95}}$ = {cj - ci:+.1f} MW" if not np.isnan(ci) else f"$\\Delta C_{{0.95}}$ > {cj - d.C.min():.1f} MW"
+                ax.text((x0 + cj) / 2, ya + 3, txt, ha="center", va="bottom", fontsize=6.8, color="#1b1b1b",
                         bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.85))
     hh, ll = axs[0, 0].get_legend_handles_labels()
-    fig.subplots_adjust(top=0.95, bottom=0.17)
-    fig.legend(hh, ll, loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=4, handlelength=2.6, columnspacing=1.6)
+    fig.subplots_adjust(top=0.95, bottom=0.16)
+    fig.legend(hh, ll, loc="lower center", bbox_to_anchor=(0.5, 0.0), ncol=6, handlelength=2.8, columnspacing=1.3)
     save(fig, "Fig6_reliable_capacity")
 
 
@@ -1222,7 +1225,7 @@ def graphical_abstract():
 
 
 
-# ------------------------------------------------------------------ Fig. 16 event-call uncertainty and post-event rebound
+# ------------------------------------------------------------------ Fig. S7 event-call uncertainty and post-event rebound
 def fig16_uncertainty_rebound():
     d = rd("exp4_e3uncertain.csv"); s = rd("exp4_e3uncertain_strategies.csv")
     r = rd("exp8_rebound.csv"); rs = rd("exp8_strategies.csv")
@@ -1249,12 +1252,120 @@ def fig16_uncertainty_rebound():
     axs[1, 0].set_title("Cost under the Jiangsu rules (S1, 6 MW)", fontsize=7.6)
     axs[1, 1].set_title("Rebound versus assessment price (S1, 6 MW)", fontsize=7.6)
     h, l = axs[1, 0].get_legend_handles_labels(); bottom_legend(fig, h, l, ncol=4, y=0.065)
-    save(fig, "Fig16_uncertainty_rebound")
+    save(fig, "FigS7_uncertainty_rebound")
+
+
+
+# ------------------------------------------------------------------ Fig. 16 robustness of the firm capacity and the commitment
+FLEXCFG = [("base", "Base"), ("fs50", "Deferrable\n50 %"), ("fs25", "Deferrable\n25 %"), ("lag50", "Lag\n×0.5"),
+           ("idle40", "Idle power\n40 %"), ("low", "All\nthree")]
+PRICECFG = [("p1c05", 1, 0.5), ("p1c1", 1, 1), ("p1c2", 1, 2), ("p2c05", 2, 0.5), ("p2c1", 2, 1), ("p2c2", 2, 2),
+            ("", 3, 0.5), ("p3c1", 3, 1), ("p3c2", 3, 2)]
+
+
+def _exp20_parts(name, parts):
+    out = [rd(f"exp20_{name}{p}.csv") for p in parts]
+    out = [d for d in out if d is not None]
+    if not out: return None
+    d = pd.concat(out, ignore_index=True).drop_duplicates("label", keep="last")
+    d[["cfg", "strategy"]] = d.label.str.split("|", expand=True)
+    return d.pivot(index="cfg", columns="strategy", values="C_rho")
+
+
+def _flex_panel(ax, p, title):
+    names = [n for n in ("JR-M", "SR-D", "JR-D") if n in p.columns]; w = 0.26
+    cfg = [c for c, _ in FLEXCFG if c in p.index]
+    for k, n in enumerate(names):
+        for i, c in enumerate(cfg):
+            v = p.loc[c, n]; x = i + (k - (len(names) - 1) / 2) * w
+            if pd.isna(v):
+                ax.bar(x, 0.5, w * 0.9, color="white", edgecolor=COL[n], hatch="////", lw=0.6)
+                ax.text(x, 0.65, "<1", ha="center", va="bottom", fontsize=5.6, color="#333333")
+            else:
+                ax.bar(x, v, w * 0.9, color=COL[n], lw=0, label=n if i == 0 else None)
+                ax.text(x, v + 0.12, f"{v:g}", ha="center", va="bottom", fontsize=5.4, color="#222222", rotation=90)
+    ax.set_xticks(range(len(cfg))); ax.set_xticklabels([dict(FLEXCFG)[c] for c in cfg], fontsize=6.4)
+    ax.set_ylim(0, 10.2); ax.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); ax.set_title(title, fontsize=7.8)
+    ax.grid(axis="x", visible=False)
+
+
+def fig17_robustness():
+    f1 = _exp20_parts("flex", ["_S1a", "_S1b"]); f2 = _exp20_parts("flex", ["_S2a", "_S2b"])
+    if f1 is None and f2 is None: return
+    fig = plt.figure(figsize=(DOUBLE_COL, 5.1))
+    gs = fig.add_gridspec(2, 2, wspace=0.24, hspace=0.62, left=0.075, right=0.985, top=0.94, bottom=0.12)
+    axa, axb, axc, axd = (fig.add_subplot(gs[i, j]) for i in range(2) for j in range(2))
+    if f1 is not None: _flex_panel(axa, f1, "Low computing flexibility, S1")
+    if f2 is not None: _flex_panel(axb, f2, "Low computing flexibility, S2")
+    panel(axa, "a", x=-0.13); panel(axb, "b", x=-0.13)
+    # (c) prediction horizon of JR-D
+    for s, tag, ls in [("S1", "_S1", "-"), ("S2", "_S2", "--")]:
+        d = rd(f"exp20_horizon{tag}.csv"); base = (f1 if s == "S1" else f2)
+        if d is None: continue
+        d[["cfg", "strategy"]] = d.label.str.split("|", expand=True)
+        hz = [float(c[2:]) for c in d.cfg]; v = list(d.C_rho.values)
+        if base is not None and "JR-D" in base.columns: hz.append(18.0); v.append(base.loc["base", "JR-D"])
+        o = np.argsort(hz); hz = np.array(hz)[o]; v = np.array(v, float)[o]
+        axc.plot(hz, np.where(np.isnan(v), 0.5, v), color=COL["JR-D"], ls=ls, marker="o" if s == "S1" else "s", ms=3.6, mfc="white", lw=1.3,
+                 label=f"JR-D, {s}")
+        if base is not None and "JR-M" in base.columns:
+            axc.axhline(base.loc["base", "JR-M"], color=COL["JR-M"], ls=":" if s == "S1" else (0, (1, 2)), lw=1.0, label=f"JR-M, {s} (18 h)")
+    axc.set_xscale("log", base=2); axc.set_xticks([1, 2, 4, 8, 18]); axc.set_xticklabels(["1", "2", "4", "8", "18"])
+    axc.set_xlabel("MPC prediction horizon (h)"); axc.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); axc.set_ylim(0, 9)
+    axc.set_title("Prediction horizon of JR-D", fontsize=7.8); axc.legend(fontsize=6.0, loc="lower right", ncol=2); panel(axc, "c", x=-0.13)
+    # (d) DR price x delay price: cost-optimal commitment C* (S1) and its benefit
+    import paper_numbers_r2 as r2
+    M = np.full((3, 3), np.nan); T = [["" for _ in range(3)] for _ in range(3)]
+    for k, p, cj in PRICECFG:
+        tag = "_S1" + (f"_{k}" if k else ""); hh = r2.history(tag); tt = load_capacity(tag)
+        if hh is None or tt is None: continue
+        r = r2.commit_point(hh, tt, "JR-D", cj); i = [0.5, 1, 2].index(cj); j = [1, 2, 3].index(p)
+        M[i, j] = r.get("benefit", np.nan)
+        T[i][j] = (f"C* = {r['c_star']:g} MW\n{r.get('benefit', np.nan):.1f} k CNY" if not np.isnan(r["c_star"]) else "no commitment")
+    im = axd.imshow(M, cmap="Blues", vmin=0, vmax=np.nanmax(M) * 1.15 if np.isfinite(np.nanmax(M)) else 1, origin="lower", aspect="auto")
+    for i in range(3):
+        for j in range(3):
+            if T[i][j]:
+                dark = np.isfinite(M[i, j]) and M[i, j] > 0.6 * np.nanmax(M)
+                axd.text(j, i, T[i][j], ha="center", va="center", fontsize=5.8, color="white" if dark else "#1b1b1b")
+    axd.set_xticks(range(3)); axd.set_xticklabels(["1", "2", "3 (cap)"]); axd.set_yticks(range(3)); axd.set_yticklabels(["0.5", "1", "2"])
+    axd.set_xlabel("DR price (CNY/kWh)"); axd.set_ylabel("Delay price $c^{jct}$ (CNY per GPU·h·h)"); axd.grid(False)
+    axd.set_title("Cost-optimal commitment of JR-D, S1", fontsize=7.8); panel(axd, "d", x=-0.13)
+    cb = fig.colorbar(im, ax=axd, fraction=0.05, pad=0.02); cb.set_label("Benefit vs no DR (k CNY/day)", fontsize=6.5); cb.ax.tick_params(labelsize=6)
+    h, l = axa.get_legend_handles_labels()
+    bottom_legend(fig, h, l, ncol=3, y=0.045)
+    save(fig, "Fig16_robustness")
+
+
+# ------------------------------------------------------------------ Fig. S6 nominal versus actual recovery channel
+def figS6():
+    d = rd("exp21_channel.csv"); j = rd("exp21_channel_jrd.csv")
+    if d is None: return
+    fig, axs = plt.subplots(1, 3, figsize=(DOUBLE_COL, 2.55)); fig.subplots_adjust(wspace=0.32, bottom=0.2, top=0.86)
+    W = {1: ("S1 interval", "o"), 3: ("S2 interval", "s"), 2: ("S1 after the events", "^"), 4: ("S2 after the events", "v")}
+    for ax, ws, title in [(axs[0], (1, 3), "Event interval"), (axs[1], (2, 4), "Two hours after the events")]:
+        lo = min(d[d.window.isin(ws)][["H_nom_MWh", "H_act_MWh"]].min()); hi = max(d[d.window.isin(ws)][["H_nom_MWh", "H_act_MWh"]].max())
+        for k, w in enumerate(ws):
+            g = d[d.window == w]
+            ax.plot(g.H_nom_MWh, g.H_act_MWh, ls="none", marker=W[w][1], ms=3.6, mfc="white", mew=0.9,
+                    color=["#1f5fa8", "#d98200"][k], label=W[w][0])
+        ax.plot([lo, hi], [lo, hi], color="#555555", lw=0.7, ls=(0, (4, 3)))
+        ax.set_xlabel("Nominal channel $H_k$ (MWh)"); ax.set_ylabel("Actual channel $H^{act}_k$ (MWh)"); ax.set_title(title, fontsize=7.8)
+        ax.legend(fontsize=6.2, loc="upper left")
+    panel(axs[0], "a", x=-0.2); panel(axs[1], "b", x=-0.2)
+    if j is not None:
+        for k, (q, g) in enumerate(j.groupby("scenario")):
+            axs[2].plot(g.H_act_MWh, g.U_MWh, ls="none", marker="os"[k], ms=3.6, mfc="white", mew=0.9, color=["#1f5fa8", "#d98200"][k],
+                        label=["S1", "S2"][k])
+        m = max(j.H_act_MWh.max(), j.U_MWh.max()); axs[2].plot([0, m], [0, m], color="#555555", lw=0.7, ls=(0, (4, 3)))
+        axs[2].set_xlabel("Actual channel $H^{act}_k$ (MWh)"); axs[2].set_ylabel("Channel drawn by JR-D (MWh)")
+        axs[2].set_title("Interval, JR-D at 7 MW", fontsize=7.8); axs[2].legend(fontsize=6.2, loc="upper left"); panel(axs[2], "c", x=-0.2)
+    save(fig, "FigS6_channel")
 
 
 FIGS.update({"1": fig1, "2": fig2_framework, "3": fig3_typical, "4": fig4_states, "5": fig5_sankey, "6": fig6_capacity, "7": fig7_region,
              "8": fig8_decomp, "9": fig9_sensitivity, "10": fig10_substitution, "11": fig11_calibration, "12": fig12_ies, "13": fig13,
-             "14": fig14_economics, "15": fig15_commitment, "16": fig16_uncertainty_rebound,
+             "14": fig14_economics, "15": fig15_commitment, "16": fig17_robustness, "S6": figS6, "S7": fig16_uncertainty_rebound,
              "GA": graphical_abstract})
 
 

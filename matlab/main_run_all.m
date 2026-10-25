@@ -305,5 +305,11 @@ if any(RUN == 21)
     fprintf('== Exp21: nominal vs actual recovery channel\n');
     E21 = exp21_channel(ctx, root, E21_C, 26);
 end
+if any(RUN == 22)
+    % convergence of the iterative price coordination IR-PD on selected days (E22_SCEN, E22_C, E22_RS, E22_K)
+    if ~exist('E22_TAG', 'var'), E22_TAG = ''; end
+    fprintf('== Exp22: IR-PD rounds of price exchange\n');
+    E22 = exp22_irpd_rounds(ctx, root, E22_SCEN, E22_C, E22_RS, E22_K, E22_TAG);
+end
 fprintf('== all done in %.1f min\n', toc(t_all) / 60);
 diary off;
