@@ -38,7 +38,7 @@ def fig6_capacity():
             ax.axhline(95, color="#555555", lw=0.7, ls=(0, (4, 3)))
             ax.set_ylim(-3, 104); ax.set_xlim(d.C.min() - 0.15, d.C.max() + 0.15)
             if j == 0: ax.set_ylabel(lab)
-            if i == 1: ax.set_xlabel("Uniform commitment per event C (MW)")
+            if i == 1 and j == len(data) // 2: ax.set_xlabel("Uniform commitment per event C (MW)")
             if i == 0: ax.set_title(SCEN[s], fontsize=8.5)
             panel(ax, "abcdef"[i * len(data) + j], x=-0.02, y=1.02)
             # firm capacities at 95 %: markers on the reliability line and the gain of JR-D over the best independent benchmark
