@@ -312,7 +312,8 @@ def main():
     tex = Builder(open(MD).read()).build()
     path = os.path.join(OUT, "manuscript.tex"); open(path, "w").write(tex)
     for _ in range(2):
-        r = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "manuscript.tex"], cwd=OUT, capture_output=True, text=True)
+        r = subprocess.run(["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "manuscript.tex"], cwd=OUT, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")   # pdflatex echoes 8-bit bytes in its messages
         if r.returncode:
             print(r.stdout[-3000:]); sys.exit("pdflatex failed")
     for ext in ("aux", "log", "out"):

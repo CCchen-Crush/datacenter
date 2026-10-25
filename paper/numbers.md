@@ -19,7 +19,7 @@ C_rho = largest C with full-delivery share >= rho for all C' <= C (Eq. 34); '<x'
 | S3 | 80 % | 90% | <1 | <1 | 5.5 | 8.5 | > +7.5 | > 750 % | +3.0 [+2.0, +3.0] |
 | S3 | 80 % | 95% | <1 | <1 | 5 | 7.5 | > +6.5 | > 650 % | +2.5 [+2.0, +3.0] |
 
-## Table 5: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
+## Table 7: firm capacity C_0.95 (MW) per strategy, 95 % block-bootstrap CI over the 26 test days
 
 | Scenario | IR-O* | IR-P | JR-M | JR-D | grid (MW) |
 |---|---|---|---|---|---|
@@ -520,3 +520,214 @@ Electric PUE on the typical day (S2, 7 MW; PUE = [(1+zeta) P_IT + P_aux + Q_EC/C
 | IR-O* | 1.253 | 1.217 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |
 | JR-M | 1.253 | 1.216 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |
 | JR-D | 1.253 | 1.217 | 1.272 | 0.196 | 0.079 | 5.16 / 5.33 |
+
+## Computational performance (Section 4.4, Table 5)
+
+Model size at the full 18-h horizon (S1, 7 MW, both events visible; counted from the MILP passed to the solver):
+JR-D 1 524 variables (2 binary), 604 inequality / 504 equality constraints; JR-S (5 scenarios) 7 620 (10), 3 020 / 2 564;
+JR-M 1 519 (1), 588 / 504; IR-O*/IR-P IT scheduling LP 656 (0), 368 / 216, then facility MILP 1 524 (2), 604 / 504.
+
+| run | strategy | days | solver time per closed-loop day: mean / median / max (s) | fallback steps |
+|---|---|---|---|---|
+| exp12_S1 | IR-O* | 442 | 2.1 / 1.7 / 3.9 | 0 |
+| exp12_S1 | IR-P | 442 | 2.1 / 1.7 / 3.8 | 0 |
+| exp12_S1 | JR-M | 442 | 4.7 / 3.7 / 8.2 | 0 |
+| exp12_S1 | JR-D | 442 | 5.2 / 4.1 / 9.1 | 0 |
+| exp12_S2 | IR-O* | 442 | 2.2 / 1.8 / 4.1 | 0 |
+| exp12_S2 | IR-P | 442 | 2.1 / 1.7 / 3.8 | 0 |
+| exp12_S2 | JR-M | 442 | 4.7 / 3.9 / 7.9 | 0 |
+| exp12_S2 | JR-D | 442 | 5.1 / 4.1 / 8.7 | 0 |
+| exp12_S3 | IR-O* | 442 | 2.2 / 1.3 / 18.9 | 0 |
+| exp12_S3 | IR-P | 442 | 2.1 / 1.3 / 18.5 | 0 |
+| exp12_S3 | JR-M | 442 | 4.5 / 2.9 / 34.9 | 0 |
+| exp12_S3 | JR-D | 442 | 5.3 / 3.5 / 39.7 | 0 |
+| exp4 (S4-U) | IR-O* | 26 | 1.4 / 1.4 / 1.7 | 0 |
+| exp4 (S4-U) | IR-P | 26 | 1.3 / 1.3 / 1.7 | 0 |
+| exp4 (S4-U) | JR-M | 26 | 2.9 / 2.9 / 3.4 | 0 |
+| exp4 (S4-U) | JR-D | 26 | 3.6 / 3.6 / 4.1 | 0 |
+| exp4 (S4-U) | JR-S | 26 | 60.1 / 59.7 / 65.4 | 0 |
+| exp4 (S4-U) | JR-oracle | 26 | 0.0 / 0.0 / 0.0 | 0 |
+
+## Stronger independent benchmarks (Section 5.3.4): IR-PD (iterative two-way price) and SR-D (staged recovery)
+
+Firm capacity C_0.95 on the 26 operating days (grid of each run; '<1' = not reached at 1 MW), share of days with full delivery at selected commitments, and mean fulfilment.
+
+**S1**
+
+| strategy | grid (MW) | C_0.95 full | C_0.95 80 % rule | full % at 1 / 2 / 3 / 5 / 7 MW | fulfil % at 1 / 7 MW | min share over C <= 3 MW |
+|---|---|---|---|---|---|---|
+| IR-O* | 1–9 | <1 | <1 | 69 / 77 / 88 / 85 / 85 | 92.3 / 98.7 | 69 |
+| IR-P | 1–9 | <1 | <1 | 69 / 73 / 85 / 58 / 12 | 92.3 / 84.8 | 69 |
+| IR-PD | 1–9 | 6.5 | 8 | 100 / 100 / 100 / 100 / 85 | 100.0 / 99.7 | 100 |
+| SR-D | 1–9 | 7 | 8.5 | 100 / 100 / 100 / 100 / 100 | 100.0 / 100.0 | 100 |
+| JR-M | 1–9 | 6.5 | 8.5 | 100 / 100 / 100 / 100 / 92 | 100.0 / 99.7 | 100 |
+| JR-D | 1–9 | 7.5 | 9 | 100 / 100 / 100 / 100 / 100 | 100.0 / 100.0 | 100 |
+
+- IR-PD: days failing full delivery at some C <= 3 MW: 0 of 26 ([])
+- SR-D: days failing full delivery at some C <= 3 MW: 0 of 26 ([])
+- 7 MW, SR-D minus JR-D daily cost: mean 0.5 k CNY (min -0.2, max 2.1); JR-D cheaper on 24 of 26 days; full delivery 100 % vs 100 %
+- 7 MW, IR-PD minus JR-D daily cost: mean 4.9 k CNY (min 0.5, max 39.1); JR-D cheaper on 26 of 26 days; full delivery 100 % vs 85 %
+- IR-PD: solver time per closed-loop day mean / median / max 24.3 / 20.4 / 62.9 s, fallback steps 0 in 260 runs; overdue runs 0
+- SR-D: solver time per closed-loop day mean / median / max 8.8 / 10.6 / 12.7 s, fallback steps 0 in 442 runs; overdue runs 1
+
+**S2**
+
+| strategy | grid (MW) | C_0.95 full | C_0.95 80 % rule | full % at 1 / 2 / 3 / 5 / 7 MW | fulfil % at 1 / 7 MW | min share over C <= 3 MW |
+|---|---|---|---|---|---|---|
+| IR-O* | 1–9 | <1 | <1 | 73 / 73 / 81 / 65 / 81 | 91.7 / 98.8 | 62 |
+| IR-P | 1–9 | <1 | <1 | 73 / 85 / 85 / 54 / 27 | 92.0 / 92.5 | 73 |
+| IR-PD | 1–9 | 6 | 7 | 100 / 100 / 100 / 100 / 77 | 100.0 / 98.9 | 100 |
+| SR-D | 1–9 | 7 | 9 | 100 / 100 / 100 / 100 / 100 | 100.0 / 100.0 | 100 |
+| JR-M | 1–9 | 4.5 | 5.5 | 100 / 100 / 100 / 92 / 15 | 100.0 / 88.9 | 100 |
+| JR-D | 1–9 | 7.5 | 9 | 100 / 100 / 100 / 100 / 100 | 100.0 / 100.0 | 100 |
+
+- IR-PD: days failing full delivery at some C <= 3 MW: 0 of 26 ([])
+- SR-D: days failing full delivery at some C <= 3 MW: 0 of 26 ([])
+- 7 MW, SR-D minus JR-D daily cost: mean 0.4 k CNY (min -0.3, max 2.7); JR-D cheaper on 22 of 26 days; full delivery 100 % vs 100 %
+- 7 MW, IR-PD minus JR-D daily cost: mean 7.0 k CNY (min 0.3, max 46.7); JR-D cheaper on 26 of 26 days; full delivery 100 % vs 77 %
+- IR-PD: solver time per closed-loop day mean / median / max 23.9 / 20.2 / 62.6 s, fallback steps 0 in 260 runs; overdue runs 0
+- SR-D: solver time per closed-loop day mean / median / max 8.2 / 6.1 / 12.3 s, fallback steps 0 in 442 runs; overdue runs 0
+
+**S3**
+
+| strategy | grid (MW) | C_0.95 full | C_0.95 80 % rule | full % at 1 / 2 / 3 / 5 / 7 MW | fulfil % at 1 / 7 MW | min share over C <= 3 MW |
+|---|---|---|---|---|---|---|
+| IR-O* | 1–9 | <1 | <1 | 42 / 65 / 62 / 58 / 31 | 92.3 / 91.2 | 42 |
+| IR-P | 1–9 | <1 | <1 | 46 / 62 / 62 / 35 / 8 | 92.6 / 82.9 | 46 |
+| IR-PD | 3–7 | 4 | 5.5 | – / – / 96 / 81 / 69 | nan / 98.0 | 96 |
+| SR-D | 1–9 | 4 | 4.5 | 100 / 100 / 96 / 69 / 15 | 100.0 / 86.7 | 96 |
+| JR-M | 1–9 | 4.5 | 5 | 100 / 96 / 100 / 92 / 23 | 100.0 / 87.1 | 96 |
+| JR-D | 1–9 | 6.5 | 7.5 | 100 / 100 / 100 / 96 / 92 | 100.0 / 99.3 | 100 |
+
+- IR-PD: days failing full delivery at some C <= 3 MW: 1 of 26 ([16])
+- SR-D: days failing full delivery at some C <= 3 MW: 1 of 26 ([17])
+- 7 MW, SR-D minus JR-D daily cost: mean 28.7 k CNY (min 0.1, max 42.7); JR-D cheaper on 26 of 26 days; full delivery 92 % vs 15 %
+- 7 MW, IR-PD minus JR-D daily cost: mean 1112.5 k CNY (min 3.5, max 23650.7); JR-D cheaper on 26 of 26 days; full delivery 92 % vs 69 %
+- IR-PD: solver time per closed-loop day mean / median / max 22.5 / 22.1 / 32.7 s, fallback steps 0 in 182 runs; overdue runs 12
+- SR-D: solver time per closed-loop day mean / median / max 4.7 / 4.4 / 7.1 s, fallback steps 0 in 442 runs; overdue runs 0
+
+
+## Low computing flexibility (Section 5.10.1): firm capacity C_0.95 by bisection (0.25 MW), connection kept
+
+**S1**
+
+| configuration | IR-O* | SR-D | JR-M | JR-D | JR-D − JR-M | JR-D − SR-D |
+|---|---|---|---|---|---|---|
+| base case | <1 | 7 | 6.75 | 7.75 | +1.00 | +0.75 |
+| deferrable share 50 % (of 75 %) | <1 | 5.75 | 4.25 | 6.75 | +2.50 | +1.00 |
+| deferrable share 25 % | <1 | 4.5 | <1 | 5 | +nan | +0.50 |
+| lag bounds x 0.5 | <1 | 6.25 | 4.5 | 7.25 | +2.75 | +1.00 |
+| idle power 40 % of peak | <1 | 6.25 | 5.25 | 7.75 | +2.50 | +1.50 |
+| all three: 50 %, x 0.5, 40 % | <1 | 5 | <1 | 5.25 | +nan | +0.25 |
+
+**S2**
+
+| configuration | IR-O* | SR-D | JR-M | JR-D | JR-D − JR-M | JR-D − SR-D |
+|---|---|---|---|---|---|---|
+| base case | <1 | 7.25 | 4.75 | 7.75 | +3.00 | +0.50 |
+| deferrable share 50 % (of 75 %) | <1 | 5.5 | 2.5 | 6.5 | +4.00 | +1.00 |
+| deferrable share 25 % | <1 | 4 | <1 | 4.25 | +nan | +0.25 |
+| lag bounds x 0.5 | <1 | 6.25 | 3.25 | 6.25 | +3.00 | +0.00 |
+| idle power 40 % of peak | <1 | 6 | 4 | 6.75 | +2.75 | +0.75 |
+| all three: 50 %, x 0.5, 40 % | <1 | 4.5 | <1 | 4.5 | +nan | +0.00 |
+
+
+## Prediction horizon of the MPC (Section 5.10.2): firm capacity of JR-D by bisection (0.25 MW)
+
+- S1: 1 h: <1 MW, 2 h: 3.25 MW, 4 h: 7 MW, 8 h: 7.75 MW
+- S2: 1 h: <1 MW, 2 h: 1.75 MW, 4 h: 7.25 MW, 8 h: 7.75 MW
+
+Day-by-day diagnosis (exp23, all 26 operating days): state at the start of the first event (BESS energy, backlog), lowest measured reduction and days with overdue work
+
+| scenario | horizon (h) | C (MW) | full delivery (%) | BESS at E1 start mean [min] (MWh) | backlog at E1 start mean [max] (GPU·h) | backlog at E2 start mean (GPU·h) | lowest reduction E1 / E2 (MW) | days with overdue work |
+|---|---|---|---|---|---|---|---|---|
+| S1 | 1 | 1 | 62 | 1.20 [1.20] | 7897 [11644] | 7588 | -1.93 / 0.12 | 7 |
+| S1 | 1 | 3.75 | 0 | 1.20 [1.20] | 7897 [11644] | 7636 | -1.93 / 0.12 | 7 |
+| S1 | 2 | 1 | 100 | 1.21 [1.20] | 1890 [4160] | 1613 | 1.05 / 1.10 | 0 |
+| S1 | 2 | 3.75 | 81 | 2.36 [1.58] | 2538 [4906] | 4471 | 3.94 / 1.71 | 0 |
+| S1 | 18 | 1 | 100 | 7.04 [5.60] | 0 [0] | 0 | 1.20 / 1.18 | 0 |
+| S1 | 18 | 3.75 | 100 | 11.37 [11.26] | 0 [0] | 0 | 4.50 / 4.46 | 0 |
+| S2 | 1 | 1 | 38 | 1.20 [1.20] | 7897 [11644] | 8769 | -1.93 / -1.32 | 11 |
+| S2 | 1 | 2.5 | 0 | 1.20 [1.20] | 7897 [11644] | 9128 | -1.93 / -1.32 | 13 |
+| S2 | 2 | 1 | 100 | 1.21 [1.20] | 1890 [4160] | 3296 | 0.98 / 1.11 | 0 |
+| S2 | 2 | 2.5 | 92 | 1.61 [1.20] | 2043 [4160] | 4431 | 0.96 / 2.30 | 0 |
+| S2 | 18 | 1 | 100 | 7.05 [5.53] | 0 [0] | 0 | 1.20 / 1.20 | 0 |
+| S2 | 18 | 2.5 | 100 | 10.70 [9.32] | 0 [0] | 0 | 3.00 / 3.00 | 0 |
+
+## DR price x delay price, and kappa = 0 (Section 5.10.3): JR-D, back-test on the 14 historical days -> C*, 26 test days
+
+benefit = no-DR cost - cost (both at the same delay price); savings = no-DR operating cost - operating cost incl. end state; delay = extra delay cost over no DR; revenue = DR payment; short = shortfall assessment (k CNY/day).
+
+| scenario | DR price (CNY/kWh) | delay price | kappa | capability mean / min | eps_N | C_DRO | C* | full % at C* (lower 95 % bound) | benefit | revenue | savings | delay | short | C firm (test) | benefit-max C (test) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| S1 | 1 | 0.5 | 1 | 8.25 / 8.25 | 0.000 | 8 | 7 | 96 (0.83) | 13.4 | 15.2 | 0.9 | 2.7 | 0.0 | 7 | 6.5 (13.4) |
+| S1 | 1 | 1 | 1 | 7.75 / 6.75 | 0.165 | 3 | 3 | 100 (0.89) | 9.4 | 7.2 | 0.9 | -1.3 | 0.0 | 4.5 | 5.5 (12.5) |
+| S1 | 1 | 2 | 1 | 6.86 / 5.75 | 0.204 | 1.5 | 1.5 | 100 (0.89) | 7.5 | 3.6 | 0.6 | -3.4 | 0.0 | 4.5 | 5 (13.1) |
+| S1 | 2 | 0.5 | 1 | 8.25 / 8.25 | 0.000 | 8 | 7.5 | 100 (0.89) | 28.8 | 31.8 | 0.9 | 3.9 | 0.0 | 7.5 | 7 (28.8) |
+| S1 | 2 | 1 | 1 | 8.25 / 8.25 | 0.000 | 8 | 7 | 96 (0.83) | 25.9 | 30.2 | 0.7 | 4.9 | 0.0 | 7 | 6.5 (26.1) |
+| S1 | 2 | 2 | 1 | 7.61 / 6.75 | 0.178 | 3 | 3 | 100 (0.89) | 18.2 | 14.4 | 0.5 | -3.3 | 0.0 | 4 | 5.5 (24.9) |
+| S1 | 3 | 0.5 | 1 | 8.25 / 8.25 | 0.000 | 8 | 7 | 100 (0.89) | 44.8 | 48.3 | 0.9 | 4.4 | 0.0 | 7.5 | 7 (44.8) |
+| S1 | 3 | 1 | 1 | 8.25 / 8.25 | 0.000 | 8 | 7.5 | 96 (0.83) | 40.9 | 47.1 | 0.7 | 6.8 | 0.0 | 7.5 | 7 (41.2) |
+| S1 | 3 | 2 | 1 | 8.07 / 7.25 | 0.102 | 5 | 5 | 100 (0.89) | 35.9 | 35.2 | 0.1 | -0.6 | 0.0 | 5 | 6 (37.9) |
+| S1 | 3 | 0.5 | 0 | 8.25 / 8.25 | 0.000 | 8 | 7 | 100 (0.89) | 44.8 | 48.3 | 0.9 | 4.4 | 0.0 | 7.5 | 8 (44.8) |
+| S2 | 1 | 0.5 | 1 | 8.18 / 7.25 | 0.069 | 5.5 | 5.5 | 100 (0.89) | 12.3 | 12.6 | 1.1 | 1.4 | 0.0 | 6 | 6 (12.4) |
+| S2 | 1 | 2 | 1 | 6.32 / 5.25 | 0.330 | – | – | – | – | – | – | – | – | 4 | 4.5 (12.5) |
+| S2 | 3 | 0.5 | 1 | 8.21 / 7.75 | 0.034 | 7 | 7 | 100 (0.89) | 43.1 | 48.4 | 1.2 | 6.4 | 0.0 | 7.5 | 7 (43.1) |
+| S2 | 3 | 2 | 1 | 7.50 / 6.25 | 0.232 | 1.5 | 1.5 | 100 (0.89) | 14.7 | 10.8 | 0.6 | -3.3 | 0.0 | 5 | 5.5 (34.6) |
+| S2 | 3 | 0.5 | 0 | 8.21 / 7.75 | 0.034 | 7 | 7 | 100 (0.89) | 43.1 | 48.4 | 1.2 | 6.4 | 0.0 | 7.5 | 7 (43.1) |
+
+## Nominal versus actual recovery channel (Section 5.1.3, Eqs. (1)-(2)), 26 operating days
+
+| window | H_nom mean (MWh) | H_act mean [min, max] | H_act - H_nom mean [min, max] | days H_act < H_nom | H_idle mean | mean (P_noDR - P_base) (MW) | corr(H_act - H_nom, dev) |
+|---|---|---|---|---|---|---|---|
+| S1 interval 18-19 h | 6.37 | 5.80 [4.03, 7.85] | -0.57 [-2.34, +1.48] | 18 of 26 | 4.39 | +0.57 | -1.00 |
+| S1 after the events 20-22 h | 13.10 | 12.30 [4.50, 16.09] | -0.80 [-8.61, +2.99] | 14 of 26 | 9.51 | +0.40 | -1.00 |
+| S2 interval 18-18.5 h | 3.17 | 2.84 [1.92, 3.92] | -0.33 [-1.25, +0.75] | 17 of 26 | 2.13 | +0.66 | -1.00 |
+| S2 after the events 19.5-21.5 h | 13.03 | 12.30 [5.20, 16.11] | -0.73 [-7.83, +3.09] | 14 of 26 | 9.51 | +0.36 | -1.00 |
+
+JR-D at 7 MW: channel drawn in the interval, U = sum (P_grid - P_noDR) dt
+
+- S1: U mean 5.58 MWh [4.03, 6.86]; U > H_nom on 3 days, U > H_act on 0 days; U / H_act mean 0.97; peak import in the interval max 16.03 MW; full delivery 100 %
+- S2: U mean 2.84 MWh [1.92, 3.92]; U > H_nom on 9 days, U > H_act on 0 days; U / H_act mean 1.00; peak import in the interval max 16.03 MW; full delivery 100 %
+
+## 78 operating days (Section 5.10.4): three weather / inference days per PAI weekday
+
+| scenario | strategy | C (MW) | full % on 78 (lower 95 % bound) | full % on the first 26 | on realisations 27-78 |
+|---|---|---|---|---|---|
+| S1 | JR-D | 6.5 | 100.0 (0.962) | 100 | 100 |
+| S1 | JR-D | 7 | 100.0 (0.962) | 100 | 100 |
+| S1 | JR-D | 7.5 | 100.0 (0.962) | 100 | 100 |
+| S1 | JR-D | 8 | 85.9 (0.777) | 81 | 88 |
+| S1 | IR-O* | 1 | 70.5 (0.609) | 69 | 71 |
+| S1 | IR-O* | 5 | 82.1 (0.734) | 85 | 81 |
+| S1 | IR-O* | 6 | 75.6 (0.663) | 69 | 79 |
+| S1 | JR-M | 1 | 100.0 (0.962) | 100 | 100 |
+| S1 | JR-M | 5 | 100.0 (0.962) | 100 | 100 |
+| S1 | JR-M | 6 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-D | 6.5 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-D | 7 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-D | 7.5 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-D | 8 | 82.1 (0.734) | 81 | 83 |
+| S2 | IR-O* | 1 | 71.8 (0.622) | 73 | 71 |
+| S2 | IR-O* | 4 | 73.1 (0.636) | 73 | 73 |
+| S2 | IR-O* | 5 | 74.4 (0.650) | 65 | 79 |
+| S2 | JR-M | 1 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-M | 4 | 100.0 (0.962) | 100 | 100 |
+| S2 | JR-M | 5 | 88.5 (0.807) | 92 | 87 |
+
+## July DR day (cross-month test, Section 5.10.4): DR day 22 July 2024, baseline and history from July
+
+- S1: firm capacity on the 26 test days: IR-O* <1, JR-M 6.5, JR-D 7.5
+  JR-M: capability mean / min 7.93 / 7.25, eps 0.101, C_DRO 5.0, C* 5.0, full at C* 100 %, benefit 32.9 k CNY/day
+  JR-D: capability mean / min 8.18 / 7.75, eps 0.047, C_DRO 6.5, C* 6.5, full at C* 100 %, benefit 44.3 k CNY/day
+- S2: firm capacity on the 26 test days: IR-O* <1, JR-M 4.0, JR-D 7.5
+  JR-M: capability mean / min 6.46 / 5.25, eps 0.248, C_DRO nan, C* nan, full at C* nan %, benefit nan k CNY/day
+  JR-D: capability mean / min 8.18 / 7.75, eps 0.047, C_DRO 6.5, C* 6.5, full at C* 100 %, benefit 42.6 k CNY/day
+
+## Solver time per MPC step on the DR day (Table 5, exp24: S1, 7 MW, run without other runs in parallel)
+
+- JR-D: per step mean / max 0.018 / 0.034 s, per day 2.2 s (120 steps)
+- JR-M: per step mean / max 0.017 / 0.039 s, per day 2.0 s (120 steps)
+- IR-O*: per step mean / max 0.007 / 0.011 s, per day 0.8 s (120 steps)
+- IR-PD: per step mean / max 0.171 / 0.298 s, per day 20.5 s (120 steps)
+- SR-D: per step mean / max 0.035 / 0.063 s, per day 4.2 s (120 steps)

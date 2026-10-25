@@ -317,6 +317,11 @@ if any(RUN == 23)
     fprintf('== Exp23: horizon diagnosis (%s)\n', E23_SCEN);
     E23 = exp23_horizon_diag(ctx, root, E23_SCEN, E23_HZ, E23_CS, E23_TAG);
 end
+if any(RUN == 24)
+    % per-step solver time of the controllers on the DR day (Table 5)
+    fprintf('== Exp24: solver time per step\n');
+    E24 = exp24_timing(ctx, root, 'S1', 7);
+end
 if any(RUN == 22)
     % convergence of the iterative price coordination IR-PD on selected days (E22_SCEN, E22_C, E22_RS, E22_K)
     if ~exist('E22_TAG', 'var'), E22_TAG = ''; end

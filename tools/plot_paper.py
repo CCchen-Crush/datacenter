@@ -327,7 +327,10 @@ def figS3():
     a = axs[2]; a.tick_params(length=0)
     d = data[0][0]; taus = sorted(d.tau_h.unique()); gams = sorted(d.gamma.unique())
     Z = np.array([[float((d[(d.gamma == g) & (d.tau_h == t)].G_JR - d[(d.gamma == g) & (d.tau_h == t)].G_IR).iloc[0] / d[(d.gamma == g) & (d.tau_h == t)].G0.iloc[0]) for t in taus] for g in gams])
-    a = axs[2]; a.grid(False); im = a.imshow(100 * Z, origin="lower", aspect="auto", cmap="Blues", vmin=0)
+    a = axs[2]; a.grid(False)       # vector cells: PDF viewers interpolate raster images across the cells
+    im = a.pcolormesh(np.arange(len(taus) + 1) - 0.5, np.arange(len(gams) + 1) - 0.5, 100 * Z, cmap="Blues", vmin=0, shading="flat",
+                      edgecolors="white", linewidth=1.0)
+    a.set_xlim(-0.5, len(taus) - 0.5); a.set_ylim(-0.5, len(gams) - 0.5)
     for i in range(len(gams)):
         for k in range(len(taus)): a.text(k, i, f"{100 * Z[i, k]:.0f}", ha="center", va="center", fontsize=6, color="white" if Z[i, k] > 0.35 else "black")
     a.set_xticks(range(len(taus))); a.set_xticklabels([f"{x:g}" for x in taus]); a.set_yticks(range(len(gams))); a.set_yticklabels([f"{x:.2f}" for x in gams])
@@ -902,7 +905,7 @@ def fig11_calibration(rho=0.95):
             ax.scatter(xt, k - 0.2 + 0.16 * (np.random.default_rng(2).random(len(xt)) - 0.5), s=9, facecolor="white", edgecolor=COL[n], lw=0.7,
                        label="test days" if k == 0 else None)
         ax.set_yticks(range(len(names))); ax.set_yticklabels(names); ax.set_xlabel("Capability $\\xi$ (MW)")
-        ax.set_xlim(grid.min() - 0.6, grid.max() + 0.4); ax.legend(loc="lower left", fontsize=6.0)
+        ax.set_xlim(grid.min() - 0.6, grid.max() + 0.4); ax.legend(loc="upper left", fontsize=6.0)
         ax.set_title(SCEN[s], fontsize=7.8, loc="left"); panel(ax, "adg"[i] if len(rows) > 1 else "a", x=-0.28)
         ax = axs[i, 1]; emax = 0.25; eps = np.round(np.arange(0, emax + 1e-9, 0.0025), 4); off = []
         for n in names:
@@ -913,10 +916,10 @@ def fig11_calibration(rho=0.95):
             ax.plot(eps, np.where(np.isnan(Cd), np.nan, Cd), color=COL[n], ls=LS[n], lw=1.3, label=n, drawstyle="steps-post")
             if e_n <= emax and not np.isnan(c_n): ax.plot(e_n, c_n, marker="*", ms=9, color=COL[n], mec="black", mew=0.4, zorder=4)
             elif np.isnan(c_n): off.append(f"{n}: none ≥ {grid.min():g} MW at $\\varepsilon_N$ = {e_n:.2f}")
-        if off: ax.text(0.97, 0.04, "\n".join(off), transform=ax.transAxes, ha="right", va="bottom", fontsize=5.8, color="#555555")
+        if off: ax.text(0.97, 0.97, "\n".join(off), transform=ax.transAxes, ha="right", va="top", fontsize=5.8, color="#555555")
         ax.set_xlim(0, emax); ax.axhline(grid.min(), color="#cccccc", lw=0.5, ls=":")
         ax.set_xlabel("Wasserstein radius ε (MW); $\\star$ = $\\varepsilon_N$"); ax.set_ylabel(f"$C^{{DRO}}_{{{rho}}}(\\varepsilon)$ (MW)")
-        ax.set_ylim(grid.min() - 0.8, grid.max() + 0.3); ax.legend(loc="upper right", fontsize=6.0)
+        ax.set_ylim(grid.min() - 0.8, grid.max() + 0.3); ax.legend(loc="lower left", fontsize=6.0)
         panel(ax, "beh"[i] if len(rows) > 1 else "b", x=-0.2)
         ax = axs[i, 2]
         for n in names:
@@ -932,7 +935,7 @@ def fig11_calibration(rho=0.95):
         ax.plot([0, 1], [0, 1], color="#555555", lw=0.6, ls="--"); ax.axhline(rho, color="#bbbbbb", lw=0.5, ls=":")
         ax.set_xlim(-0.03, 1.03); ax.set_ylim(-0.03, 1.03)
         ax.set_xlabel("Predicted full-delivery probability"); ax.set_ylabel("Realised share on test days")
-        ax.text(0.03, 0.95, "hollow: sample average (ε = 0)\nfilled: distributionally robust ($\\varepsilon_N$)", transform=ax.transAxes, fontsize=5.8, va="top")
+        ax.set_title("hollow: sample average (ε = 0); filled: robust ($\\varepsilon_N$)", fontsize=6.4)
         panel(ax, "cfi"[i] if len(rows) > 1 else "c", x=-0.2)
     save(fig, "Fig11_dro_calibration")
     return sel
@@ -1009,7 +1012,9 @@ def fig9_sensitivity():
     fig = plt.figure(figsize=(DOUBLE_COL, 2.75)); gs = fig.add_gridspec(1, 4, width_ratios=[1, 1, 1, 1.05], wspace=0.42)
     for k, (v, title, cm, vmin, vmax) in enumerate(Z):
         ax = fig.add_subplot(gs[0, k]); M = v.unstack("gap"); ax.grid(False); ax.tick_params(length=0)
-        ax.imshow(M.values, origin="lower", aspect="auto", cmap=cm, vmin=vmin, vmax=vmax)
+        ax.pcolormesh(np.arange(M.shape[1] + 1) - 0.5, np.arange(M.shape[0] + 1) - 0.5, np.ma.masked_invalid(M.values), cmap=cm, vmin=vmin,
+                      vmax=vmax, shading="flat", edgecolors="white", linewidth=1.0)   # vector cells (no raster interpolation in PDF)
+        ax.set_xlim(-0.5, M.shape[1] - 0.5); ax.set_ylim(-0.5, M.shape[0] - 0.5)
         for i in range(M.shape[0]):
             for jj in range(M.shape[1]):
                 val = M.values[i, jj]
@@ -1309,10 +1314,13 @@ def fig17_robustness():
         axc.plot(hz, np.where(np.isnan(v), 0.5, v), color=COL["JR-D"], ls=ls, marker="o" if s == "S1" else "s", ms=3.6, mfc="white", lw=1.3,
                  label=f"JR-D, {s}")
         if base is not None and "JR-M" in base.columns:
-            axc.axhline(base.loc["base", "JR-M"], color=COL["JR-M"], ls=":" if s == "S1" else (0, (1, 2)), lw=1.0, label=f"JR-M, {s} (18 h)")
+            jm = base.loc["base", "JR-M"]
+            axc.axhline(jm, color=COL["JR-M"], ls=":" if s == "S1" else (0, (1, 2)), lw=1.0)
+            axc.text(1.04, jm + 0.12, f"JR-M, {s}, 18 h ({jm:g} MW)", fontsize=6.0, color="#1b1b1b", va="bottom")
     axc.set_xscale("log", base=2); axc.set_xticks([1, 2, 4, 8, 18]); axc.set_xticklabels(["1", "2", "4", "8", "18"])
     axc.set_xlabel("MPC prediction horizon (h)"); axc.set_ylabel("Firm capacity $C^{firm}_{0.95}$ (MW)"); axc.set_ylim(0, 9)
-    axc.set_title("Prediction horizon of JR-D", fontsize=7.8); axc.legend(fontsize=6.0, loc="lower right", ncol=2); panel(axc, "c", x=-0.13)
+    axc.set_yticks([0.5, 2, 4, 6, 8]); axc.set_yticklabels(["<1", "2", "4", "6", "8"])   # not firm at 1 MW is drawn at 0.5 MW
+    axc.set_title("Prediction horizon of JR-D", fontsize=7.8); axc.legend(fontsize=6.0, loc="lower right"); panel(axc, "c", x=-0.13)
     # (d) DR price x delay price: cost-optimal commitment C* (S1) and its benefit
     import paper_numbers_r2 as r2
     M = np.full((3, 3), np.nan); T = [["" for _ in range(3)] for _ in range(3)]
@@ -1323,7 +1331,10 @@ def fig17_robustness():
         r = r2.commit_point(hh, tt, "JR-D", cj); i = [0.5, 1, 2].index(cj); j = [1, 2, 3].index(p)
         M[i, j] = r.get("benefit", np.nan)
         T[i][j] = (f"C* = {r['c_star']:g} MW\n{r.get('benefit', np.nan):.1f} k CNY" if not np.isnan(r["c_star"]) else "no commitment")
-    im = axd.imshow(M, cmap="Blues", vmin=0, vmax=np.nanmax(M) * 1.15 if np.isfinite(np.nanmax(M)) else 1, origin="lower", aspect="auto")
+    # vector cells (pcolormesh) instead of a raster image, which PDF viewers interpolate across the 3 x 3 cells
+    im = axd.pcolormesh(np.arange(4) - 0.5, np.arange(4) - 0.5, np.ma.masked_invalid(M), cmap="Blues", shading="flat",
+                        vmin=0, vmax=np.nanmax(M) * 1.15 if np.isfinite(np.nanmax(M)) else 1, edgecolors="white", linewidth=1.5)
+    axd.set_xlim(-0.5, 2.5); axd.set_ylim(-0.5, 2.5)
     for i in range(3):
         for j in range(3):
             if T[i][j]:

@@ -117,6 +117,26 @@ def horizon_section():
         if d is None: continue
         d[["cfg", "strategy"]] = d.label.str.split("|", expand=True)
         print(f"- {s}: " + ", ".join(f"{c[2:]} h: {'<1' if pd.isna(v) else f'{v:g}'} MW" for c, v in zip(d.cfg, d.C_rho)))
+    print("\nDay-by-day diagnosis (exp23, all 26 operating days): state at the start of the first event (BESS energy, backlog), lowest "
+          "measured reduction and days with overdue work\n")
+    print("| scenario | horizon (h) | C (MW) | full delivery (%) | BESS at E1 start mean [min] (MWh) | backlog at E1 start mean [max] (GPU·h) | "
+          "backlog at E2 start mean (GPU·h) | lowest reduction E1 / E2 (MW) | days with overdue work |")
+    print("|---|---|---|---|---|---|---|---|---|")
+    for s, tag in [("S1", "_S1"), ("S2", "_S2")]:
+        d = rd(f"exp23_horizon{tag}.csv")
+        if d is None: continue
+        for (hz, C), g in d.groupby(["horizon_h", "C"]):
+            print(f"| {s} | {hz:g} | {C:g} | {100 * g.all_full.mean():.0f} | {g.E_start_E1.mean():.2f} [{g.E_start_E1.min():.2f}] | "
+                  f"{g.B_start_E1.mean():.0f} [{g.B_start_E1.max():.0f}] | {g.B_start_E2.mean():.0f} | {g.red_E1.min():.2f} / {g.red_E2.min():.2f} | "
+                  f"{int((g.lateness_GPUh_h > 1e-6).sum())} |")
+
+
+def timing_section():
+    h("Solver time per MPC step on the DR day (Table 5, exp24: S1, 7 MW, run without other runs in parallel)")
+    d = rd("exp24_timing.csv")
+    if d is None: return
+    for _, r in d.iterrows():
+        print(f"- {r.label}: per step mean / max {r.mean_step_s:.3f} / {r.max_step_s:.3f} s, per day {r.day_s:.1f} s ({int(r.steps)} steps)")
 
 
 PRICE = [("p1c05", 1000, 0.5), ("p1c1", 1000, 1), ("p1c2", 1000, 2), ("p2c05", 2000, 0.5), ("p2c1", 2000, 1), ("p2c2", 2000, 2),
@@ -222,7 +242,7 @@ def july_section():
 
 
 def all_sections():
-    benchmark_section(); flex_section(); horizon_section(); price_section(); channel_section(); d78_section(); july_section()
+    benchmark_section(); flex_section(); horizon_section(); price_section(); channel_section(); d78_section(); july_section(); timing_section()
 
 
 if __name__ == "__main__":

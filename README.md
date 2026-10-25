@@ -38,7 +38,7 @@ information of the proposed controller (SR-D) and event-by-event joint recovery 
 | Users and economics | Service quality, costs, benefit versus commitment, multi-day statistics | `exp12`, `exp17_nodr` | Fig. 13, 14, 15 |
 | Uncertainty and rebound | Event-call uncertainty (JR-S), post-event rebound as a policy parameter | `exp4_montecarlo`, `exp8_rebound` | Fig. S7; Section 5.9 |
 | Robustness | Static split in hindsight, pause/resume overhead, lag bounds | `exp19_hindsight`, `exp20` (overhead), `exp14_sweep` (single) | Section 5.8.4, Fig. 9d |
-| Review round 2 | Low computing flexibility, MPC horizon, DR price x delay price (and kappa = 0), 78 operating days, July DR day, nominal vs actual channel, IR-PD rounds | `exp20` (flex, horizon), `exp12`/`exp18` with `E12_MODS`/`E18_MODS`, `MC_PASSES = 3`, `CASE_JUL`, `exp21_channel`, `exp22_irpd_rounds` | Fig. 16, S6; Section 5.10 |
+| Review round 2 | Low computing flexibility, MPC horizon, DR price x delay price (and kappa = 0), 78 operating days, July DR day, nominal vs actual channel, IR-PD rounds | `exp20` (flex, horizon), `exp23_horizon_diag`, `exp12`/`exp18` with `E12_MODS`/`E18_MODS`, `MC_PASSES = 3`, `CASE_JUL` with `exp17_nodr` (`E17_TAG`), `exp21_channel`, `exp22_irpd_rounds`, `exp24_timing` | Fig. 16, S6; Section 5.10; Tables 5, 9 |
 | Supplementary | Physical capability regions, commitment methods, propositions, channel price, recovery channel | `exp13_region`, `exp16`, `exp1`, `exp11`, `exp5_shadow`, `exp21_channel` | Fig. S1-S7 |
 
 ## Reproduce
@@ -55,6 +55,10 @@ tools/run_queue.sh 4 tools/jobs/batch7.txt         # everything else: low commit
                                                     # hindsight split, overhead, lag bounds, JR-S, supplementary
 tools/run_queue.sh 4 tools/jobs/batch8.txt         # review round 2: IR-PD, SR-D, low flexibility, horizon, prices,
                                                     # channel check, 78 days, July DR day (about 10 h on 4 cores)
+                                                    # then batch8b/8c/8d (IR-PD and price completions) and, in matlab/:
+#   octave --eval "CASE_JUL=true; RUN=17; E17_TAG='_jul'; run('main_run_all.m')"      July no-DR reference
+#   octave --eval "RUN=23; E23_SCEN='S1'; E23_CS=[1 3.75]; E23_TAG='_S1'; run('main_run_all.m')"   horizon diagnosis (S2: defaults)
+#   octave --eval "RUN=24; run('main_run_all.m')"                                    solver time per step (Table 5)
 # collect the parts, then numbers and figures (Python 3 with numpy, pandas, scipy, matplotlib, tabulate)
 PY=python3 tools/refresh.sh                         # collect_results.py + paper/numbers.md + Fig. 1-16, S1-S7
 python3 tools/plot_paper.py GA                      # graphical abstract (13 x 5 cm)
@@ -88,8 +92,9 @@ matlab/src/planner_irpd.m     iterative two-way price coordination (IR-PD)
 matlab/src/planner_srd.m      staged recovery with the information of JR-D (SR-D)
 matlab/src/plant_step.m       plant replay (EDF execution, IES balances, connection-limit enforcement)
 matlab/src/set_scenario.m     event scenarios S1, S2-<min>, S3
-matlab/experiments/           exp1 ... exp22 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection,
-                              exp21 nominal vs actual recovery channel, exp22 rounds of the IR-PD price exchange)
+matlab/experiments/           exp1 ... exp24 (exp17 no-DR reference, exp18 historical back-test, exp19 hindsight split, exp20 firm capacity by bisection,
+                              exp21 nominal vs actual recovery channel, exp22 rounds of the IR-PD price exchange, exp23 day-by-day
+                              horizon diagnosis, exp24 solver time per step)
 matlab/results/               all result CSVs (see docs/实验结果_AE.md)
 tools/                        job queue, merge, numbers and figure scripts
 paper/                        manuscript source and numbered Markdown, labels.json, numbers, figures
