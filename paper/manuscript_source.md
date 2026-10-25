@@ -608,11 +608,13 @@ Fig. 6 shows the share of the 26 operating days on which every event is delivere
 
 **Table 7.** Firm consecutive DR capacity $C^{firm}_{0.95}$ (MW) on the 26 operating days, with 95 % block-bootstrap confidence intervals, evaluated on the commitment grid with 0.5 MW steps (Sections 5.4–5.5 use bisection with 0.25 MW resolution, so 7.75 MW there corresponds to 7.5 MW on the grid); "< 1" means that full delivery on 95 % of the days is not reached even at 1 MW.
 
-| Scenario | IR-O\* | IR-P | JR-M | JR-D | Foresight gain JR-D − JR-M |
-|---|---|---|---|---|---|
-| S1 | < 1 | < 1 | 6.5 [6.0, 7.0] | 7.5 [7.5, 8.0] | +1.0 [+0.5, +1.5] |
-| S2 | < 1 | < 1 | 4.5 [4.5, 5.0] | 7.5 [7.5, 8.0] | +3.0 [+2.5, +3.0] |
-| S3 | < 1 | < 1 | 4.5 [1.5, 5.0] | 6.5 [4.5, 7.0] | +2.0 [+2.0, +3.0] |
+| Scenario | IR-O\* | IR-P | IR-PD | SR-D | JR-M | JR-D | Foresight gain JR-D − JR-M | Gain JR-D − IR-PD |
+|---|---|---|---|---|---|---|---|---|
+| S1 | < 1 | < 1 | 6.5 [6.5, 7.0] | 7.0 [7.0, 7.0] | 6.5 [6.0, 7.0] | 7.5 [7.5, 8.0] | +1.0 [+0.5, +1.5] | +1.0 [+0.5, +1.0] |
+| S2 | < 1 | < 1 | 6.0 [5.0, 6.5] | 7.0 [7.0, 7.5] | 4.5 [4.5, 5.0] | 7.5 [7.5, 8.0] | +3.0 [+2.5, +3.0] | +1.5 [+1.0, +2.5] |
+| S3 | < 1 | < 1 | 4.0 [4.0, 5.5] ^a^ | 4.0 [2.5, 4.5] | 4.5 [1.5, 5.0] | 6.5 [4.5, 7.0] | +2.0 [+2.0, +3.0] | +2.5 [+0.5, +3.0] |
+
+^a^ IR-PD in S3 evaluated from 3 MW (3, 4, 5, 5.5, 6, 6.5 and 7 MW); in S1 and S2 on 1–9 MW in 1-MW steps and at 6.5 MW.
 
 #### 5.3.2. Effect of baseline deviations on independent recovery
 
@@ -628,7 +630,7 @@ With perfect information on the DR day (dashed in Fig. 7, supplementary Fig. S1)
 
 IR-O\* and IR-P coordinate the IT scheduler and the facility once, before the day. The two stronger benchmarks of Section 4.3 test whether the advantage of JR-D stems from this weak coordination (Fig. 6, Table 7). IR-PD renews the channel price at every step and exchanges it with the IT scheduler in 12 rounds of two-way feedback. It delivers in full on all 26 days up to 6.5 MW in S1 and up to 5 MW in S2, and its firm capacities of 6.5 MW and 6.0 MW are far above those of IR-O\* and IR-P, which are not firm at 1 MW: iterative price coordination recovers most of the value of coordination. It still stays 1.0 MW (S1) and 1.5 MW (S2) below JR-D. In S2 all six misses at 7 MW occur in the first event (5.9–6.7 MW instead of 7 MW), because a linear IT scheduler answers a given price with an extreme schedule and the average over the rounds does not recover the joint schedule. More rounds do not close the gap reliably: with 24 rounds per step IR-PD delivers 7 MW in full on all days in S1, against 85 % with 12 rounds, but on only 65 % of the days in S2, against 77 %, and with 48 rounds two of the six days that fail in S2 are delivered. In the three-event scenario S3, IR-PD delivers 3 and 4 MW in full on 96 % of the days but 5 MW on only 81 %, mostly missing the rapid third event, and it leaves overdue work on two operating days, against a firm capacity of 6.5 MW and no overdue work for JR-D. Iterative coordination is also more expensive: it needs 24 s of solver time per day with 12 rounds, 4.7 times JR-D, and at 7 MW its daily cost exceeds that of JR-D on every operating day, by 4.9 k CNY in S1 and 7.0 k CNY in S2 on average.
 
-SR-D has the forecasts, the joint delivery and the cross-event foresight of JR-D but repays the debts in the order of independent recovery, computing first. It delivers in full on all days up to 7.0 MW in S1 and S2, so its firm capacity lies 0.5 MW below that of JR-D on the grid and 0.5–0.75 MW below it by bisection (Section 5.10.1). This gap is the value of allocating the recovery channel jointly, which Proposition 2 isolates; the rest of the gain of JR-D over JR-M, 2.5 MW in S2, comes from cross-event foresight in the delivery of the first event and the preparation of the storage. Coordination therefore matters at two levels: a controller that coordinates through prices approaches the joint optimum only with iterative feedback and still falls 1.0–1.5 MW short, and within the joint controller the order of repayment is worth a further 0.5 MW.
+SR-D has the forecasts, the joint delivery and the cross-event foresight of JR-D but repays the debts in the order of independent recovery, computing first. It delivers in full on all days up to 7.0 MW in S1 and S2, so its firm capacity lies 0.5 MW below that of JR-D on the grid and 0.5–0.75 MW below it by bisection (Section 5.10.1). This gap is the value of allocating the recovery channel jointly, which Proposition 2 isolates; the rest of the gain of JR-D over JR-M, 2.5 MW in S2, comes from cross-event foresight in the delivery of the first event and the preparation of the storage. With three events the order of repayment matters much more. In S3, SR-D firmly delivers only 4.0 MW, 2.5 MW below JR-D and below JR-M, and every miss occurs in the rapid third event: at 5 MW it enters that event with 3.8 MWh in the BESS and 128 GPU·h of backlog, whereas JR-D carries 893 GPU·h of long-deadline work across the second event and keeps 4.4 MWh for the third. Coordination therefore matters at two levels: a controller that coordinates through prices approaches the joint optimum only with iterative feedback and still falls 1.0–2.5 MW short, and within the joint controller the order of repayment is worth 0.5 MW with two events and 2.5 MW with three.
 
 ### 5.4. Capacity-gain decomposition and multidimensional sensitivity analysis
 
