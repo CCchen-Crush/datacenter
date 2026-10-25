@@ -92,7 +92,7 @@ def load_capacity(tag):
 
 def load_capacity_all(tag):
     """Exp12 results of the four base strategies together with the stronger benchmarks IR-PD and SR-D of the scenario."""
-    parts = [load_capacity(tag), load_capacity(tag + "_irpd"), load_capacity(tag + "_srd")]
+    parts = [load_capacity(tag), load_capacity(tag + "_irpd"), load_capacity(tag + "_irpd2"), load_capacity(tag + "_srd")]
     parts = [p for p in parts if p is not None]
     return pd.concat(parts, ignore_index=True) if parts else None
 
