@@ -1318,6 +1318,7 @@ def fig17_robustness():
     M = np.full((3, 3), np.nan); T = [["" for _ in range(3)] for _ in range(3)]
     for k, p, cj in PRICECFG:
         tag = "_S1" + (f"_{k}" if k else ""); hh = r2.history(tag); tt = load_capacity(tag)
+        if k and tt is not None and load_capacity(tag + "b") is not None: tt = pd.concat([tt, load_capacity(tag + "b")], ignore_index=True)
         if hh is None or tt is None: continue
         r = r2.commit_point(hh, tt, "JR-D", cj); i = [0.5, 1, 2].index(cj); j = [1, 2, 3].index(p)
         M[i, j] = r.get("benefit", np.nan)

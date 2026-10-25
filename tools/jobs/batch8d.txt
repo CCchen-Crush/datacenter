@@ -1,0 +1,14 @@
+# batch 8d: commitments 1.5 and 2.5 MW of the price x delay configurations (not on the grid of batch 8; C* can fall there)
+xS1_p1c05|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',1000,'c_jct',0.5); E12_CS=[1.5 2.5]; E12_TAG='_S1_p1c05b';
+xS1_p1c1|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',1000,'c_jct',1); E12_CS=[1.5 2.5]; E12_TAG='_S1_p1c1b';
+xS1_p1c2|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',1000,'c_jct',2); E12_CS=[1.5 2.5]; E12_TAG='_S1_p1c2b';
+xS1_p2c05|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',2000,'c_jct',0.5); E12_CS=[1.5 2.5]; E12_TAG='_S1_p2c05b';
+xS1_p2c1|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',2000,'c_jct',1); E12_CS=[1.5 2.5]; E12_TAG='_S1_p2c1b';
+xS1_p2c2|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',2000,'c_jct',2); E12_CS=[1.5 2.5]; E12_TAG='_S1_p2c2b';
+xS1_p3c1|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',3000,'c_jct',1); E12_CS=[1.5 2.5]; E12_TAG='_S1_p3c1b';
+xS1_p3c2|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',3000,'c_jct',2); E12_CS=[1.5 2.5]; E12_TAG='_S1_p3c2b';
+xS1_k0|RUN=12; E12_SCEN='S1'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('kappa',0); E12_CS=[1.5 2.5]; E12_TAG='_S1_k0b';
+xS2_p1c05|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',1000,'c_jct',0.5); E12_CS=[1.5 2.5]; E12_TAG='_S2_p1c05b';
+xS2_p1c2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',1000,'c_jct',2); E12_CS=[1.5 2.5]; E12_TAG='_S2_p1c2b';
+xS2_p3c2|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('price_da',3000,'c_jct',2); E12_CS=[1.5 2.5]; E12_TAG='_S2_p3c2b';
+xS2_k0|RUN=12; E12_SCEN='S2-30'; E12_STRATS={'JR','expected','JR-D'}; E12_MODS=struct('kappa',0); E12_CS=[1.5 2.5]; E12_TAG='_S2_k0b';

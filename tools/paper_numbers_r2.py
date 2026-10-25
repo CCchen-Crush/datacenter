@@ -159,6 +159,7 @@ def price_section():
         for k, p, cj in PRICE:
             tag = base + (f"_{k}" if k else "")
             hh = history(tag) if k else history(base); tt = load_capacity(tag) if k else load_capacity(base)
+            if k and load_capacity(tag + "b") is not None: tt = pd.concat([tt, load_capacity(tag + "b")], ignore_index=True)
             if hh is None or tt is None: continue
             r = commit_point(hh, tt, "JR-D", cj)
             kap = 0 if k == "k0" else 1
