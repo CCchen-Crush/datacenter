@@ -326,7 +326,8 @@ def manuscript_md(src):
                 num, cap = re.match(r"\*\*Table (A?\d+)\.\*\*\s*(.*)", b, re.S).groups()
                 tab = bl[k + 1]; notes = []
                 if k + 2 < len(bl) and bl[k + 2].startswith("^a^"): notes = [bl[k + 2]]
-                wide = natural_width(tab) > COL_W or num in ("1", "A1")
+                algo = tab.split("\n", 1)[0].lstrip("| ").startswith("**Algorithm")          # pseudocode table
+                wide = natural_width(tab) > COL_W or algo or num == "A1"
                 table, lines = column_widths(tab, TEXT_W if wide else COL_W)
                 cap_md = div("Table Caption", f"**Table {num}**\\\n{cap}")
                 body = [cap_md, table] + [div("Table Note", n) for n in notes]

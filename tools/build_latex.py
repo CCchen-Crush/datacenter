@@ -248,9 +248,10 @@ class Builder:
         raw = t["raw"]; ncol = len(raw[0]); head = t["head"]; body = t["rows"]
         lens = [max(visible(r[j]) for r in raw if len(r) == ncol) for j in range(ncol)]
         total = sum(lens) + 2 * ncol
-        wide = total > 62 or t["num"] in ("1", "A1")
+        algo = visible(raw[0][0]) > 0 and raw[0][0].lstrip("*").startswith("Algorithm")     # pseudocode table (one column)
+        wide = total > 62 or algo or t["num"] == "A1"
         env = "table*" if wide else "table"; width = "\\textwidth" if wide else "\\columnwidth"
-        if t["num"] == "1":                                   # Algorithm 1: one column, header row bold
+        if algo:                                              # Algorithm 1: one column, header row bold
             spec = ">{\\raggedright\\arraybackslash}X"
         else:
             spec = ""

@@ -734,6 +734,26 @@ A rapid peak-shaving event may be called at short notice or not at all. In S4-U 
 
 Recovery draws power above the baseline after the events. Under the Jiangsu rules alone, the peak rebound after the events of the DR day is 6.4–6.6 MW for every strategy (S1, 6 MW per event), because every controller uses the channel that the connection leaves. A rebound assessment (25) lets the grid operator trade this rebound off against the cost of the AIDC (supplementary Fig. S7c, d). At 3 CNY/kW per event, JR-D cuts the peak rebound to 0.17 MW and still delivers both events in full, by holding deferred work longer (delay cost +17.9 k CNY) and over-delivering less (DR revenue −4.4 k CNY), whereas IR-O\* keeps a rebound of 6.4 MW while its fulfilment falls to 91 %. Joint recovery thus also gives the grid a controllable recovery profile, at a price that the assessment can set.
 
+### 5.10. Robustness to computing flexibility, prediction horizon, prices and test sets
+
+This section tests whether the results hold when the computing work is less flexible, the controller looks less far ahead, the DR price is lower or the delay cost higher, and on a larger and a cross-month set of operating days (Fig. 16). All firm capacities are found by bisection on the operating days with the connection limit of the base case.
+
+#### 5.10.1. Low computing flexibility
+
+The flexibility of the computing work rests on three assumptions of Table A1: the deferrable share of the training and batch work (75 %), the lag bounds (0.5, 1.5 and 3 h) and the idle power of a GPU (25 % of its peak), which sets how much power a paused GPU still draws. Each is made less favourable in turn: the deferrable share is reduced to 50 % and 25 %, the lag bounds are halved, the idle power is raised to 40 % of the peak, and all three changes are combined.
+
+#### 5.10.2. Prediction horizon
+
+The 18-h horizon of the MPC covers both events from the morning of the DR day on. Horizons of 1, 2, 4 and 8 h test how the firm capacity of JR-D degrades when the next event lies partly or wholly beyond the horizon.
+
+#### 5.10.3. DR price, delay cost and shortfall assessment
+
+The base case assumes the price cap of 3 CNY/kWh, a delay price of 0.5 CNY per GPU·h·h and a shortfall assessment at the event price ($\kappa$ = 1). The day-ahead procedure of Section 4.1 is repeated for DR prices of 1, 2 and 3 CNY/kWh combined with delay prices of 0.5, 1 and 2 CNY per GPU·h·h, and for $\kappa$ = 0, which reproduces the Jiangsu rules literally: the controller, the back-test on the historical days, the robust capacity and the cost-optimal commitment all use the changed prices.
+
+#### 5.10.4. More operating days and a DR day in another month
+
+Two further test sets examine the out-of-sample evidence. The first extends the 26 operating days to 78 realisations by pairing every PAI weekday with three different hot days and inference days instead of one. The second moves the DR day, its baseline days and the historical days to July (DR day 22 July 2024, 36.8 °C), while the operating days remain those of the base case.
+
 ## 6. Conclusions
 
 AI data centers are increasingly called upon for consecutive DR events, and the capacity that they can firmly commit is decided during recovery. This paper developed a recovery-aware coordinated scheduling framework for consecutive DR of an AI data-center integrated energy system, which comprises a cross-event heterogeneous recovery model, the firm consecutive DR capacity with its distributionally robust commitment and an intraday cross-event joint recovery MPC. The framework was tested on a 16 000-GPU data center under the Jiangsu rules with 26 operating days built from public computing traces. The main conclusions are summarised as follows.
