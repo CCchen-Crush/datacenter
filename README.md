@@ -6,6 +6,7 @@ reproducible MATLAB / GNU Octave study prepared for *Applied Energy*.
 
 * **Manuscript:** source [`paper/manuscript_source.md`](paper/manuscript_source.md) (symbolic equation and reference keys) → numbered [`paper/manuscript.md`](paper/manuscript.md) · two-column PDF [`paper/latex/manuscript.pdf`](paper/latex/manuscript.pdf) · Word [`paper/word/`](paper/word) · numbers: [`paper/numbers.md`](paper/numbers.md) · figures: [`paper/figures/`](paper/figures)
 * **Research plan:** [`docs/研究方案_AE重构.md`](docs/研究方案_AE重构.md), current direction [`docs/方向调整_v2.md`](docs/方向调整_v2.md) · writing blueprint: [`docs/论文蓝图_AE.md`](docs/论文蓝图_AE.md) · results: [`docs/实验结果_AE.md`](docs/实验结果_AE.md) · theory: [`docs/理论推导.md`](docs/理论推导.md) · handover: [`docs/交接文档_AE.md`](docs/交接文档_AE.md)
+* **Review round 2:** reviewer report [`docs/审稿意见_第二轮.md`](docs/审稿意见_第二轮.md) · point-by-point revision report [`docs/第二轮修改报告.md`](docs/第二轮修改报告.md) · progress [`docs/修改进度.md`](docs/修改进度.md)
 * **Data (derived from public traces):** [`data/`](data), provenance in [`data_prep/README.md`](data_prep/README.md)
 
 ## Research question
